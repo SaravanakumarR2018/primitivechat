@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: AdminUser  # Set your root password
+      MYSQL_DATABASE: test_db          # Set a default database if needed
+    ports:
+      - "3307:3306"
+
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      MYSQL_PASSWORD: AdminUser  # Ensure this matches the root password
