@@ -3,8 +3,8 @@ import uuid
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
-from db.database_manager import SenderType
+from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
+from src.backend.db.database_manager import SenderType
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
