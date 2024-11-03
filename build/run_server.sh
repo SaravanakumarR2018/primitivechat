@@ -26,7 +26,8 @@ docker-compose up -d
 
 # Capture logs in the background
 echo "Capturing logs in log file $LOG_FILE"
-docker-compose logs -f > "$LOG_FILE" &
+touch "$LOG_FILE"
+docker-compose logs -f >> "$LOG_FILE" &
 
 echo "Capturing new logs for 30 seconds..."
 tail -n 100000 -f "$LOG_FILE" &
