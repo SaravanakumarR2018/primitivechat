@@ -1,0 +1,54 @@
+name: Integration Test - /addcustomer API
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    container:
+      image: docker:20.10.7  # Use a Docker image that includes Docker CLI
+      options: --privileged
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Docker Compose
+        run: |
+          apk add --no-cache curl \
+          && curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+          && chmod +x /usr/local/bin/docker-compose
+
+      - name: Run Server
+        run: |
+          echo "Starting the server..."
+          chmod +x ./build/run_server.sh
+          ./build/run_server.sh
+          echo "Server has been started."
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for the server to be ready..."
+          until curl -s http://localhost:8000/ | grep "The server is up and running!"; do
+            echo "Waiting for server to start..."
+            sleep 5
+          done
+          echo "Server is now ready."
+
+      - name: Run API Integration Tests
+        run: |
+          echo "Running API Integration Tests..."
+          docker run --network="host" -v "$(pwd)":/workspace -w /workspace python:3.10 \
+          sh -c "pip install -r src/backend/lib/requirements.txt && python3 -m unittest discover -s ./test/IntegrationTests"
+          echo "API Integration Tests completed."
+
+      - name: Tear Down Server
+        if: always()  # This ensures the step runs regardless of previous step outcomes
+        run: |
+          echo "Tearing down the server..."
+          chmod +x ./build/kill_server.sh
+          ./build/kill_server.sh
+          echo "Server has been stopped."

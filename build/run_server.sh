@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 # Exit on any error
 set -e
 
 # Get the directory of the script and navigate to project root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "Script directory: $SCRIPT_DIR"
 PROJECT_ROOT="$SCRIPT_DIR/.."
 echo "Project root: $PROJECT_ROOT"
@@ -14,7 +14,7 @@ LOG_FILE="${LOG_DIR}/backend_log_${TIMESTAMP}.log"
 echo "Log file will be created at: $LOG_FILE"
 
 # Move to src/backend directory
-cd "$PROJECT_ROOT/src/backend"
+cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Changed directory to src/backend"
 
 # Ensure log directory exists
@@ -34,7 +34,7 @@ TAIL_PID=$!
 
 sleep 30
 echo "Stopping log printing after 30 seconds..."
-kill $TAIL_PID
+kill "$TAIL_PID"
 
 echo "Initial logs captured. For additional logs, check the log file: $LOG_FILE"
 echo "To bring down the Docker containers, run the following command:"
