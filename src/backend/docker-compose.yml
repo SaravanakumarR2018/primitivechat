@@ -15,7 +15,9 @@ services:
       - ./lib:/app/lib
     command: >
       /bin/sh -c "
-      pip install -r ./lib//requirements.txt &&
+      pwd &&
+      find . &&
+      pip install -r ./lib/requirements.txt &&
       uvicorn chat_service.chat_service:app --host 0.0.0.0 --port 8000
       "
     ports:
