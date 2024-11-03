@@ -12,6 +12,8 @@ services:
       - "${PROJECT_ROOT}/src:/app/src"  # Always mount the source code
     command: >
       /bin/sh -c "
+      pwd &&
+      find . &&
       pip install -r ./src/backend/lib/requirements.txt &&
       uvicorn src.backend.chat_service.chat_service:app --host 0.0.0.0 --port 8000
       "
