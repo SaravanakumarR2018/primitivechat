@@ -34,6 +34,12 @@ jobs:
           chmod +x ./build/run_server.sh
           ./build/run_server.sh
           echo "Server has been started."
+          docker ps -a
+          # List all running containers with their ports
+          echo "Listing running containers and their exposed ports:"
+          docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}"
+          curl http://localhost:8000/
+          
 
       - name: Wait for server to be ready
         run: |
