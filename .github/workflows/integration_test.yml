@@ -12,6 +12,11 @@ jobs:
       image: docker:20.10.7  # Use a Docker image that includes Docker CLI
       options: --privileged
 
+    env:
+      PR_BRANCH: ${{ github.head_ref }}
+      COMMIT_SHA: ${{ github.sha }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2

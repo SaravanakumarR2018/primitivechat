@@ -9,22 +9,46 @@ echo "Script directory: $SCRIPT_DIR"
 
 # Initialize PROJECT_ROOT and TEMP_DIR for GitHub Actions
 if [ "${GITHUB_ACTIONS}" = "true" ]; then
-    PROJECT_ROOT="${GITHUB_WORKSPACE}"  # Use the GitHub workspace in GitHub Actions
-    TEMP_DIR="$(pwd)/temp_src"           # Define the temporary directory
-    mkdir -p "$TEMP_DIR"                  # Create the temporary directory
-    cp -r "$PROJECT_ROOT/src/"* "$TEMP_DIR"  # Copy src files to the temporary directory
-    echo "List the temp directory files"
-    find "$TEMP_DIR"
-    # Update docker-compose.yml to use TEMP_DIR instead of PROJECT_ROOT
-    echo "Updating docker-compose.yml to use temporary directory..."
-    sed -i "s|${PROJECT_ROOT}/src|$TEMP_DIR|g" "$PROJECT_ROOT/docker-compose.yml"
-    echo "Updated docker-compose.yml:"
-    cat "$PROJECT_ROOT/docker-compose.yml"
+ # Print GitHub environment variables
+    export PR_BRANCH="${GITHUB_HEAD_REF}"
+    export COMMIT_SHA="${GITHUB_SHA}"
+    export GITHUB_REPOSITORY="${GITHUB_REPOSITORY}"
+    export PROJECT_ROOT="${GITHUB_WORKSPACE}"
+
+
+    echo "GitHub environment variables:"
+    echo " PR_BRANCH = $PR_BRANCH"
+    echo " COMMIT_SHA = $COMMIT_SHA"
+    echo " GITHUB_REPOSITORY = $GITHUB_REPOSITORY"
+    echo " GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+
+    # Define the command with variables expanded
+    GIT_COMMAND="apt-get update && \
+    apt-get install -y git && \
+    cd /app && \
+    git clone https://github.com/${GITHUB_REPOSITORY}.git && \
+    cd primitivechat && \
+    git checkout ${COMMIT_SHA} && \
+    cp -R /app/primitivechat/* /app && \
+    cd /app"
+
+    # Output the command for verification
+    echo "GIT_COMMAND is set to: $GIT_COMMAND"
+    # Move to the backend directory
+    cd "$PROJECT_ROOT/src/backend" || exit 1
+    # Run sed command to replace placeholder in docker-compose.yml
+    echo "First docker-compose.yml contents:"
+    cat docker-compose.yml
+    GIT_COMMAND_ESCAPED=$(echo "$GIT_COMMAND" | sed 's/&/\\&/g')
+    echo "GIT_COMMAND_ESCAPED is set to: $GIT_COMMAND_ESCAPED"
+    sed -i "s|pwd|${GIT_COMMAND_ESCAPED}|g" docker-compose.yml
+    echo "Modified docker-compose.yml contents:"
+    cat docker-compose.yml
+
 else
     PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
 fi
 
-echo "Project root: $PROJECT_ROOT"
 export PROJECT_ROOT
 echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
 
