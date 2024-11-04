@@ -14,6 +14,7 @@ if [ "${GITHUB_ACTIONS}" = "true" ]; then
     export COMMIT_SHA="${GITHUB_SHA}"
     export GITHUB_REPOSITORY="${GITHUB_REPOSITORY}"
     export PROJECT_ROOT="${GITHUB_WORKSPACE}"
+    export PR_NUMBER="${PR_NUMBER}"
 
 
     echo "GitHub environment variables:"
@@ -21,6 +22,7 @@ if [ "${GITHUB_ACTIONS}" = "true" ]; then
     echo " COMMIT_SHA = $COMMIT_SHA"
     echo " GITHUB_REPOSITORY = $GITHUB_REPOSITORY"
     echo " GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+    echo " PR_NUMBER = $PR_NUMBER"
 
     # Define the command with variables expanded
     GIT_COMMAND="apt-get update && \
