@@ -30,7 +30,8 @@ if [ "${GITHUB_ACTIONS}" = "true" ]; then
     cd /app && \
     git clone https://github.com/${GITHUB_REPOSITORY}.git && \
     cd primitivechat && \
-    git checkout ${COMMIT_SHA} && \
+    git fetch origin pull/${PR_NUMBER}/head:${PR_BRANCH} && \
+    git checkout ${PR_BRANCH} && \
     cp -R /app/primitivechat/* /app && \
     cd /app"
 
