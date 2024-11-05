@@ -13,8 +13,6 @@ jobs:
       docker:
         image: docker:latest
         options: --privileged
-        ports:
-          - 8000:8000  # Expose port 8000
 
     steps:
       # Step 1: Check out the pull request code
