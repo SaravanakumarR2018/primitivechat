@@ -28,6 +28,8 @@ jobs:
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
       # Step 4: Wait for the server to start (optional sleep to ensure the server is up)
