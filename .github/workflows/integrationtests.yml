@@ -33,7 +33,7 @@ jobs:
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://0.0.0.0:8000 > /dev/null; then
+            if curl -s http://localhost:8000 > /dev/null; then
               echo "Server is up!"
               exit 0
             else
