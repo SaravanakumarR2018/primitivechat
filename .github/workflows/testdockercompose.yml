@@ -49,9 +49,13 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           pip install pytest  # Ensure pytest is available
-          python -m pytest -s -v test/IntegrationTests
+          python -m pytest -s -v --log-file=test_log.log test/IntegrationTests
+          
+      # Step 6: Print the log file contents
+      - name: Print Test Logs
+        run: cat test_log.log
 
-      # Step 5: Shut down Docker Compose (clean up)
+      # Step 7: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
