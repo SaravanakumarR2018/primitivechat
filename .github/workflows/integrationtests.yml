@@ -1,0 +1,57 @@
+name: Docker Compose Test on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+      - feature/*
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the pull request code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Docker Compose
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      # Step 3: Run Docker Compose
+      - name: Run docker-compose up
+        working-directory: src/backend  # Specify working directory here
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: docker-compose up -d
+
+      # Step 4: Test if the server is up
+      - name: Test server with curl
+        run: |
+          end=$((SECONDS+120))
+          while [ $SECONDS -lt $end ]; do
+            if curl -s http://localhost:8000 > /dev/null; then
+              echo "Server is up!"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 5
+            fi
+          done
+          echo "Error: Server did not start within 2 minutes."
+          exit 1
+          
+      # Step 5: Run integration tests
+      - name: Run Python Integration Tests
+        working-directory: ${{ github.workspace }}
+        run: |
+          python -m unittest discover -s ./test/IntegrationTests
+
+      # Step 6: Shut down Docker Compose (clean up)
+      - name: Docker-compose down
+        working-directory: src/backend  # Specify working directory here as well
+        if: always()
+        run: docker-compose down

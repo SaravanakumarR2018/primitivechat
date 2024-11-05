@@ -1,5 +1,4 @@
 
-
 services:
   chat_service:
     image: python:3.10-slim
@@ -10,13 +9,13 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-admin123}
       DB_HOST: ${DB_HOST:-mysql_db}
     volumes:
-      - ./db:/app/db
-      - ./chat_service:/app/chat_service
-      - ./lib:/app/lib
+      - "${PROJECT_ROOT}/src:/app/src"  # Always mount the source code
     command: >
       /bin/sh -c "
-      pip install -r ./lib//requirements.txt &&
-      uvicorn chat_service.chat_service:app --host 0.0.0.0 --port 8000
+      pwd &&
+      find . &&
+      pip install -r ./src/backend/lib/requirements.txt &&
+      uvicorn src.backend.chat_service.chat_service:app --host 0.0.0.0 --port 8000
       "
     ports:
       - "8000:8000"  # Expose FastAPI on port 8000
@@ -31,11 +30,13 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydatabase}
       MYSQL_USER: ${DB_USER:-admin}
       MYSQL_PASSWORD: ${DB_PASSWORD:-admin123}
-    ports:
-      - "3306:3306"  # Only accessible within the Docker network
     volumes:
-      - ./mysql_data:/var/lib/mysql  # Custom path under backend directory
+      - mysql_data:/var/lib/mysql  # Use a named volume for MySQL data
 
+# Define the named volume
 volumes:
   mysql_data:
-    external: true  # Not needed if using host directory
+
+# Define the absolute path for PROJECT_ROOT
+x-environment:
+  PROJECT_ROOT: ${PROJECT_ROOT}
