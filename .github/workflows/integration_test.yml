@@ -38,7 +38,6 @@ jobs:
           # List all running containers with their ports
           echo "Listing running containers and their exposed ports:"
           docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}"
-          curl http://localhost:8000/
           grep -qE '(docker|lxc)' /proc/1/cgroup && echo "Inside Docker" || echo "Not inside Docker"
           # Display the hostname (usually set to container ID in Docker)
           echo "Container ID (hostname): $(hostname)"
