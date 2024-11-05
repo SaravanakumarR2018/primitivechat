@@ -1,0 +1,48 @@
+name: Docker Compose Test on PR
+
+on:
+  pull_request:
+    branches:
+      - main  # Change this to your target branch if needed
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:latest
+        options: --privileged
+        ports:
+          - 8000:8000  # Expose port 8000
+
+    steps:
+      # Step 1: Check out the pull request code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Docker Compose
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      # Step 3: Navigate to docker-compose.yml location
+      working-directory: src/backend
+
+      # Step 4: Run Docker Compose
+      - name: Run docker-compose up
+        run: docker-compose up -d
+
+      # Step 5: Wait for the server to start (optional sleep to ensure the server is up)
+      - name: Wait for the server
+        run: sleep 10  # Adjust this if the service takes longer to start
+
+      # Step 6: Run curl command to check if the server is working
+      - name: Test server with curl
+        run: curl http://0.0.0.0:8000
+
+      # Step 7: Shut down Docker Compose (clean up)
+      - name: Docker-compose down
+        if: always()
+        run: docker-compose down
