@@ -15,6 +15,8 @@ echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
 cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Changed directory to src/backend"
 
+$PROJECT_ROOT/build/kill_server.sh
+
 # Start Docker containers in detached mode
 echo "Starting Docker containers in detached mode..."
 docker-compose up -d

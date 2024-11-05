@@ -99,43 +99,53 @@ class DatabaseManager:
         logger.debug("Entering add_message method")
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
+
         try:
-            logger.debug(f"Switching to customer database: {customer_db_name}")
+            # Check if the customer database exists
+            logger.debug(f"Checking existence of database: {customer_db_name}")
+            check_db_query = f"SHOW DATABASES LIKE '{customer_db_name}'"
+            db_exists = session.execute(text(check_db_query)).fetchone()
+
+            if not db_exists:
+                logger.info(f"Database for customer_guid {customer_guid} does not exist.")
+                return {"error": "customer_guid is not valid"}
+
+            # Switch to the customer database
             use_db_query = f"USE `{customer_db_name}`"
             session.execute(text(use_db_query))
 
+            # If chat_id is provided, check if it exists in the database
             if chat_id:
                 logger.debug(f"Checking existence of chat ID: {chat_id}")
-                check_chat_id_query = """
-                SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1
-                """
+                check_chat_id_query = "SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"
                 result = session.execute(text(check_chat_id_query), {'chat_id': chat_id}).fetchone()
 
                 if not result:
-                    logger.info(f"Chat ID: {chat_id} not found. Message not added.")
-                    return None
+                    logger.info(f"Chat ID: {chat_id} not found.")
+                    return {"error": "chat_id is not valid"}
             else:
                 chat_id = str(uuid.uuid4())
                 logger.debug("Generated new chat ID")
 
+            # Insert the message into the chat_messages table
             logger.debug(f"Inserting message into chat ID: {chat_id}")
             insert_message_query = """
             INSERT INTO chat_messages (chat_id, customer_guid, message, sender_type)
             VALUES (:chat_id, :customer_guid, :message, :sender_type)
             """
-            session.execute(text(insert_message_query),
-                            {'chat_id': chat_id, 'customer_guid': customer_guid, 'message': message,
-                             'sender_type': sender_type.value})
-
+            session.execute(text(insert_message_query), {
+                'chat_id': chat_id, 'customer_guid': customer_guid, 'message': message, 'sender_type': sender_type.value
+            })
             session.commit()
             logger.info(f"Message added for chat ID: {chat_id} by {sender_type.value}")
 
-            return chat_id
+            # Return success response in dict format
+            return {"success": True, "chat_id": chat_id, "customer_guid": customer_guid}
 
         except SQLAlchemyError as e:
             logger.error(f"Error adding message: {e}")
             session.rollback()
-            return None
+            return {"error": "An error occurred while processing the request"}
 
         finally:
             logger.debug("Exiting add_message method")

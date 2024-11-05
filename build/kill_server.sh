@@ -3,16 +3,11 @@
 # Exit on any error
 set -e
 
+echo "Running kill_server.sh to bring down all docker containers"
 # Get the directory of the script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "Script directory: $SCRIPT_DIR"
-
-# Determine the PROJECT_ROOT based on the environment
-if [ "${GITHUB_ACTIONS}" = "true" ]; then
-    PROJECT_ROOT="${GITHUB_WORKSPACE}"  # Use the GitHub workspace in GitHub Actions
-else
-    PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
-fi
+PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
 
 echo "Project root: $PROJECT_ROOT"
 export PROJECT_ROOT

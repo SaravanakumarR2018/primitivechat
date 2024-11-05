@@ -68,22 +68,47 @@ async def add_customer(request: Request):
     return {"customer_guid": customer_guid}
 
 
-# API endpoint to handle chat messages
 @app.post("/chat", tags=["Chat Management"])
 async def chat(request: Request, chat_request: ChatRequest):
     logger.debug(f"Entering chat() with Correlation ID: {request.state.correlation_id}")
-    chat_id = db_manager.add_message(chat_request.customer_guid, chat_request.question,
-                                     sender_type=SenderType.CUSTOMER, chat_id=chat_request.chat_id)
 
-    if chat_id is None:
-        logger.error("Chat ID not found or invalid")
-        raise HTTPException(status_code=404, detail="Chat ID not found or invalid")
+    # Call the add_message function for the user's question
+    user_response = db_manager.add_message(
+        chat_request.customer_guid,
+        chat_request.question,
+        sender_type=SenderType.CUSTOMER,
+        chat_id=chat_request.chat_id
+    )
 
+    # Check if the response indicates an error
+    if 'error' in user_response:
+        logger.error(
+            f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
+        raise HTTPException(status_code=400, detail=user_response['error'])
+
+    # Now handle the system response
     system_response = "You will get the correct answer once AI is integrated."
-    db_manager.add_message(chat_request.customer_guid, system_response, sender_type=SenderType.SYSTEM, chat_id=chat_id)
+    system_response_result = db_manager.add_message(
+        chat_request.customer_guid,
+        system_response,
+        sender_type=SenderType.SYSTEM,
+        chat_id=user_response['chat_id']  # Use the chat_id returned from user message
+    )
+
+    # Log if the system message was not added successfully
+    if 'error' in system_response_result:
+        logger.error(
+            f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
+        # Do not raise an exception, just log the error
 
     logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
-    return {"chat_id": chat_id, "customer_guid": chat_request.customer_guid, "answer": system_response}
+
+    # Return both chat_id and system response, indicating success regardless of the system message status
+    return {
+        "chat_id": user_response['chat_id'],
+        "customer_guid": chat_request.customer_guid,
+        "answer": system_response
+    }
 
 
 # API endpoint to retrieve chat messages in reverse chronological order (paginated)
