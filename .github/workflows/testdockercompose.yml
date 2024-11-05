@@ -9,11 +9,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      docker:
-        image: docker:latest
-        options: --privileged
-
     steps:
       # Step 1: Check out the pull request code
       - name: Checkout code
