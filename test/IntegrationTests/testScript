@@ -1,0 +1,50 @@
+name: Docker HTTP Server Test
+
+on: [push, pull_request]
+
+jobs:
+  test-http-server:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker container
+        run: |
+          # Create a simple HTTP server script
+          echo 'from http.server import SimpleHTTPRequestHandler, HTTPServer' > server.py
+          echo 'HTTPServer(("0.0.0.0", 8000), SimpleHTTPRequestHandler).serve_forever()' >> server.py
+
+          # Create Dockerfile
+          echo "FROM python:3.10-slim" > Dockerfile
+          echo "COPY server.py /server.py" >> Dockerfile
+          echo 'CMD ["python", "/server.py"]' >> Dockerfile
+
+          # Build Docker image
+          docker build -t http-test-server .
+
+      - name: Run Docker container
+        run: |
+          # Run the container and expose port 8000
+          docker run -d --name http_test_container -p 8000:8000 http-test-server
+
+      - name: Wait for the server to start
+        run: sleep 5  # Give the server a few seconds to start
+
+      - name: Verify HTTP server is running
+        run: |
+          # Get container IP and use curl to check if it's responding
+          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' http_test_container)
+          echo "Container IP is: $CONTAINER_IP"
+          echo "Running curl on http://localhost:8000/"
+          curl -s http://localhost:8000/ || echo "Failed to connect to server on localhost:8000"
+
+          # Alternatively, connect directly to the container's IP (if needed)
+          echo "Running curl on http://$CONTAINER_IP:8000/"
+          curl -s http://$CONTAINER_IP:8000/ || echo "Failed to connect to server on $CONTAINER_IP:8000"
+
+      - name: Cleanup
+        run: |
+          docker stop http_test_container
+          docker rm http_test_container
