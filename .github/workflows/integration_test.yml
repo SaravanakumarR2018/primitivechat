@@ -41,15 +41,20 @@ jobs:
           grep -qE '(docker|lxc)' /proc/1/cgroup && echo "Inside Docker" || echo "Not inside Docker"
           # Display the hostname (usually set to container ID in Docker)
           echo "Container ID (hostname): $(hostname)"
-
-          
+          # Get the container IP and store it in a variable
+          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' chat_service)
+          # Echo the container IP to verify
+          echo "Container IP is: $CONTAINER_IP"
+          # Construct the curl command and echo it
+          CURL_CMD="curl -s http://$CONTAINER_IP:8000/"
+          echo "Running command: $CURL_CMD"
+          # Execute the curl command
+          eval $CURL_CMD
+      
 
       - name: Wait for server to be ready
         run: |
           docker ps -a
-          grep -qE '(docker|lxc)' /proc/1/cgroup && echo "Inside Docker" || echo "Not inside Docker
-          # Display the hostname (usually set to container ID in Docker)
-          echo "Container ID (hostname): $(hostname)"
           echo "Waiting for the server to be ready..."
           remaining_time=60  # Set the total wait time in seconds (e.g., 60 seconds)
           while [ $remaining_time -gt 0 ]; do
