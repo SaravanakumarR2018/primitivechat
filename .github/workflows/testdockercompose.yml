@@ -48,8 +48,7 @@ jobs:
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
-          pip install pytest  # Ensure pytest is available
-          python -m pytest -s -v --log-file=test_log.log test/IntegrationTests
+          python -m unittest discover -s ./test/IntegrationTests
           
       # Step 6: Print the log file contents
       - name: Print Test Logs
