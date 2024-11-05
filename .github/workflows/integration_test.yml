@@ -39,10 +39,18 @@ jobs:
           echo "Listing running containers and their exposed ports:"
           docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}"
           curl http://localhost:8000/
+          grep -qE '(docker|lxc)' /proc/1/cgroup && echo "Inside Docker" || echo "Not inside Docker"
+          # Display the hostname (usually set to container ID in Docker)
+          echo "Container ID (hostname): $(hostname)"
+
           
 
       - name: Wait for server to be ready
         run: |
+          docker ps -a
+          grep -qE '(docker|lxc)' /proc/1/cgroup && echo "Inside Docker" || echo "Not inside Docker
+          # Display the hostname (usually set to container ID in Docker)
+          echo "Container ID (hostname): $(hostname)"
           echo "Waiting for the server to be ready..."
           remaining_time=60  # Set the total wait time in seconds (e.g., 60 seconds)
           while [ $remaining_time -gt 0 ]; do
