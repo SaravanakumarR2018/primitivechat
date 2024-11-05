@@ -27,15 +27,23 @@ jobs:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      # Step 4: Wait for the server to start (optional sleep to ensure the server is up)
-      - name: Wait for the server
-        run: sleep 10  # Adjust this if the service takes longer to start
-
-      # Step 5: Run curl command to check if the server is working
+      # Step 4: Test if the server is up
       - name: Test server with curl
-        run: curl http://0.0.0.0:8000
+        run: |
+          end=$((SECONDS+120))
+          while [ $SECONDS -lt $end ]; do
+            if curl -s http://0.0.0.0:8000 > /dev/null; then
+              echo "Server is up!"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 5
+            fi
+          done
+          echo "Error: Server did not start within 2 minutes."
+          exit 1
 
-      # Step 6: Shut down Docker Compose (clean up)
+      # Step 5: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
