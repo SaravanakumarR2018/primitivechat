@@ -49,7 +49,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           pip install pytest  # Ensure pytest is available
-          python -m pytest -s test/IntegrationTests
+          python -m pytest -s -v test/IntegrationTests
 
       # Step 5: Shut down Docker Compose (clean up)
       - name: Docker-compose down
