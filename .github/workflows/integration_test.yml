@@ -41,6 +41,15 @@ jobs:
           grep -qE '(docker|lxc)' /proc/1/cgroup && echo "Inside Docker" || echo "Not inside Docker"
           # Display the hostname (usually set to container ID in Docker)
           echo "Container ID (hostname): $(hostname)"
+          echo "Logging into chat_service container and testing server internally on localhost:8000..."
+          docker exec -it chat_service /bin/sh -c "\
+            echo 'Attempting to connect to http://localhost:8000 from within the container...'; \
+            apk add curl >/dev/null 2>&1; \
+            if curl -s http://localhost:8000/ > /dev/null; then \
+              echo 'Connection to localhost:8000 successful from within the container'; \
+            else \
+              echo 'Failed to connect to localhost:8000 from within the container'; \
+            fi"
           # Get the container IP and store it in a variable
           CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' chat_service)
           # Echo the container IP to verify
