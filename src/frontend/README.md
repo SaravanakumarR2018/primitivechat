@@ -56,20 +56,3 @@ Additional Commands
     Build the Project:
 
 npm run build
-
-Lint the Project:
-
-    npm run lint
-
-Troubleshooting
-
-    If the chat window does not appear, make sure the backend server is running and accessible.
-    Clear browser cache if you encounter any loading issues.
-
-Contact
-
-For any issues or suggestions, please open an issue on this repository.
-
-
-This **README.md** should provide clear instructions for anyone looking to run your frontend locally from the specific `chat-bot-frontend` branch. Let me know if you need any more details or adjustments!
-
