@@ -1,0 +1,19 @@
+src/
+|-- components/
+|   |-- ChatBot/
+|   |   |-- ChatBot.js
+|   |   |-- ChatInput.js
+|   |   |-- ChatMessage.js
+|   |   |-- ChatHistory.js
+|-- hooks/
+|   |-- useChat.js
+|-- redux/
+|   |-- chat/
+|   |   |-- chatSlice.js
+|   |   |-- chatActions.js
+|   |-- store.js
+|-- utils/
+|   |-- api.js
+|   |-- localStorageHelper.js
+|-- App.js
+|-- index.js
