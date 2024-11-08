@@ -5,7 +5,6 @@ This is the frontend part of the Primitive Chat application, located in the `cha
 ## Prerequisites
 
 - **Node.js** and **npm** installed.
-- Basic knowledge of React.
 - Ensure your backend server is running and accessible at `http://localhost:8000/chat`.
 
 ## How to Run Locally
