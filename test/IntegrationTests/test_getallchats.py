@@ -110,6 +110,25 @@ class TestGetAllChatsAPI(unittest.TestCase):
         """Test case 4: Valid customer_guid and chat_id"""
         logger.info("=== Starting Test Case 4: Valid customer_guid and chat_id ===")
 
+        # Add multiple chat messages to the customer_guid and chat_id
+        num_messages = 5
+        message_texts = ["Message 1", "Message 2", "Message 3", "Message 4", "Message 5"]
+        chat_url = f"{self.BASE_URL}/chat"
+        for message_text in message_texts:
+            data = {
+                "customer_guid": self.valid_customer_guid,
+                "chat_id": self.valid_chat_id,
+                "message": message_text
+            }
+            logger.info(f"INPUT: Sending add chat request with data:\n{str(data)}")
+            add_chat_response = requests.post(chat_url, json=data)
+            logger.info(f"OUTPUT: Add chat response status code: {add_chat_response.status_code}")
+            logger.info(f"OUTPUT: Add chat response content: {add_chat_response.text}")
+
+            # Check if the response was successful
+            self.assertEqual(add_chat_response.status_code, 200)
+
+        # Retrieve all chat messages
         url = f"{self.BASE_URL}/getallchats"
         data = {
             "customer_guid": self.valid_customer_guid,
@@ -128,15 +147,16 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         messages = response.json().get('messages')
         self.assertIsInstance(messages, list)  # Check that messages is a list
+        self.assertEqual(len(messages), num_messages)  # Verify number of messages
 
         # Verify that the chat_id and customer_guid in the response match the input
-        if messages:  # Check if messages list is not empty
-            # Assuming the first message corresponds to the chat_id and customer_guid
-            first_message = messages[0]
-            self.assertEqual(first_message['chat_id'], self.valid_chat_id,
+        for message in messages:
+            self.assertEqual(message['chat_id'], self.valid_chat_id,
                              "Chat ID in response does not match the input chat ID")
-            self.assertEqual(first_message['customer_guid'], self.valid_customer_guid,
+            self.assertEqual(message['customer_guid'], self.valid_customer_guid,
                              "Customer GUID in response does not match the input customer GUID")
+            # Verify message text
+            self.assertIn(message['message'], message_texts)
 
         # Check for reverse chronological order
         for i in range(len(messages) - 1):
