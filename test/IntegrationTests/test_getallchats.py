@@ -83,7 +83,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
         self.assertIn("no chats found for this customer and chat id", response.text.lower())
         logger.info("=== Test Case 2 Completed ===\n")
 
-    def test_wrong_customer_guid_and_correct_chat_id(self):
+        def test_wrong_customer_guid_and_correct_chat_id(self):
         """Test case 3: Wrong customer_guid and correct chat_id"""
         logger.info("=== Starting Test Case 3: Wrong customer_guid and correct chat_id ===")
 
@@ -98,7 +98,12 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
+        # Verify the status code
         self.assertEqual(response.status_code, 404)
+
+        # Verify the response text
+        self.assertIn("no chats found for this customer and chat id", response.text.lower())
+
         logger.info("=== Test Case 3 Completed ===\n")
 
     def test_retrieval_with_valid_inputs(self):
