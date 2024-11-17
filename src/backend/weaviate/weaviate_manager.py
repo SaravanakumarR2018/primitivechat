@@ -1,6 +1,7 @@
 import logging
 import weaviate
 from weaviate import Client
+import os
 
 #config logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
@@ -10,15 +11,21 @@ class WeaviateManager:
     def __init__(self):
 
         try:
-            self.client=weaviate.Client("http://weaviate:8080")
+            self.client = Client(
+                os.getenv('WEAVIATE_HOST', 'http://weaviate:8080')
+            )
             logger.info("Successfully connected to Weaviate")
         except Exception as e:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
 
+    def generate_weaviate_class_name(self,customer_guid):
+
+        return f"Customer_{customer_guid.replace('-', '_')}"
+
     def add_weaviate_customer_class(self,customer_guid):
-    #Add a new customer class in Weaviate using customer_guid
-        valid_class_name=f"Customer_{customer_guid.replace('-','_')}"
+
+        valid_class_name=self.generate_weaviate_class_name(customer_guid)
         try:
 
             schema=self.client.schema.get()
@@ -48,7 +55,7 @@ class WeaviateManager:
             else:
                 logger.info(f"Weaviate class'{valid_class_name}'already exists")
                 return "schema already exists"
-        except weaviate.exceptions.WeaviateException as e:
+        except weaviate.exceptions.RequestError as e:
             logger.error(f"Error creating Weaviate schema for '{valid_class_name}:{e}")
             return f"Error:{e}"
         except Exception as e:
