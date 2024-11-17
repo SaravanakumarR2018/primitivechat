@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
 from src.backend.db.database_manager import SenderType
+from src.backend.minio.minio_manager import MinioManager
+from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,7 +24,8 @@ app.add_middleware(
 )
 
 db_manager = DatabaseManager()
-
+minio_manager = MinioManager()
+weaviate_manager = WeaviateManager()
 
 # Pydantic models for the API inputs
 class ChatRequest(BaseModel):
@@ -60,13 +63,36 @@ async def add_correlation_id(request: Request, call_next):
 @app.post("/addcustomer", tags=["Customer Management"])
 async def add_customer(request: Request):
     logger.debug(f"Entering add_customer() with Correlation ID: {request.state.correlation_id}")
+
     customer_guid = db_manager.add_customer()
+
     if customer_guid is None:
         logger.error("Failed to create customer")
         raise HTTPException(status_code=500, detail="Failed to create customer")
-    logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}")
-    return {"customer_guid": customer_guid}
 
+    logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}")
+
+    #create a MinIO bucket
+    try:
+        minio_manager.add_storage_bucket(customer_guid)
+    except Exception as e:
+        logger.error(f"Minio creation failed. Correlation ID: {request.state.correlation_id}, Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create customer")
+    finally:
+        logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}, Customer GUID: {customer_guid}")
+
+    #create a Weaviate class
+    try:
+        weaviate_manager.add_weaviate_customer_class(customer_guid)
+    except Exception as e:
+        logger.error(f"Weaviate schema creation failed. Correlation ID: {request.state.correlation_id}, Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create customer")
+    finally:
+        logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}, Customer GUID: {customer_guid}")
+
+    return {
+        "customer_guid": customer_guid
+    }
 
 @app.post("/chat", tags=["Chat Management"])
 async def chat(request: Request, chat_request: ChatRequest):
