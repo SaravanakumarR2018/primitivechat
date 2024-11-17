@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
 from src.backend.db.database_manager import SenderType
+from src.backend.minio.minio_manager import MinioManager
+from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -61,12 +63,33 @@ async def add_correlation_id(request: Request, call_next):
 async def add_customer(request: Request):
     logger.debug(f"Entering add_customer() with Correlation ID: {request.state.correlation_id}")
     customer_guid = db_manager.add_customer()
+    minio_manager=  MinioManager()
+    weaviate_manager=WeaviateManager()
+
     if customer_guid is None:
         logger.error("Failed to create customer")
         raise HTTPException(status_code=500, detail="Failed to create customer")
-    logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}")
-    return {"customer_guid": customer_guid}
 
+    #create a MinIO bucket
+    try:
+        minio_status=minio_manager.add_storage_bucket(customer_guid)
+    except Exception as e:
+        logger.error(f"Error creating MinIO bucket: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating MinIO bucket: {e}")
+
+    #create a Weaviate class
+    try:
+        weaviate_status=weaviate_manager.add_weaviate_customer_class(customer_guid)
+    except Exception as e:
+        logger.error(f"Error creating Weaviate schema:{e}")
+        raise HTTPException(status_code=500, detail=f"Error creating Weaviate schema:{e}")
+
+    logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}")
+    return {
+        "customer_guid": customer_guid,
+        "minio_bucket_status":minio_status,
+        "weaviate_schema_status":weaviate_status
+    }
 
 @app.post("/chat", tags=["Chat Management"])
 async def chat(request: Request, chat_request: ChatRequest):

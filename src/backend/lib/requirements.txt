@@ -4,3 +4,6 @@ uvicorn==0.23.2
 requests==2.31.0
 SQLAlchemy==1.4.48
 mysql-connector-python==8.0.32
+minio==7.2.10
+weaviate==0.1.2
+weaviate-client==2.5.0
