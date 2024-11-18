@@ -94,7 +94,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         logger.info("=== Test Case 2 Completed ===\n")
 
-        def test_wrong_customer_guid_and_correct_chat_id(self):
+    def test_wrong_customer_guid_and_correct_chat_id(self):
         """Test case 3: Wrong customer_guid and correct chat_id"""
         logger.info("=== Starting Test Case 3: Wrong customer_guid and correct chat_id ===")
 
