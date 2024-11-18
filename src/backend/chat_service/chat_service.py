@@ -1,8 +1,11 @@
 import logging
 import uuid
-from fastapi import FastAPI, HTTPException, Request
+
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.responses import JSONResponse
+
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
 from src.backend.db.database_manager import SenderType
 from src.backend.minio.minio_manager import MinioManager
@@ -28,6 +31,9 @@ minio_manager = MinioManager()
 weaviate_manager = WeaviateManager()
 
 # Pydantic models for the API inputs
+class FileUploadRequest(BaseModel):
+    customer_guid:str
+
 class ChatRequest(BaseModel):
     customer_guid: str
     question: str
@@ -93,6 +99,25 @@ async def add_customer(request: Request):
     return {
         "customer_guid": customer_guid
     }
+
+
+#API endpoint for UploadFile api
+@app.post("/uploadFile",tags=["File Management"])
+async def upload_File(request: Request, customer_guid: str = Form(...), file:UploadFile=File(...)):
+    logger.debug(f"Entering upload_file() with Correlation ID:{request.state.correlation_id}")
+    try:
+        #call MinioManager to Upload the file
+        minio_manager.upload_file(
+            bucket_name=customer_guid,
+            filename=file.filename
+        )
+        return {"File uploaded SuccessFully"}
+    except Exception as e:
+        logger.error(f"Error in file upload:{e}")
+        raise HTTPException(status_code=500,detail="Error uploading the file")
+    finally:
+        logger.debug(f"Exiting upload_file() with Correlation ID:{request.state.correlation_id}")
+
 
 @app.post("/chat", tags=["Chat Management"])
 async def chat(request: Request, chat_request: ChatRequest):

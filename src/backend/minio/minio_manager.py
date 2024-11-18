@@ -37,3 +37,19 @@ class MinioManager:
         except S3Error as e:
             logger.error(f"Error creating MinIO bucket '{bucket_name}' : {e}")
             return f"Failed to create bucket: {e}"
+
+    #upload a file to the specified MinIO bucket
+    def upload_file(self,bucket_name,filename):
+        try:
+            self.client.put_object(
+                bucket_name,
+                filename,
+            )
+            logger.info(f"File '{filename}'upload successfully to bucket'{bucket_name}'")
+            return {"File Uploaded Successfully"}
+        except S3Error as e:
+            logger.error(f"Error uploading file '{filename}' to MinIO bucket '{bucket_name}':{e}")
+            return {"error":f"Failed to upload file:{e}"}
+        except Exception as e:
+            logger.error(f"Unexpected error during file upload:{e}")
+            return {"error":f"An error occurred:{e}"}
