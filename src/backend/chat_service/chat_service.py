@@ -1,8 +1,5 @@
-import io
 import logging
 import uuid
-
-
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -146,17 +143,17 @@ async def list_files(request: Request, customer_guid: str):
 async def download_file(request:Request, customer_guid:str, filename:str):
     logger.debug(f"Entering download_file() with Correlation ID:{request.state.correlation_id}")
     try:
-        file_data=minio_manager.download_file(
+        file_stream=minio_manager.download_file(
             customer_guid,
             filename
         )
-        if isinstance(file_data,dict) and "error" in file_data:
+        if isinstance(file_stream,dict) and "error" in file_stream:
             logger.error(f"Error downloading file '{filename}' from bucket '{customer_guid}'")
-            raise HTTPException(status_code=500, detail=file_data["error"])
+            raise HTTPException(status_code=500, detail=file_stream["error"])
 
         logger.info(f"Successfully retrieved file '{filename}' from bucket '{customer_guid}'")
         return StreamingResponse(
-            io.BytesIO(file_data),
+            file_stream,
             media_type="application/octet-stream",
             headers={
             "Content-Disposition":f"attachment; filename={filename}"

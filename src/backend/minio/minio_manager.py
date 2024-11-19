@@ -77,20 +77,18 @@ class MinioManager:
             return file_list
         except S3Error as e:
             logger.error(f"Error listing files in bucket '{bucket_name}': {e}")
-            raise e
+            return {"error":f"Error listing files in bucket {bucket_name}"}
         except Exception as e:
             logger.error(f"Unexpected error while listing files: {e}")
-            raise e
+            return f"Unexpected error while listing the files:'{bucket_name}':{e}"
 
     #Download a file from MinIO bucket
     def download_file(self,bucket_name,filename):
         try:
             response=self.client.get_object(bucket_name,filename)
-            file_data=response.read()
-            response.close()
-            response.release_conn()
+
             logger.info(f"File '{filename}' Downloaded Successfully from bucket '{bucket_name}'")
-            return file_data
+            return response
 
         except S3Error as e:
             logger.error(f"Error downloading file '{filename}' from bucket '{bucket_name}'{e}")
