@@ -4,6 +4,7 @@ import os
 from minio import Minio
 from minio.error import S3Error
 
+
 #Configure logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
 logger=logging.getLogger(__name__)
@@ -39,11 +40,19 @@ class MinioManager:
             return f"Failed to create bucket: {e}"
 
     #upload a file to the specified MinIO bucket
-    def upload_file(self,bucket_name,filename):
+    def upload_file(self,bucket_name,filename,file_data):
+        logger.debug(f"Starting file upload. Bucket:'{bucket_name}', File:'{filename}'")
+
         try:
+            if not self.client.bucket_exists(bucket_name):
+                logger.info(f"Bucket '{bucket_name}' does not exist")
+
             self.client.put_object(
-                bucket_name,
-                filename,
+                bucket_name=bucket_name,
+                object_name=filename,
+                data=file_data,
+                length=-1,
+                part_size=10 * 1024 * 1024,
             )
             logger.info(f"File '{filename}'upload successfully to bucket'{bucket_name}'")
             return {"File Uploaded Successfully"}
@@ -53,3 +62,41 @@ class MinioManager:
         except Exception as e:
             logger.error(f"Unexpected error during file upload:{e}")
             return {"error":f"An error occurred:{e}"}
+
+    #list the files in the MinIO bucket
+    def list_files(self, bucket_name):
+        try:
+            if not self.client.bucket_exists(bucket_name):
+                logger.error(f"Bucket '{bucket_name}' does not exist.")
+                raise Exception(f"Bucket '{bucket_name}' does not exist.")
+
+            objects = self.client.list_objects(bucket_name)
+            file_list = [obj.object_name for obj in objects]
+            if not file_list:
+                logger.info(f"No files found in bucket '{bucket_name}'.")
+            return file_list
+        except S3Error as e:
+            logger.error(f"Error listing files in bucket '{bucket_name}': {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error while listing files: {e}")
+            raise e
+
+    #Download a file from MinIO bucket
+    def download_file(self,bucket_name,filename):
+        try:
+            response=self.client.get_object(bucket_name,filename)
+            file_data=response.read()
+            response.close()
+            response.release_conn()
+            logger.info(f"File '{filename}' Downloaded Successfully from bucket '{bucket_name}'")
+            return file_data
+
+        except S3Error as e:
+            logger.error(f"Error downloading file '{filename}' from bucket '{bucket_name}'{e}")
+            return {"error":f"Failed to download file: {e}"}
+
+        except Exception as e:
+            logger.error(f"Unexpected error during file download:{e}")
+            return {"error":f"An error occurred:{e}"}
+

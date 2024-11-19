@@ -1,10 +1,13 @@
+import io
 import logging
 import uuid
 
+
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from starlette.responses import JSONResponse
+from starlette.responses import StreamingResponse
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
 from src.backend.db.database_manager import SenderType
@@ -31,9 +34,6 @@ minio_manager = MinioManager()
 weaviate_manager = WeaviateManager()
 
 # Pydantic models for the API inputs
-class FileUploadRequest(BaseModel):
-    customer_guid:str
-
 class ChatRequest(BaseModel):
     customer_guid: str
     question: str
@@ -106,17 +106,66 @@ async def add_customer(request: Request):
 async def upload_File(request: Request, customer_guid: str = Form(...), file:UploadFile=File(...)):
     logger.debug(f"Entering upload_file() with Correlation ID:{request.state.correlation_id}")
     try:
+        logger.info(f"uploading file '{file.filename} of type '{file.content_type}'")
+
         #call MinioManager to Upload the file
         minio_manager.upload_file(
             bucket_name=customer_guid,
-            filename=file.filename
+            filename=file.filename,
+            file_data=file.file
         )
-        return {"File uploaded SuccessFully"}
+        logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
+        return {"message":"File uploaded SuccessFully"}
     except Exception as e:
         logger.error(f"Error in file upload:{e}")
         raise HTTPException(status_code=500,detail="Error uploading the file")
     finally:
         logger.debug(f"Exiting upload_file() with Correlation ID:{request.state.correlation_id}")
+
+
+@app.get("/listfiles", tags=["File Management"])
+async def list_files(request: Request, customer_guid: str):
+    logger.debug(f"Entering list_files() with Correlation ID: {request.state.correlation_id}")
+    try:
+        # Call MinioManager to get the file list
+        file_list = minio_manager.list_files(bucket_name=customer_guid)
+        if file_list:
+            logger.info(f"Files retrieved for bucket '{customer_guid}':{file_list}")
+        else:
+            logger.info(f"No files found in bucket '{customer_guid}'")
+
+        return {"files": file_list}
+    except Exception as e:
+        logger.error(f"Error listing files:'{customer_guid}': {e}")
+        raise HTTPException(status_code=500, detail="Error listing files")
+    finally:
+        logger.debug(f"Exiting list_files() with Correlation ID: {request.state.correlation_id}")
+
+
+@app.get("/downloadfile", tags=["File Management"])
+async def download_file(request:Request, customer_guid:str, filename:str):
+    logger.debug(f"Entering download_file() with Correlation ID:{request.state.correlation_id}")
+    try:
+        file_data=minio_manager.download_file(
+            customer_guid,
+            filename
+        )
+        if isinstance(file_data,dict) and "error" in file_data:
+            logger.error(f"Error downloading file '{filename}' from bucket '{customer_guid}'")
+            raise HTTPException(status_code=500, detail=file_data["error"])
+
+        logger.info(f"Successfully retrieved file '{filename}' from bucket '{customer_guid}'")
+        return StreamingResponse(
+            io.BytesIO(file_data),
+            media_type="application/octet-stream",
+            headers={
+            "Content-Disposition":f"attachment; filename={filename}"
+        })
+    except Exception as e:
+        logger.error(f"Error downloading file:{e}")
+        raise HTTPException(status_code=500, detail="Error downloading file")
+    finally:
+        logger.debug(f"Exiting download_file() with Correlation ID:{request.state.correlation_id}")
 
 
 @app.post("/chat", tags=["Chat Management"])
