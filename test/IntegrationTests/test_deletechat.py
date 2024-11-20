@@ -13,7 +13,7 @@ class TestDeleteChatAPI(unittest.TestCase):
     BASE_URL = "http://localhost:8000"  # Update this to your actual API base URL
 
     def setUp(self):
-        """Setup function to create valid customer_guid and chat_id"""
+        """Setup function to create valid customer_guid"""
         logger.info("=== Starting setUp process ===")
 
         # Get valid customer_guid
@@ -28,11 +28,14 @@ class TestDeleteChatAPI(unittest.TestCase):
         self.valid_customer_guid = customer_data["customer_guid"]
         logger.info(f"OUTPUT: Received valid customer_guid: {self.valid_customer_guid}")
 
-        # Get valid chat_id
+        logger.info("=== setUp completed successfully ===\n")
+
+    def create_chat(self):
+        """Helper method to create a new chat and return the chat_id"""
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
             "customer_guid": self.valid_customer_guid,
-            "question": "Initial question"
+            "question": "who is modi?"
         }
         logger.info(f"INPUT: Creating initial chat with data: {str(chat_data)}")
 
@@ -41,42 +44,30 @@ class TestDeleteChatAPI(unittest.TestCase):
 
         self.assertEqual(chat_response.status_code, 200)
         chat_data = chat_response.json()
-        self.valid_chat_id = chat_data["chat_id"]
-        logger.info(f"OUTPUT: Received valid chat_id: {self.valid_chat_id}")
-        logger.info("=== setUp completed successfully ===\n")
+        local_chat_id = chat_data["chat_id"]
+        logger.info(f"OUTPUT: Received valid chat_id: {local_chat_id}")
+        return local_chat_id  # Return the chat_id for use in tests
 
     def test_valid_customer_guid_and_valid_chat_id(self):
         """Test case 1: Valid customer_guid and valid chat_id"""
         logger.info("=== Starting Test Case 1: Valid customer_guid and valid chat_id ===")
 
-        # Step 1: Create a new chat to ensure valid chat_id
-        create_chat_url = f"{self.BASE_URL}/chat"
-        initial_question = "What is the status of my order?"
-        create_chat_data = {
-            "customer_guid": self.valid_customer_guid,
-            "question": initial_question
-        }
-        response = requests.post(create_chat_url, json=create_chat_data)
-        logger.info(f"Chat creation response status: {response.status_code}, {response.text}")
-        self.assertEqual(response.status_code, 200, "Failed to create a new chat.")
-
-        # Get the new chat_id
-        self.valid_chat_id = response.json().get("chat_id")
-        logger.info(f"Received valid chat_id: {self.valid_chat_id}")
+        # Create a new chat for this test case
+        local_chat_id = self.create_chat()
 
         # Step 2: Add some chat messages
         add_chat_url = f"{self.BASE_URL}/chat"
         messages_to_add = [
             "Message 1: Can you provide an update?",
-            "Message 2: I need more information.",
-            "Message 3: Thank you for your help."
+            "Message 2: How do I contact support?",
+            "Message 3: Can I change my order?"
         ]
 
-        logger.info(f"Adding messages to chat_id: {self.valid_chat_id}")
+        logger.info(f"Adding messages to chat_id: {local_chat_id}")
         for idx, message in enumerate(messages_to_add, start=1):
             message_data = {
                 "customer_guid": self.valid_customer_guid,
-                "chat_id": self.valid_chat_id,
+                "chat_id": local_chat_id,
                 "question": message
             }
             response = requests.post(add_chat_url, json=message_data)
@@ -89,7 +80,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         get_chats_url = f"{self.BASE_URL}/getallchats"
         retrieve_data = {
             "customer_guid": self.valid_customer_guid,
-            "chat_id": self.valid_chat_id,
+            "chat_id": local_chat_id,
             "page": 1,
             "page_size": 10  # Retrieve all messages
         }
@@ -105,7 +96,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         delete_chat_url = f"{self.BASE_URL}/deletechat"
         delete_data = {
             "customer_guid": self.valid_customer_guid,
-            "chat_id": self.valid_chat_id
+            "chat_id": local_chat_id
         }
         logger.info(f"Deleting chat with data: {delete_data}")
         response = requests.post(delete_chat_url, json=delete_data)
@@ -157,9 +148,10 @@ class TestDeleteChatAPI(unittest.TestCase):
         """Test case 3: customer_guid value missing and correct chat_id"""
         logger.info("=== Starting Test Case 3: customer_guid value missing and correct chat_id ===")
 
+        local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "chat_id": self.valid_chat_id
+            "chat_id": local_chat_id
         }
         logger.info(f"INPUT : Sending request with data:\n{str(data)}")
 
@@ -175,9 +167,10 @@ class TestDeleteChatAPI(unittest.TestCase):
         """Test case 4: correct customer_guid and missing chat_id"""
         logger.info("=== Starting Test Case 4: correct customer_guid and missing chat_id ===")
 
+        local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "chat_id": self.valid_chat_id
+            "customer_guid": self.valid_customer_guid
         }
         logger.info(f"INPUT : Sending request with data:\n{str(data)}")
 
@@ -210,10 +203,11 @@ class TestDeleteChatAPI(unittest.TestCase):
         """Test case 6: Duplicate Deletion with valid customer_guid and valid chat_id"""
         logger.info("=== Starting Test Case 6: Duplicate Deletion ===")
 
+        local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
             "customer_guid": self.valid_customer_guid,
-            "chat_id": self.valid_chat_id
+            "chat_id": local_chat_id
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
@@ -247,7 +241,6 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-        # Update the assertion to expect a 400 status code
         self.assertEqual(response.status_code, 200)
         self.assertIn("chat deleted successfully", response.text.lower())
 
@@ -257,6 +250,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         """Test case 8: Valid customer_guid but invalid chat_id"""
         logger.info("=== Starting Test Case 8: Correct customer_guid and wrong chat_id ===")
 
+        local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
             "customer_guid": self.valid_customer_guid,
@@ -267,7 +261,6 @@ class TestDeleteChatAPI(unittest.TestCase):
         response = requests.post(url, json=data)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
-
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("chat deleted successfully", response.text.lower())
@@ -277,10 +270,11 @@ class TestDeleteChatAPI(unittest.TestCase):
         """Test case 9: Valid customer_guid but invalid chat_id"""
         logger.info("=== Starting Test Case 9: Correct customer_guid and wrong chat_id ===")
 
+        local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": self.valid_customer_guid,
-            "chat_id": "invalid_chat_id"
+            "customer_guid": "invalid_customer_guid",
+            "chat_id": local_chat_id
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
@@ -288,12 +282,9 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-
         self.assertEqual(response.status_code, 200)
         self.assertIn("chat deleted successfully", response.text.lower())
         logger.info("=== Test Case 9 Completed ===\n")
-
-
 
 if __name__ == "__main__":
     unittest.main()
