@@ -209,7 +209,7 @@ class TestUploadFileAPI(unittest.TestCase):
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
         logger.info(f"Response content:{response.text}")
 
-        #check for the expected error response code 500
+        #check for the expected error response code 404
         self.assertIn(response.status_code,[404], f"Expected status code 404 but got {response.status_code}")
 
         data=response.json()
