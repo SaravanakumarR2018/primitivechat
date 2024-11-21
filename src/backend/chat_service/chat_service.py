@@ -114,16 +114,17 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
             bucket_name=customer_guid,
             filename=file.filename,
             file_data=file.file
+        )
         logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
         return {"message":"File uploaded SuccessFully"}
 
-    except HTTPException as e:
-        # This will catch the 404 error for invalid customer GUID
-        logger.error(f"Invalid customer_guid: {e.detail}")
-        raise e
     except Exception as e:
-        logger.error(f"Error in file upload:{e}")
-        raise HTTPException(status_code=500,detail="Error uploading the file")
+        if isinstance(e, HTTPException):
+            logger.error(f"Invalid customer_guid: {e.detail}")
+            raise e
+        else:
+            logger.error(f"Error in file upload:{e}")
+            raise HTTPException(status_code=500,detail="Error uploading the file")
     finally:
         logger.debug(f"Exiting upload_file() with Correlation ID:{request.state.correlation_id}")
 

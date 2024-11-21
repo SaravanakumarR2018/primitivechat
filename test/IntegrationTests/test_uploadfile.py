@@ -144,6 +144,14 @@ class TestUploadFileAPI(unittest.TestCase):
         #Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
 
+        # Verify the HTTP response status code
+        if response.status_code == 200:
+            logger.info(
+                "Response status code is valid and matches the expected value (200). File uploaded successfully.")
+        else:
+            logger.error(f"Unexpected status code: {response.status_code}. Expected: 200.")
+            raise AssertionError(f"Expected status code 200 but got {response.status_code}")
+
         data=response.json()
         logger.info(f"Response data: {data}")
 
@@ -171,6 +179,17 @@ class TestUploadFileAPI(unittest.TestCase):
 
         #Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
+
+        # Log the response status code
+        logger.info(f"Received response status code: {response.status_code} for URL: {url}")
+
+        # Verify the HTTP response status code
+        if response.status_code == 200:
+            logger.info(
+                "Response status code is valid and matches the expected value (200). File uploaded successfully.")
+        else:
+            logger.error(f"Unexpected status code: {response.status_code}. Expected: 200.")
+            raise AssertionError(f"Expected status code 200 but got {response.status_code}")
 
         #Check if the response contains the success message
         data=response.json()
