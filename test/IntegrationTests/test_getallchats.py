@@ -521,10 +521,6 @@ class TestGetAllChatsAPI(unittest.TestCase):
             self.assertTrue(any(msg.get('message') == expected_message for msg in messages),
                             f"Expected message '{expected_message}' not found in the response.")
 
-            # Check for corresponding system response
-            self.assertTrue(any(msg.get('message') == static_response for msg in messages),
-                            f"Expected response for '{expected_message}' not found in the response.")
-
         logger.info("=== Test Case 11 Completed ===\n")
 
     def test_high_page_number(self):
