@@ -180,9 +180,6 @@ class TestUploadFileAPI(unittest.TestCase):
         #Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
 
-        # Log the response status code
-        logger.info(f"Received response status code: {response.status_code} for URL: {url}")
-
         # Verify the HTTP response status code
         if response.status_code == 200:
             logger.info(
