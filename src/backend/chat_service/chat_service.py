@@ -114,8 +114,6 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
             bucket_name=customer_guid,
             filename=file.filename,
             file_data=file.file
-        )
-
         logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
         return {"message":"File uploaded SuccessFully"}
 
