@@ -105,15 +105,20 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
     try:
         logger.info(f"uploading file '{file.filename} of type '{file.content_type}'")
 
+        if not db_manager.check_customer_guid_exists(customer_guid):
+            logger.error(f"Invalid customer_guid: {customer_guid}")
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
         #call MinioManager to Upload the file
         minio_manager.upload_file(
             bucket_name=customer_guid,
             filename=file.filename,
             file_data=file.file
         )
+
         logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
         return {"message":"File uploaded SuccessFully"}
-    except Exception as e:
+    except RuntimeError as e:
         logger.error(f"Error in file upload:{e}")
         raise HTTPException(status_code=500,detail="Error uploading the file")
     finally:

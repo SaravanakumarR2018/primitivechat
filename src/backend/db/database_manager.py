@@ -235,3 +235,27 @@ class DatabaseManager:
         finally:
             logger.debug("Exiting delete_customer_database method")
             session.close()
+
+    def check_customer_guid_exists(self, customer_guid):
+        logger.debug(f"Checking if customer GUID exists: {customer_guid}")
+        session = DatabaseManager._session_factory()
+
+        try:
+            customer_db_name = self.get_customer_db(customer_guid)
+            logger.debug(f"Generated customer database name: {customer_db_name}")
+
+            check_db_query = f"SHOW DATABASES LIKE '{customer_db_name}'"
+            db_exists = session.execute(text(check_db_query)).fetchone()
+
+            if db_exists:
+                logger.info(f"Customer GUID {customer_guid} exists.")
+                return True
+            else:
+                logger.info(f"Customer GUID {customer_guid} does not exist.")
+                return False
+        except SQLAlchemyError as e:
+            logger.error(f"Error checking if customer GUID exists: {e}")
+            raise RuntimeError(f"Failed to verify the existence of customer GUID '{customer_guid}'.") from e
+        finally:
+            session.close()
+

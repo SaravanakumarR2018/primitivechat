@@ -2,6 +2,8 @@ import unittest
 import requests
 import logging
 
+from requests import request
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -89,15 +91,14 @@ class TestUploadFileAPI(unittest.TestCase):
         logger.info("Test completed successfully for test_upload_without_file")
 
 
-    def test_upload_with_invalid_customer_guid(self):
+    def test_upload_without_customer_guid(self):
         logger.info("Executing test_upload_with_invalid_customer_guid: Testing error handling for invalid customer_guid")
 
         url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending post request to {url}")
 
-        invalid_guid="Invalid customer_guid"
+        without_guid="without customer_guid"
         test_file=("testfile.txt",b"Sample file content")
-        #data={"customer_guid":invalid_guid}
         files={"files":test_file}
 
         #Make the post request
@@ -117,7 +118,7 @@ class TestUploadFileAPI(unittest.TestCase):
         logger.info("Error details found in response data, Verifying content")
 
         self.assertIn("customer_guid",data["detail"][0]["loc"],"'customer_guid' error not found in response details")
-        logger.info("Test completed successfully for test_upload_with_invalid_customer_guid")
+        logger.info("Test completed successfully for test_upload_without_customer_guid")
 
 
     def test_upload_file_with_any_file_type(self):
@@ -181,6 +182,46 @@ class TestUploadFileAPI(unittest.TestCase):
         self.assertEqual(data["message"],"File uploaded SuccessFully","Unexpected message content")
 
         logger.info("Test completed successfully for test_upload_large_file")
+
+
+    def test_upload_file_with_invalid_customer_guid(self):
+        logger.info("Executing test_upload_file_with_invalid_customer_guid: Testing file upload with an invalid customer_guid")
+
+        url=f"{self.BASE_URL}/uploadFile"
+        logger.info(f"sending post request to {url}")
+
+        #define invalid customer guid
+        invalid_customer_guid="invalid_guid"
+
+        #define valid test file
+        file_name="valid_file.txt" #sample file
+        file_content=b"Sample content for a valid file"
+        test_file=(file_name,file_content)
+
+        #request data
+        data={"customer_guid":invalid_customer_guid}
+        files={"file":test_file}
+
+        #make post to request
+        response=requests.post(url, data=data, files=files)
+
+        #log the response
+        logger.info(f"Received response status code:{response.status_code} for URL:{url}")
+        logger.info(f"Response content:{response.text}")
+
+        #check for the expected error response code 500
+        self.assertIn(response.status_code,[404], f"Expected status code 404 but got {response.status_code}")
+
+        data=response.json()
+
+        #verify the response contains error
+        self.assertIn("detail", data, "'detail' not found in response data")
+        logger.info("'detail' found in response data, verifying its content")
+
+        self.assertEqual(data["detail"],"Invalid customer_guid provided","Unexpected error message content")
+
+        logger.info("Test completed successfully for test_upload_file_with_invalid_customer_guid")
+
 
 if __name__ == "__main__":
     unittest.main()
