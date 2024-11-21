@@ -118,7 +118,12 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
 
         logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
         return {"message":"File uploaded SuccessFully"}
-    except RuntimeError as e:
+
+    except HTTPException as e:
+        # This will catch the 404 error for invalid customer GUID
+        logger.error(f"Invalid customer_guid: {e.detail}")
+        raise e
+    except Exception as e:
         logger.error(f"Error in file upload:{e}")
         raise HTTPException(status_code=500,detail="Error uploading the file")
     finally:
