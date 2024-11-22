@@ -2,8 +2,6 @@ import unittest
 import requests
 import logging
 
-from requests import request
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
