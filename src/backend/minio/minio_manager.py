@@ -78,7 +78,7 @@ class MinioManager:
             return file_list
         except S3Error as e:
             logger.error(f"Error listing files in bucket '{bucket_name}': {e}")
-            return {"error": f"Error listing files in bucket {bucket_name}"}
+            return {"error":f"Error listing files in bucket {bucket_name}"}
         except Exception as e:
             if isinstance(e,HTTPException):
                 logger.error(f"Invalid customer_guid:{e.detail}")
