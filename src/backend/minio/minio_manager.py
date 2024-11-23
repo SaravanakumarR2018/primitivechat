@@ -1,5 +1,6 @@
 import logging
 import os
+from fastapi import HTTPException
 
 from minio import Minio
 from minio.error import S3Error
@@ -19,6 +20,7 @@ class MinioManager:
                 secret_key=os.getenv('MINIO_ROOT_PASSWORD','minioadmin'),
                 secure=False
             )
+
             logger.info("Successfully connected to MinIO.")
         except Exception as e:
             logger.error(f"Failed to initialize MinIO Connection:{e}")
@@ -63,12 +65,12 @@ class MinioManager:
             logger.error(f"Unexpected error during file upload:{e}")
             return {"error":f"An error occurred:{e}"}
 
-    #list the files in the MinIO bucket
+    # list the files in the MinIO bucket
     def list_files(self, bucket_name):
         try:
             if not self.client.bucket_exists(bucket_name):
                 logger.error(f"Bucket '{bucket_name}' does not exist.")
-                raise Exception(f"Bucket '{bucket_name}' does not exist.")
+                raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
             objects = self.client.list_objects(bucket_name)
             file_list = [obj.object_name for obj in objects]
@@ -77,10 +79,14 @@ class MinioManager:
             return file_list
         except S3Error as e:
             logger.error(f"Error listing files in bucket '{bucket_name}': {e}")
-            return {"error":f"Error listing files in bucket {bucket_name}"}
+            return {"error": f"Error listing files in bucket {bucket_name}"}
         except Exception as e:
-            logger.error(f"Unexpected error while listing files: {e}")
-            return f"Unexpected error while listing the files:'{bucket_name}':{e}"
+            if isinstance(e,HTTPException):
+                logger.error(f"Invalid customer_guid:{e.detail}")
+                raise e
+            else:
+                logger.error(f"Unexpected error while listing files: {e}")
+                raise HTTPException(status_code=500, detail=f"Unexpected error while listing files in bucket '{bucket_name}'")
 
     #Download a file from MinIO bucket
     def download_file(self,bucket_name,filename):

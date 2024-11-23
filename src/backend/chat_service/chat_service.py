@@ -133,10 +133,6 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
 async def list_files(request: Request, customer_guid: str):
     logger.debug(f"Entering list_files() with Correlation ID: {request.state.correlation_id}")
     try:
-        if not minio_manager.client.bucket_exists(customer_guid):
-            logger.error(f"Invalid customer_guid: {customer_guid}")
-            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
-
         # Call MinioManager to get the file list
         file_list = minio_manager.list_files(bucket_name=customer_guid)
         if file_list:
@@ -145,16 +141,15 @@ async def list_files(request: Request, customer_guid: str):
             logger.info(f"No files found in bucket '{customer_guid}'")
 
         return {"files": file_list}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            logger.error(f"Invalid customer_guid: {e.detail}")
-            raise e
+    except HTTPException as e:
+        if e.status_code==404:
+            logger.error(f"Bucket not found for customer_guid '{customer_guid}': {e.detail}")
+            raise HTTPException(status_code=404, detail=e.detail)
         else:
-            logger.error(f"Error listing files:'{customer_guid}': {e}")
-            raise HTTPException(status_code=500, detail="Error listing files")
+            logger.error(f"Error in file upload:{e}")
+            raise HTTPException(status_code=500, detail="Error uploading the file")
     finally:
         logger.debug(f"Exiting list_files() with Correlation ID: {request.state.correlation_id}")
-
 
 @app.get("/downloadfile", tags=["File Management"])
 async def download_file(request:Request, customer_guid:str, filename:str):
