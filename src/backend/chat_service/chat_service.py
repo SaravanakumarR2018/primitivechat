@@ -141,13 +141,17 @@ async def list_files(request: Request, customer_guid: str):
             logger.info(f"No files found in bucket '{customer_guid}'")
 
         return {"files": file_list}
-    except HTTPException as e:
-        if e.status_code==404:
-            logger.error(f"Bucket not found for customer_guid '{customer_guid}': {e.detail}")
-            raise HTTPException(status_code=404, detail=e.detail)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            if e.status_code == 404:
+                logger.error(f"Invalid customer_guid:{e.detail}")
+                raise HTTPException(status_code=404, detail=e.detail)
+            else:
+                logger.error(f"Unexpected error while listing a files: {e}")
+                raise HTTPException(status_code=500, detail="Unexpected error while listing a files in bucket")
         else:
-            logger.error(f"Error in file upload:{e}")
-            raise HTTPException(status_code=500, detail="Error uploading the file")
+            logger.error(f"Error listing files:'{customer_guid}': {e}")
+            raise HTTPException(status_code=500, detail="Error listing files")
     finally:
         logger.debug(f"Exiting list_files() with Correlation ID: {request.state.correlation_id}")
 

@@ -20,7 +20,6 @@ class MinioManager:
                 secret_key=os.getenv('MINIO_ROOT_PASSWORD','minioadmin'),
                 secure=False
             )
-
             logger.info("Successfully connected to MinIO.")
         except Exception as e:
             logger.error(f"Failed to initialize MinIO Connection:{e}")
@@ -65,7 +64,7 @@ class MinioManager:
             logger.error(f"Unexpected error during file upload:{e}")
             return {"error":f"An error occurred:{e}"}
 
-    # list the files in the MinIO bucket
+    #list the files in the MinIO bucket
     def list_files(self, bucket_name):
         try:
             if not self.client.bucket_exists(bucket_name):
@@ -85,8 +84,8 @@ class MinioManager:
                 logger.error(f"Invalid customer_guid:{e.detail}")
                 raise e
             else:
-                logger.error(f"Unexpected error while listing files: {e}")
-                raise HTTPException(status_code=500, detail=f"Unexpected error while listing files in bucket '{bucket_name}'")
+                logger.error(f"Unexpected error while listing a files: {e}")
+                raise HTTPException(status_code=500, detail=f"Unexpected error while listing a files in bucket '{bucket_name}'")
 
     #Download a file from MinIO bucket
     def download_file(self,bucket_name,filename):
