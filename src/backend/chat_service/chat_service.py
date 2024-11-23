@@ -133,7 +133,7 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
 async def list_files(request: Request, customer_guid: str):
     logger.debug(f"Entering list_files() with Correlation ID: {request.state.correlation_id}")
     try:
-        if not db_manager.check_customer_guid_exists(customer_guid):
+        if not minio_manager.client.bucket_exists(customer_guid):
             logger.error(f"Invalid customer_guid: {customer_guid}")
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
