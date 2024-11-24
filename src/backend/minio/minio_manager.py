@@ -90,6 +90,7 @@ class MinioManager:
     #Download a file from MinIO bucket
     def download_file(self,bucket_name,filename):
         try:
+            
             if not self.client.bucket_exists(bucket_name):
                 logger.error(f"Bucket '{bucket_name}' does not exist.")
                 raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
