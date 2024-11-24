@@ -6,7 +6,6 @@ from minio import Minio
 from minio.error import S3Error
 
 
-
 #Configure logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
 logger=logging.getLogger(__name__)
