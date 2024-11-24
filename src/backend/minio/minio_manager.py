@@ -88,7 +88,7 @@ class MinioManager:
                 logger.error(f"Invalid customer_guid:{e.detail}")
                 raise e
             else:
-                logger.error(f"fUnexpected error while listing a files: {e}")
+                logger.error(f"Unexpected error while listing a files: {e}")
                 raise HTTPException(status_code=500, detail=f"Unexpected error while listing a files in bucket '{bucket_name}'")
 
     #Download a file from MinIO bucket
