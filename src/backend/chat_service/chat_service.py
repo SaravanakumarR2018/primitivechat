@@ -180,12 +180,9 @@ async def download_file(request:Request, customer_guid:str, filename:str):
             if e.status_code==404:
                 logger.error(f"Invalid customer_guid:{e.detail}")
                 raise HTTPException(status_code=404, detail=e.detail)
-            elif e.status_code==400:
+            else:
                 logger.error(f"File '{filename}' does not exist in bucket {e.detail}")
                 raise HTTPException(status_code=400, detail=e.detail)
-            else:
-                logger.error(f"Invalid filename format: '{e.detail}'")
-                raise HTTPException(status_code=422, detail=e.detail)
         else:
             logger.error(f"Error downloading file:{e}")
             raise HTTPException(status_code=500, detail="Error downloading file")

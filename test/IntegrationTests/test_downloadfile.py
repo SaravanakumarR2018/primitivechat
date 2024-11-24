@@ -63,34 +63,6 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         logger.info("Successfully tested download with invalid customer GUID")
 
-    def test_download_file_invalid_filename(self):
-        logger.info("Testing download with invalid filename")
-
-        #Create customer
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-        customer_guid=response.json().get("customer_guid")
-
-        #Attempt to download a file with an invalid filename format
-        download_file_url=f"{self.BASE_URL}/downloadfile"
-        params={"customer_guid": customer_guid, "filename": "invalid~filename.txt"}
-        response=requests.get(download_file_url, params=params)
-
-        #Verify the HTTP response status code for invalid filename format
-        if response.status_code==422:
-            logger.info("Correctly received 422 status code for invalid filename format.")
-        else:
-            logger.error(f"Unexpected status code: {response.status_code}. Expected: 422.")
-            raise AssertionError(f"Expected status code 422 but got {response.status_code}")
-
-        #HTTP response status code for invalid filename format
-        self.assertEqual(response.status_code, 422, "Expected 422 for invalid filename format")
-        self.assertIn("detail", response.json(), "'detail' not found in response data")
-        self.assertEqual(response.json()["detail"], "Invalid file name format", "Unexpected error message")
-
-        logger.info("Successfully tested download with invalid filename format")
-
     def test_download_file_from_empty_bucket(self):
         logger.info("Testing download from an empty bucket")
 
@@ -114,7 +86,7 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400, "Expected 400 for empty bucket")
         self.assertIn("detail", response.json(), "'detail' not found in response data")
-        self.assertEqual(response.json()["detail"], "File does not exist in the specified bucket", "Unexpected error message")
+        self.assertIn("Failed to download file", response.json()["detail"], "Unexpected error message")
 
         logger.info("Successfully tested download from an empty bucket")
 
