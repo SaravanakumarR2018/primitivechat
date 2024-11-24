@@ -176,8 +176,16 @@ async def download_file(request:Request, customer_guid:str, filename:str):
             "Content-Disposition":f"attachment; filename={filename}"
         })
     except Exception as e:
-        logger.error(f"Error downloading file:{e}")
-        raise HTTPException(status_code=500, detail="Error downloading file")
+        if isinstance(e, HTTPException):
+            if e.status_code==404:
+                logger.error(f"Invalid customer_guid:{e.detail}")
+                raise HTTPException(status_code=404, detail=e.detail)
+            else:
+                logger.error(f"File '{filename}' does not exist in bucket {e.detail}")
+                raise HTTPException(status_code=400, detail=e.detail)
+        else:
+            logger.error(f"Error downloading file:{e}")
+            raise HTTPException(status_code=500, detail="Error downloading file")
     finally:
         logger.debug(f"Exiting download_file() with Correlation ID:{request.state.correlation_id}")
 
