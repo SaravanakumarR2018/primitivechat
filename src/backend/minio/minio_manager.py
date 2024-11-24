@@ -1,9 +1,13 @@
 import logging
 import os
+import re
 from fastapi import HTTPException
 
 from minio import Minio
 from minio.error import S3Error
+
+#validating filenames
+valid_filename_pattern = re.compile(r'^[a-zA-Z0-9_\-]+\.[a-zA-Z0-9]+$')
 
 
 #Configure logging
@@ -84,22 +88,47 @@ class MinioManager:
                 logger.error(f"Invalid customer_guid:{e.detail}")
                 raise e
             else:
-                logger.error(f"Unexpected error while listing a files: {e}")
+                logger.error(f"fUnexpected error while listing a files: {e}")
                 raise HTTPException(status_code=500, detail=f"Unexpected error while listing a files in bucket '{bucket_name}'")
 
     #Download a file from MinIO bucket
     def download_file(self,bucket_name,filename):
         try:
-            response=self.client.get_object(bucket_name,filename)
+            if not self.client.bucket_exists(bucket_name):
+                logger.error(f"Bucket '{bucket_name}' does not exist.")
+                raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-            logger.info(f"File '{filename}' Downloaded Successfully from bucket '{bucket_name}'")
-            return response
+            # Check if the filename matches the valid format
+            if not valid_filename_pattern.match(filename):
+                logger.error(f"Invalid filename format: '{filename}'")
+                raise HTTPException(status_code=422, detail="Invalid file name format")
+
+            # Attempt to download the file
+            try:
+                response = self.client.get_object(bucket_name, filename)
+                logger.info(f"File '{filename}' downloaded successfully from bucket '{bucket_name}'.")
+                return response
+            except S3Error as e:
+                # File not found
+                logger.error(f"File '{filename}' does not exist in bucket '{bucket_name}': {e}")
+                raise HTTPException(status_code=400, detail="File does not exist in the specified bucket")
 
         except S3Error as e:
             logger.error(f"Error downloading file '{filename}' from bucket '{bucket_name}'{e}")
             return {"error":f"Failed to download file: {e}"}
 
         except Exception as e:
-            logger.error(f"Unexpected error during file download:{e}")
-            return {"error":f"An error occurred:{e}"}
+            if isinstance(e, HTTPException):
+                if e.status_code==404:
+                    logger.error(f"Invalid customer_guid:{e.detail}")
+                    raise e
+                elif e.status_code==422:
+                    logger.error(f"Invalid filename format: '{filename}'")
+                    raise e
+                else:
+                    logger.error(f"File '{filename}' does not exist in bucket '{bucket_name}': {e}")
+                    raise e
+            else:
+                logger.error(f"Unexpected error during file download:{e}")
+                return {"error":f"An error occurred:{e}"}
 
