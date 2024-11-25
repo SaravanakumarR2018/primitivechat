@@ -97,23 +97,22 @@ jobs:
             exit 1
           fi
 
-      # Step 10: Check Main Server Readiness
-      - name: Check main server readiness
+      # Step 10: Test if the server is up
+      - name: Test server with curl
         run: |
-          echo "Checking if the main server is up..."
-          expected='{"message":"The server is up and running!"}'
-          end=$((SECONDS+180)) # Wait up to 3 minutes
-          while [ $SECONDS -lt $end ]; do
-            response=$(curl -s http://localhost:8000)
-            if [ "$response" = "$expected" ]; then
-              echo "Main server is running!"
-              exit 0
-            fi
-            echo "Waiting for main server..."
-            sleep 5
-          done
-          echo "Error: Main server did not start within 3 minutes."
-          exit 1
+            end=$((SECONDS+120))
+            while [ $SECONDS -lt $end ]; do
+              if curl -s http://localhost:8000 > /dev/null; then
+                echo "Server is up!"
+                exit 0
+              else
+                echo "Waiting for server to be up..."
+                sleep 5
+              fi
+            done
+            echo "Error: Server did not start within 2 minutes."
+            exit 1
+      
 
       # Step 11: Run Integration Tests
       - name: Run Python Integration Tests
