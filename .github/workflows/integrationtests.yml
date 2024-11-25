@@ -32,8 +32,8 @@ jobs:
           echo "Checking if Ollama server is up..."
           end=$((SECONDS+180)) # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
-            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
-            if [ "$response" -eq 200 ]; then
+            status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
+            if [ "$status_code" -eq 200 ]; then
               echo "Ollama server is running!"
               exit 0
             fi
@@ -43,17 +43,11 @@ jobs:
           echo "Error: Ollama server did not start within 3 minutes."
           exit 1
 
-      # Step 5: Wait for Ollama server to start
-      - name: Wait for Ollama server to start
-        run: |
-          echo "Waiting for Ollama server to start..."
-          sleep 20  # Give the container time to fully start
-
-      # Step 6: List all running containers
+      # Step 5: List all running containers
       - name: List all running containers
         run: docker ps
 
-      # Step 7: Check Ollama server logs
+      # Step 6: Check Ollama server logs
       - name: Check Ollama server logs
         run: |
           container_id=$(docker ps -q --filter "ancestor=ollama/ollama:0.4.1")
@@ -64,7 +58,7 @@ jobs:
           echo "Fetching logs for container: $container_id"
           docker logs "$container_id"
 
-      # Step 8: Pull llama3.2:3b model
+      # Step 7: Pull llama3.2:3b model
       - name: Pull llama3.2:3b model
         run: |
           echo "Pulling llama3.2:3b model..."
@@ -77,7 +71,7 @@ jobs:
           fi
           echo "Llama 3.2 3B model has been successfully initiated for download."
 
-      # Step 9: Test AI Responses
+      # Step 8: Test AI Responses
       - name: Test AI Responses
         run: |
           echo "Testing AI response..."
@@ -97,30 +91,33 @@ jobs:
             exit 1
           fi
 
-      # Step 10: Test if the server is up
-      - name: Test server with curl
+      # Step 9: Check main server readiness
+      - name: Check main server readiness
         run: |
-            end=$((SECONDS+120))
-            while [ $SECONDS -lt $end ]; do
-              if curl -s http://localhost:8000 > /dev/null; then
-                echo "Server is up!"
-                exit 0
-              else
-                echo "Waiting for server to be up..."
-                sleep 5
-              fi
-            done
-            echo "Error: Server did not start within 2 minutes."
-            exit 1
-      
+          echo "Checking if the main server is up..."
+          expected='{"message":"The server is up and running!"}'
+          end=$((SECONDS+180)) # Wait up to 3 minutes
+          while [ $SECONDS -lt $end ]; do
+            response=$(curl -s -o response_body.txt -w "%{http_code}" http://localhost:8000)
+            http_code="${response: -3}"
+            cat response_body.txt
+            if [ "$http_code" -eq 200 ] && grep -q "$expected" response_body.txt; then
+              echo "Main server is running!"
+              exit 0
+            fi
+            echo "Waiting for main server..."
+            sleep 5
+          done
+          echo "Error: Main server did not start within 3 minutes."
+          exit 1
 
-      # Step 11: Run Integration Tests
+      # Step 10: Run Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 12: Shut Down Docker Compose
+      # Step 11: Shut Down Docker Compose
       - name: Docker-compose down
         working-directory: src/backend
         if: always()
