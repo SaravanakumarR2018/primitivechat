@@ -76,19 +76,26 @@ jobs:
 
           echo "Checking if llama3.2:3b model is loaded..."
           for i in {1..10}; do
-            models=$(curl -s http://localhost:11434/api/models)
-            echo "Available models: $models"
-            if echo "$models" | grep -q "llama3.2:3b"; then
+            # Using a more general status endpoint if /api/models isn't working
+            models_response=$(curl -s http://localhost:11434/api/status)
+            echo "Server Status: $models_response"
+            
+            # Check if the model is listed in the status response or error handling
+            if echo "$models_response" | grep -q "llama3.2:3b"; then
               echo "Model llama3.2:3b successfully loaded."
               exit 0
             fi
+
+            if echo "$models_response" | grep -q "404"; then
+              echo "404 page not found - Retrying in 15 seconds..."
+            fi
+
             echo "Model not loaded yet. Retrying in 15 seconds..."
             sleep 15
           done
 
           echo "Error: Model llama3.2:3b did not load."
           exit 1
-
       # Step 7: Test AI Responses
       - name: Test AI Responses
         run: |
