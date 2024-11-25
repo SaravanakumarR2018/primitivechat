@@ -97,6 +97,17 @@ else
   exit 1
 fi
 
+# Model Verification: Check if the model is available in the models list
+echo "Verifying that the model llama3.2:3b is available..."
+MODEL_VERIFICATION_RESPONSE=$(curl -s http://localhost:11434/api/models)
+if echo "$MODEL_VERIFICATION_RESPONSE" | grep -q "llama3.2:3b"; then
+  echo "Model llama3.2:3b is available in the server."
+else
+  echo "Model llama3.2:3b is not available in the server. Exiting..."
+  echo "Server response: $MODEL_VERIFICATION_RESPONSE"
+  exit 1
+fi
+
 # Check if the model was successfully pulled by generating a response
 echo "Checking if model is working by generating a response..."
 GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:11434/api/generate -d '{
@@ -118,6 +129,7 @@ else
   echo "Ollama server failed to generate a response. Response code: $GEN_HTTP_CODE"
   exit 1
 fi
+
 # Check if the server is up (replace http://localhost:8000 with the actual URL if needed)
 URL="http://localhost:8000"  # Updated URL to localhost
 EXPECTED_OUTPUT='{"message":"The server is up and running!"}'
