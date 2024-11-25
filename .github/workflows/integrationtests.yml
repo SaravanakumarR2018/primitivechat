@@ -32,8 +32,8 @@ jobs:
           echo "Checking if Ollama server is up..."
           end=$((SECONDS+180)) # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
-            status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
-            if [ "$status_code" -eq 200 ]; then
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
+            if [ "$response" -eq 200 ]; then
               echo "Ollama server is running!"
               exit 0
             fi
@@ -43,11 +43,17 @@ jobs:
           echo "Error: Ollama server did not start within 3 minutes."
           exit 1
 
-      # Step 5: List all running containers
+      # Step 5: Wait for Ollama server to start
+      - name: Wait for Ollama server to start
+        run: |
+          echo "Waiting for Ollama server to start..."
+          sleep 20  # Give the container time to fully start
+
+      # Step 6: List all running containers
       - name: List all running containers
         run: docker ps
 
-      # Step 6: Check Ollama server logs
+      # Step 7: Check Ollama server logs
       - name: Check Ollama server logs
         run: |
           container_id=$(docker ps -q --filter "ancestor=ollama/ollama:0.4.1")
@@ -58,7 +64,7 @@ jobs:
           echo "Fetching logs for container: $container_id"
           docker logs "$container_id"
 
-      # Step 7: Pull llama3.2:3b model
+      # Step 8: Pull and verify llama3.2:3b model
       - name: Pull llama3.2:3b model
         run: |
           echo "Pulling llama3.2:3b model..."
@@ -69,9 +75,29 @@ jobs:
             echo "Error: Failed to pull model. HTTP Code: $http_code"
             exit 1
           fi
-          echo "Llama 3.2 3B model has been successfully initiated for download."
 
-      # Step 8: Test AI Responses
+          echo "Checking if llama3.2:3b model is loaded..."
+          for i in {1..5}; do  # Retry for 5 attempts
+            models_response=$(curl -s http://localhost:11434/api/models || echo "Error")
+            echo "Models Response: $models_response"
+            
+            if echo "$models_response" | grep -q "llama3.2:3b"; then
+              echo "Model llama3.2:3b successfully loaded."
+              exit 0
+            fi
+
+            if echo "$models_response" | grep -q "404"; then
+              echo "404 page not found - Retrying in 5 seconds..."
+            fi
+
+            echo "Model not loaded yet. Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          echo "Error: Model llama3.2:3b did not load."
+          exit 1
+
+      # Step 9: Test AI Responses
       - name: Test AI Responses
         run: |
           echo "Testing AI response..."
@@ -90,48 +116,28 @@ jobs:
             echo "Error: Failed to generate a response using the model. HTTP Status Code: $http_code"
             exit 1
           fi
-          
-      # Step 10: Check server logs if readiness fails
-      - name: Check Main Server Logs
-        run: |
-            echo "Fetching logs for the main server container..."
-            container_id=$(docker ps -q --filter "name=main-server") # Replace with your container name if different
-            if [ -z "$container_id" ]; then
-              echo "Error: Main server container not found."
-              exit 1
-            fi
-            docker logs "$container_id"
 
-      # Step 11: Check main server readiness
+      # Step 10: Check Main Server Readiness
       - name: Check main server readiness
         run: |
           echo "Checking if the main server is up..."
-          expected_message="The server is up and running!"
-          end=$((SECONDS+1200)) # Wait up to 20 minutes
+          expected='{"message":"The server is up and running!"}'
+          end=$((SECONDS+180)) # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
-            response=$(curl -s -o response_body.txt -w "%{http_code}" http://localhost:8000)
-            http_code="${response: -3}" # Extract HTTP status code
-            body=$(cat response_body.txt)
-
-            echo "HTTP Status Code: $http_code"
-            echo "Response Body: $body"
-
-            if [ "$http_code" -eq 200 ] && [[ "$body" == *"$expected_message"* ]]; then
+            response=$(curl -s http://localhost:8000)
+            if [ "$response" = "$expected" ]; then
               echo "Main server is running!"
               exit 0
             fi
-
-            echo "Waiting for main server readiness..."
+            echo "Waiting for main server..."
             sleep 5
           done
-
-          echo "Error: Main server did not start within 20 minutes."
+          echo "Error: Main server did not start within 3 minutes."
           exit 1
-      
 
       # Step 11: Run Integration Tests
       - name: Run Python Integration Tests
-        working-directory: src/backend
+        working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
