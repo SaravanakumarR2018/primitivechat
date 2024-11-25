@@ -1,4 +1,4 @@
-name: Docker Compose Test on PR
+name: Docker Compose Integration Test on PR
 
 on:
   pull_request:
@@ -21,37 +21,96 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      # Step 3: Run Docker Compose
+      # Step 3: Start Docker Compose
       - name: Run docker-compose up
-        working-directory: src/backend  # Specify working directory here
-        env:
-          PROJECT_ROOT: ${{ github.workspace }}
+        working-directory: src/backend
         run: docker-compose up -d
 
-      # Step 4: Test if the server is up
-      - name: Test server with curl
+      # Step 4: Verify Ollama Server is Running
+      - name: Check Ollama server health
         run: |
-          end=$((SECONDS+120))
+          echo "Checking if Ollama server is up..."
+          end=$((SECONDS+120)) # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:8000 > /dev/null; then
-              echo "Server is up!"
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
+            if [ "$response" -eq 200 ]; then
+              echo "Ollama server is running!"
               exit 0
-            else
-              echo "Waiting for server to be up..."
-              sleep 5
             fi
+            echo "Waiting for Ollama server..."
+            sleep 5
           done
-          echo "Error: Server did not start within 2 minutes."
+          echo "Error: Ollama server did not start within 2 minutes."
           exit 1
-          
-      # Step 5: Run integration tests
+
+      # Step 5: Pull and Verify Model
+      - name: Verify and pull llama3.2:3b model
+        run: |
+          echo "Pulling the llama3.2:3b model..."
+          response=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:11434/api/pull -d '{ "name": "llama3.2:3b" }')
+          if [ "$response" -ne 200 ]; then
+            echo "Error: Failed to pull model llama3.2:3b."
+            exit 1
+          fi
+
+          echo "Checking if llama3.2:3b model is loaded..."
+          for i in {1..5}; do
+            models=$(curl -s http://localhost:11434/api/models)
+            if echo "$models" | grep -q "llama3.2:3b"; then
+              echo "Model llama3.2:3b successfully loaded."
+              exit 0
+            fi
+            echo "Model not loaded yet. Retrying in 10 seconds..."
+            sleep 10
+          done
+          echo "Error: Model llama3.2:3b did not load."
+          exit 1
+
+      # Step 6: Test AI Responses
+      - name: Test AI Responses
+        run: |
+          echo "Testing AI response..."
+          response=$(curl -s -w "%{http_code}" http://localhost:11434/api/generate -d '{
+            "model": "llama3.2:3b",
+            "prompt": "Is the sky blue? Answer True or False.",
+            "stream": false
+          }')
+          http_code="${response: -3}"
+          body="${response%${http_code}}"
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: Failed to get a response from AI. HTTP Code: $http_code"
+            exit 1
+          fi
+
+          echo "AI Response: $body"
+
+      # Step 7: Check Main Server Readiness
+      - name: Check main server readiness
+        run: |
+          echo "Checking if the main server is up..."
+          expected='{"message":"The server is up and running!"}'
+          end=$((SECONDS+120)) # Wait up to 2 minutes
+          while [ $SECONDS -lt $end ]; do
+            response=$(curl -s http://localhost:8000)
+            if [ "$response" = "$expected" ]; then
+              echo "Main server is running!"
+              exit 0
+            fi
+            echo "Waiting for main server..."
+            sleep 5
+          done
+          echo "Error: Main server did not start within 2 minutes."
+          exit 1
+
+      # Step 8: Run Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 6: Shut down Docker Compose (clean up)
+      # Step 9: Shut Down Docker Compose
       - name: Docker-compose down
-        working-directory: src/backend  # Specify working directory here as well
+        working-directory: src/backend
         if: always()
         run: docker-compose down
