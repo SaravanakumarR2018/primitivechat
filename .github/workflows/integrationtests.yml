@@ -30,67 +30,76 @@ jobs:
       - name: Check Ollama server health
         run: |
           echo "Checking if Ollama server is up..."
-          end=$((SECONDS+120)) # Wait up to 2 minutes
+          end=$((SECONDS+180)) # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
             response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
             if [ "$response" -eq 200 ]; then
               echo "Ollama server is running!"
               exit 0
             fi
-            echo "Waiting for Ollama server..."
+            echo "Waiting for Ollama server readiness..."
             sleep 5
           done
-          echo "Error: Ollama server did not start within 2 minutes."
+          echo "Error: Ollama server did not start within 3 minutes."
           exit 1
 
-      # Step 5: Pull and Verify Model
-      - name: Verify and pull llama3.2:3b model
+      # Step 5: Debug Ollama Server Logs
+      - name: Check Ollama server logs
+        run: docker logs $(docker ps -q --filter "ancestor=ollama/server")
+
+      # Step 6: Pull and Verify Model
+      - name: Pull and verify llama3.2:3b model
         run: |
-          echo "Pulling the llama3.2:3b model..."
-          response=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:11434/api/pull -d '{ "name": "llama3.2:3b" }')
-          if [ "$response" -ne 200 ]; then
-            echo "Error: Failed to pull model llama3.2:3b."
+          echo "Pulling llama3.2:3b model..."
+          response=$(curl -s -w "%{http_code}" -o response_body.txt http://localhost:11434/api/pull -d '{ "name": "llama3.2:3b" }')
+          http_code="${response: -3}"
+          cat response_body.txt
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: Failed to pull model. HTTP Code: $http_code"
             exit 1
           fi
 
           echo "Checking if llama3.2:3b model is loaded..."
-          for i in {1..5}; do
+          for i in {1..10}; do
             models=$(curl -s http://localhost:11434/api/models)
+            echo "Available models: $models"
             if echo "$models" | grep -q "llama3.2:3b"; then
               echo "Model llama3.2:3b successfully loaded."
               exit 0
             fi
-            echo "Model not loaded yet. Retrying in 10 seconds..."
-            sleep 10
+            echo "Model not loaded yet. Retrying in 15 seconds..."
+            sleep 15
           done
+
           echo "Error: Model llama3.2:3b did not load."
           exit 1
 
-      # Step 6: Test AI Responses
+      # Step 7: Test AI Responses
       - name: Test AI Responses
         run: |
           echo "Testing AI response..."
-          response=$(curl -s -w "%{http_code}" http://localhost:11434/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -o response_body.txt http://localhost:11434/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Answer True or False.",
             "stream": false
           }')
           http_code="${response: -3}"
-          body="${response%${http_code}}"
+          body=$(cat response_body.txt)
+
+          echo "HTTP Code: $http_code"
+          echo "Response Body: $body"
 
           if [ "$http_code" -ne 200 ]; then
             echo "Error: Failed to get a response from AI. HTTP Code: $http_code"
             exit 1
           fi
 
-          echo "AI Response: $body"
-
-      # Step 7: Check Main Server Readiness
+      # Step 8: Check Main Server Readiness
       - name: Check main server readiness
         run: |
           echo "Checking if the main server is up..."
           expected='{"message":"The server is up and running!"}'
-          end=$((SECONDS+120)) # Wait up to 2 minutes
+          end=$((SECONDS+180)) # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
             response=$(curl -s http://localhost:8000)
             if [ "$response" = "$expected" ]; then
@@ -100,16 +109,16 @@ jobs:
             echo "Waiting for main server..."
             sleep 5
           done
-          echo "Error: Main server did not start within 2 minutes."
+          echo "Error: Main server did not start within 3 minutes."
           exit 1
 
-      # Step 8: Run Integration Tests
+      # Step 9: Run Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 9: Shut Down Docker Compose
+      # Step 10: Shut Down Docker Compose
       - name: Docker-compose down
         working-directory: src/backend
         if: always()
