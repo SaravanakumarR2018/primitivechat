@@ -45,7 +45,14 @@ jobs:
 
       # Step 5: Debug Ollama Server Logs
       - name: Check Ollama server logs
-        run: docker logs $(docker ps -q --filter "ancestor=ollama/server")
+        run: |
+          container_id=$(docker ps -q --filter "ancestor=ollama/server")
+          if [ -z "$container_id" ]; then
+            echo "Error: Ollama server container not found."
+            exit 1
+          fi
+          echo "Fetching logs for container: $container_id"
+          docker logs "$container_id"
 
       # Step 6: Pull and Verify Model
       - name: Pull and verify llama3.2:3b model
