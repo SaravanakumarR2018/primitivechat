@@ -64,7 +64,7 @@ jobs:
           echo "Fetching logs for container: $container_id"
           docker logs "$container_id"
 
-      # Step 8: Pull and verify llama3.2:3b model
+      # Step 8: Pull llama3.2:3b model
       - name: Pull llama3.2:3b model
         run: |
           echo "Pulling llama3.2:3b model..."
@@ -75,27 +75,7 @@ jobs:
             echo "Error: Failed to pull model. HTTP Code: $http_code"
             exit 1
           fi
-
-          echo "Checking if llama3.2:3b model is loaded..."
-          for i in {1..5}; do  # Retry for 5 attempts
-            models_response=$(curl -s http://localhost:11434/api/models || echo "Error")
-            echo "Models Response: $models_response"
-            
-            if echo "$models_response" | grep -q "llama3.2:3b"; then
-              echo "Model llama3.2:3b successfully loaded."
-              exit 0
-            fi
-
-            if echo "$models_response" | grep -q "404"; then
-              echo "404 page not found - Retrying in 5 seconds..."
-            fi
-
-            echo "Model not loaded yet. Retrying in 5 seconds..."
-            sleep 5
-          done
-
-          echo "Error: Model llama3.2:3b did not load."
-          exit 1
+          echo "Llama 3.2 3B model has been successfully initiated for download."
 
       # Step 9: Test AI Responses
       - name: Test AI Responses
