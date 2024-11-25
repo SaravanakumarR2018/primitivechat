@@ -43,7 +43,7 @@ jobs:
           echo "Error: Ollama server did not start within 3 minutes."
           exit 1
 
-            # Step 5: Debug Ollama Server Logs
+      # Step 5: Debug Ollama Server Logs
       - name: Wait for Ollama server to start
         run: |
           echo "Waiting for Ollama server to start..."
@@ -75,7 +75,7 @@ jobs:
           fi
 
           echo "Checking if llama3.2:3b model is loaded..."
-          for i in {1..20}; do  # Retry for 20 attempts
+          for i in {1..30}; do  # Retry for 30 attempts
             models_response=$(curl -s http://localhost:11434/api/models || echo "Error")
             echo "Models Response: $models_response"
             
@@ -107,11 +107,11 @@ jobs:
           http_code="${response: -3}"
           body=$(cat response_body.txt)
 
-          echo "HTTP Code: $http_code"
-          echo "Response Body: $body"
+          echo "Generation Response: $body"
+          echo "Generation HTTP Status Code: $http_code"
 
           if [ "$http_code" -ne 200 ]; then
-            echo "Error: Failed to get a response from AI. HTTP Code: $http_code"
+            echo "Error: Failed to generate a response using the model. HTTP Status Code: $http_code"
             exit 1
           fi
 
