@@ -43,15 +43,17 @@ jobs:
           echo "Error: Ollama server did not start within 3 minutes."
           exit 1
 
-      # Step 5: Debug Ollama Server Logs
+      # Step 5: Wait for Ollama server to start
       - name: Wait for Ollama server to start
         run: |
           echo "Waiting for Ollama server to start..."
           sleep 20  # Give the container time to fully start
 
+      # Step 6: List all running containers
       - name: List all running containers
         run: docker ps
 
+      # Step 7: Check Ollama server logs
       - name: Check Ollama server logs
         run: |
           container_id=$(docker ps -q --filter "ancestor=ollama/ollama:0.4.1")
@@ -62,8 +64,8 @@ jobs:
           echo "Fetching logs for container: $container_id"
           docker logs "$container_id"
 
-      # Step 6: Pull and Verify Model
-      - name: Pull and verify llama3.2:3b model
+      # Step 8: Pull and verify llama3.2:3b model
+      - name: Pull llama3.2:3b model
         run: |
           echo "Pulling llama3.2:3b model..."
           response=$(curl -s -w "%{http_code}" -o response_body.txt http://localhost:11434/api/pull -d '{ "name": "llama3.2:3b" }')
@@ -75,7 +77,7 @@ jobs:
           fi
 
           echo "Checking if llama3.2:3b model is loaded..."
-          for i in {1..30}; do  # Retry for 30 attempts
+          for i in {1..5}; do  # Retry for 5 attempts
             models_response=$(curl -s http://localhost:11434/api/models || echo "Error")
             echo "Models Response: $models_response"
             
@@ -83,19 +85,19 @@ jobs:
               echo "Model llama3.2:3b successfully loaded."
               exit 0
             fi
-            
+
             if echo "$models_response" | grep -q "404"; then
-              echo "404 page not found - Retrying in 30 seconds..."
+              echo "404 page not found - Retrying in 5 seconds..."
             fi
 
-            echo "Model not loaded yet. Retrying in 30 seconds..."
-            sleep 30
+            echo "Model not loaded yet. Retrying in 5 seconds..."
+            sleep 5
           done
 
           echo "Error: Model llama3.2:3b did not load."
           exit 1
 
-      # Step 7: Test AI Responses
+      # Step 9: Test AI Responses
       - name: Test AI Responses
         run: |
           echo "Testing AI response..."
@@ -115,7 +117,7 @@ jobs:
             exit 1
           fi
 
-      # Step 8: Check Main Server Readiness
+      # Step 10: Check Main Server Readiness
       - name: Check main server readiness
         run: |
           echo "Checking if the main server is up..."
@@ -133,13 +135,13 @@ jobs:
           echo "Error: Main server did not start within 3 minutes."
           exit 1
 
-      # Step 9: Run Integration Tests
+      # Step 11: Run Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 10: Shut Down Docker Compose
+      # Step 12: Shut Down Docker Compose
       - name: Docker-compose down
         working-directory: src/backend
         if: always()
