@@ -44,6 +44,14 @@ jobs:
           exit 1
 
       # Step 5: Debug Ollama Server Logs
+      - name: Wait for Ollama server to start
+        run: |
+          echo "Waiting for Ollama server to start..."
+          sleep 20  # Give the container time to fully start
+
+      - name: List all running containers
+        run: docker ps
+
       - name: Check Ollama server logs
         run: |
           container_id=$(docker ps -q --filter "ancestor=ollama/server")
@@ -53,6 +61,7 @@ jobs:
           fi
           echo "Fetching logs for container: $container_id"
           docker logs "$container_id"
+
 
       # Step 6: Pull and Verify Model
       - name: Pull and verify llama3.2:3b model
