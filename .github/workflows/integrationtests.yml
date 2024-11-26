@@ -96,10 +96,17 @@ jobs:
           echo "Error: Server did not start within 3 minutes."
           exit 1
 
-      # Step 8: List files in the directory for debugging
+      # Step 8: List entire directory structure for debugging
       - name: List directory contents (for debugging)
         run: |
-          ls -R src/backend/test/IntegrationTests  # List all files and subdirectories for debugging
+          echo "Listing root directory:"
+          ls -R /src
+          echo "Listing backend directory:"
+          ls -R src/backend
+          echo "Listing test directory:"
+          ls -R src/backend/test
+          echo "Listing IntegrationTests directory:"
+          ls -R src/backend/test/IntegrationTests
 
       # Step 9: Run Python Integration Tests
       - name: Run Python Integration Tests
