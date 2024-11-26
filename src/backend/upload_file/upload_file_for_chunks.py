@@ -42,7 +42,7 @@ class DocumentReader:
 
     def get_customer_guid_and_filename(self):
         customer_guid = input("Enter the customer GUID: ")
-        filename = input("Enter the filename (with extension): ")
+        filename = input("Enter the filename")
         return self.upload_file(customer_guid, filename)
 
     def get_file_from_minio(self, filename):
