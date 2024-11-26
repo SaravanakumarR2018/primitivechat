@@ -63,14 +63,14 @@ jobs:
       # Step 6: List files in the directory for debugging
       - name: List directory contents (for debugging)
         run: |
-          ls -R src/backend  # List all files and subdirectories for debugging
+          ls -R src/backend/test/IntegrationTests  # List all files and subdirectories for debugging
 
       # Step 7: Run Python Integration Tests
       - name: Run Python Integration Tests
         working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-        run: python -m unittest discover -s ./test/IntegrationTests
+        run: python -m unittest discover -s test/IntegrationTests -p "*.py"  # Discover all .py files
 
       # Step 8: Shut down Docker Compose (clean up)
       - name: Docker-compose down
