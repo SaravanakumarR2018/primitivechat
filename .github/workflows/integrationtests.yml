@@ -31,7 +31,7 @@ jobs:
       # Step 4: Test if the server is up
       - name: Test server with curl
         run: |
-          end=$((SECONDS+120))
+          end=$((SECONDS+180))
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:8000 > /dev/null; then
               echo "Server is up!"
@@ -41,7 +41,7 @@ jobs:
               sleep 5
             fi
           done
-          echo "Error: Server did not start within 2 minutes."
+          echo "Error: Server did not start within 3 minutes."
           exit 1
           
       # Step 5: Run integration tests
