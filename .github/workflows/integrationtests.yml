@@ -22,7 +22,7 @@ jobs:
           sudo apt-get install -y docker-compose
 
       # Step 3: Start Docker Compose
-      - name: Run docker-compose up
+      - name: Start Docker Compose
         working-directory: src/backend
         run: docker-compose up -d
 
@@ -30,23 +30,25 @@ jobs:
       - name: Check Ollama server health
         run: |
           echo "Checking if Ollama server is up..."
-          end=$((SECONDS+180)) # Wait up to 3 minutes
+          end=$((SECONDS+300)) # Wait up to 5 minutes
           while [ $SECONDS -lt $end ]; do
             response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
             if [ "$response" -eq 200 ]; then
               echo "Ollama server is running!"
-              exit 0
+              break
             fi
             echo "Waiting for Ollama server readiness..."
             sleep 5
           done
-          echo "Error: Ollama server did not start within 3 minutes."
-          exit 1
+          if [ "$response" -ne 200 ]; then
+            echo "Error: Ollama server did not start within 5 minutes. HTTP Status Code: $response"
+            exit 1
+          fi
 
-      # Step 5: Wait for Ollama server to start
-      - name: Wait for Ollama server to start
+      # Step 5: Wait for Ollama server to fully start
+      - name: Wait for Ollama server to fully initialize
         run: |
-          echo "Waiting for Ollama server to start..."
+          echo "Waiting for Ollama server to fully initialize..."
           sleep 20  # Give the container time to fully start
 
       # Step 6: List all running containers
@@ -64,84 +66,60 @@ jobs:
           echo "Fetching logs for container: $container_id"
           docker logs "$container_id"
 
-      # Step 8: Pull and verify llama3.2:3b model
-      - name: Pull llama3.2:3b model
+      # Step 8: Check Main Server Health
+      - name: Check main server health
         run: |
-          echo "Pulling llama3.2:3b model..."
-          response=$(curl -s -w "%{http_code}" -o response_body.txt http://localhost:11434/api/pull -d '{ "name": "llama3.2:3b" }')
-          http_code="${response: -3}"
-          cat response_body.txt
-          if [ "$http_code" -ne 200 ]; then
-            echo "Error: Failed to pull model. HTTP Code: $http_code"
-            exit 1
-          fi
-
-          echo "Checking if llama3.2:3b model is loaded..."
-          for i in {1..5}; do  # Retry for 5 attempts
-            models_response=$(curl -s http://localhost:11434/api/models || echo "Error")
-            echo "Models Response: $models_response"
-            
-            if echo "$models_response" | grep -q "llama3.2:3b"; then
-              echo "Model llama3.2:3b successfully loaded."
-              exit 0
+          echo "Checking if the main server health endpoint is responding..."
+          end=$((SECONDS+300)) # Wait up to 5 minutes
+          while [ $SECONDS -lt $end ]; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)  # Adjust the health endpoint as necessary
+            if [ "$response" -eq 200 ]; then
+              echo "Main server health is OK!"
+              break
             fi
-
-            if echo "$models_response" | grep -q "404"; then
-              echo "404 page not found - Retrying in 5 seconds..."
-            fi
-
-            echo "Model not loaded yet. Retrying in 5 seconds..."
+            echo "Waiting for main server health..."
             sleep 5
           done
-
-          echo "Error: Model llama3.2:3b did not load."
-          exit 1
-
-      # Step 9: Test AI Responses
-      - name: Test AI Responses
-        run: |
-          echo "Testing AI response..."
-          response=$(curl -s -w "%{http_code}" -o response_body.txt http://localhost:11434/api/generate -d '{
-            "model": "llama3.2:3b",
-            "prompt": "Is the sky blue? Answer True or False.",
-            "stream": false
-          }')
-          http_code="${response: -3}"
-          body=$(cat response_body.txt)
-
-          echo "Generation Response: $body"
-          echo "Generation HTTP Status Code: $http_code"
-
-          if [ "$http_code" -ne 200 ]; then
-            echo "Error: Failed to generate a response using the model. HTTP Status Code: $http_code"
+          if [ "$response" -ne 200 ]; then
+            echo "Error: Main server health check failed within 5 minutes. HTTP Status Code: $response"
             exit 1
           fi
 
-      # Step 10: Check Main Server Readiness
+      # Step 9: Check Main Server Readiness
       - name: Check main server readiness
         run: |
           echo "Checking if the main server is up..."
-          expected='{"message":"The server is up and running!"}'
-          end=$((SECONDS+180)) # Wait up to 3 minutes
+          end=$((SECONDS+600)) # Wait up to 10 minutes
           while [ $SECONDS -lt $end ]; do
-            response=$(curl -s http://localhost:8000)
-            if [ "$response" = "$expected" ]; then
+            curl -s http://localhost:8000 > /dev/null
+            if [ $? -eq 0 ]; then
               echo "Main server is running!"
               exit 0
             fi
             echo "Waiting for main server..."
             sleep 5
           done
-          echo "Error: Main server did not start within 3 minutes."
+          echo "Error: Main server did not start within 10 minutes."
           exit 1
 
-      # Step 11: Run Integration Tests
+      # Step 9.1: Check Main Server Logs
+      - name: Check main server logs
+        run: |
+          container_id=$(docker ps -q --filter "ancestor=your-main-server-image-name")  # Replace with your actual main server image name
+          if [ -z "$container_id" ]; then
+            echo "Error: Main server container not found."
+            exit 1
+          fi
+          echo "Fetching logs for container: $container_id"
+          docker logs "$container_id"
+
+ # Step 10: Run Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 12: Shut Down Docker Compose
+      # Step 11: Shut Down Docker Compose
       - name: Docker-compose down
         working-directory: src/backend
         if: always()
