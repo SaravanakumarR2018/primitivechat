@@ -15,24 +15,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker Compose
+      # Step 2: Debug - List all files in the workspace
+      - name: List files in the workspace
+        run: ls -R ${{ github.workspace }}
+
+      # Step 3: Ensure the src/backend directory exists
+      - name: Check src/backend directory
+        run: ls src/backend || echo "src/backend directory does not exist!"
+
+      # Step 4: Install Python dependencies
+      - name: Install Python dependencies
+        working-directory: src/backend
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found in src/backend"
+            exit 1
+          fi
+
+      # Step 5: Set up Docker Compose
       - name: Install Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
-          
-      - name: Install Python dependencies
-        working-directory: src/backend
-        run: pip install -r requirements.txt
 
-      # Step 3: Run Docker Compose
+      # Step 6: Run Docker Compose
       - name: Run docker-compose up
-        working-directory: src/backend  # Specify working directory here
+        working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      # Step 4: Check if Ollama server is up
+      # Step 7: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
@@ -48,7 +63,7 @@ jobs:
           echo "Error: Ollama server did not start within 2 minutes."
           exit 1
 
-      # Step 5: Pull the Llama model
+      # Step 8: Pull the Llama model
       - name: Pull Llama model
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/pull -d '{"name": "llama3.2:3b"}')
@@ -64,7 +79,7 @@ jobs:
             exit 1
           fi
 
-      # Step 6: Test model response
+      # Step 9: Test model response
       - name: Test model response
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/generate -d '{
@@ -84,7 +99,7 @@ jobs:
             exit 1
           fi
 
-      # Step 7: Test if the main server is up
+      # Step 10: Test if the main server is up
       - name: Test server with curl
         run: |
           end=$((SECONDS+180))  # Wait up to 3 minutes
@@ -100,26 +115,26 @@ jobs:
           echo "Error: Server did not start within 3 minutes."
           exit 1
 
-      # Step 8: List entire directory structure for debugging
+      # Step 11: Debugging - List directory structure
       - name: List directory contents (for debugging)
         run: |
           echo "Listing test directory:"
           ls -R test
 
-      # Step 9: Run Python Integration Tests
+      # Step 12: Run Python Integration Tests
       - name: Run Python Integration Tests
         working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: python -m unittest discover -s ./test/IntegrationTests -p "*.py"
 
-      # Step 10: Docker-compose logs for debugging
+      # Step 13: Fetch Docker Compose logs for debugging
       - name: Fetch Docker Compose logs
         working-directory: src/backend
         run: docker-compose logs  # Fetch logs if something goes wrong
 
-      # Step 11: Shut down Docker Compose (clean up)
+      # Step 14: Shut down Docker Compose (clean up)
       - name: Docker-compose down
-        working-directory: src/backend  # Specify working directory here as well
+        working-directory: src/backend
         if: always()
         run: docker-compose down
