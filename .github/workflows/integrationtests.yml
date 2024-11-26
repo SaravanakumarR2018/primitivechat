@@ -100,7 +100,7 @@ jobs:
       - name: List directory contents (for debugging)
         run: |
           echo "Listing root directory:"
-          ls -R /src
+          ls -R $GITHUB_WORKSPACE
           echo "Listing backend directory:"
           ls -R src/backend
           echo "Listing test directory:"
