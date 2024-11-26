@@ -107,7 +107,7 @@ jobs:
         working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-        run: python -m unittest discover -s ./test/IntegrationTests
+        run: python -m unittest discover -s test/IntegrationTests
 
       # Step 10: Docker-compose logs for debugging
       - name: Fetch Docker Compose logs
