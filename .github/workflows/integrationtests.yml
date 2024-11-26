@@ -58,6 +58,7 @@ jobs:
           else
             echo "Failed to pull model. Exiting."
             exit 1
+          fi
 
       # Step 6: Test model response
       - name: Test model response
@@ -77,6 +78,7 @@ jobs:
           else
             echo "Failed to generate model response. Exiting."
             exit 1
+          fi
 
       # Step 7: Test if the main server is up
       - name: Test server with curl
@@ -98,14 +100,14 @@ jobs:
       - name: List directory contents (for debugging)
         run: |
           echo "Listing test directory:"
-          ls -R src/backend/test
+          ls -R test
 
       # Step 9: Run Python Integration Tests
       - name: Run Python Integration Tests
         working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-        run: python -m unittest discover -s src/backend/test/IntegrationTests -p "*.py"
+        run: python -m unittest discover -s ./test/IntegrationTests -p "*.py"
 
       # Step 10: Docker-compose logs for debugging
       - name: Fetch Docker Compose logs
