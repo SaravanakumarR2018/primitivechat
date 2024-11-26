@@ -89,15 +89,31 @@ jobs:
           if [ "$http_code" -ne 200 ]; then
             echo "Error: Failed to generate a response using the model. HTTP Status Code: $http_code"
             exit 1
-          fi      
+          fi
 
-      # Step 9: Run Integration Tests
+      # Step 10: Test if the server is up
+      - name: Test server with curl
+        run: |
+          end=$((SECONDS+120))
+          while [ $SECONDS -lt $end ]; do
+            if curl -s http://localhost:8000 > /dev/null; then
+              echo "Server is up!"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 5
+            fi
+          done
+          echo "Error: Server did not start within 2 minutes."
+          exit 1
+
+      # Step 11: Run Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 10: Shut Down Docker Compose
+      # Step 12: Shut Down Docker Compose
       - name: Docker-compose down
         working-directory: src/backend
         if: always()
