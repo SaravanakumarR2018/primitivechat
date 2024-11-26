@@ -67,9 +67,9 @@ jobs:
 
       # Step 7: Run Python Integration Tests
       - name: Run Python Integration Tests
-        working-directory: src/backend  # Ensure the correct directory for tests
+        working-directory: src/backend/test/IntegrationTests  # Ensure the correct directory for tests
         run: |
-          python -m unittest discover -s ./test/IntegrationTests
+          python -m unittest discover  # Adjusted to run tests in the current directory
 
       # Step 8: Shut down Docker Compose (clean up)
       - name: Docker-compose down
