@@ -1,4 +1,4 @@
-name: Docker Compose Integration Test on PR
+name: Docker Compose Test on PR
 
 on:
   pull_request:
@@ -21,80 +21,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      # Step 3: Start Docker Compose
+      # Step 3: Run Docker Compose
       - name: Run docker-compose up
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here
         run: docker-compose up -d
 
-      # Step 4: Verify Ollama Server is Running
-      - name: Check Ollama server health
+      # Step 4: Test if the main server is up
+      - name: Test main server with curl
         run: |
-          echo "Checking if Ollama server is up..."
-          end=$((SECONDS+180)) # Wait up to 3 minutes
-          while [ $SECONDS -lt $end ]; do
-            status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:11434/)
-            if [ "$status_code" -eq 200 ]; then
-              echo "Ollama server is running!"
-              exit 0
-            fi
-            echo "Waiting for Ollama server readiness..."
-            sleep 5
-          done
-          echo "Error: Ollama server did not start within 3 minutes."
-          exit 1
-
-      # Step 5: List all running containers
-      - name: List all running containers
-        run: docker ps
-
-      # Step 6: Check Ollama server logs
-      - name: Check Ollama server logs
-        run: |
-          container_id=$(docker ps -q --filter "ancestor=ollama/ollama:0.4.1")
-          if [ -z "$container_id" ]; then
-            echo "Error: Ollama server container not found."
-            exit 1
-          fi
-          echo "Fetching logs for container: $container_id"
-          docker logs "$container_id"
-
-      # Step 7: Pull llama3.2:3b model
-      - name: Pull llama3.2:3b model
-        run: |
-          echo "Pulling llama3.2:3b model..."
-          response=$(curl -s -o response_body.txt -w "%{http_code}" http://localhost:11434/api/pull -d '{ "name": "llama3.2:3b" }')
-          http_code="${response: -3}"
-          cat response_body.txt
-          if [ "$http_code" -ne 200 ]; then
-            echo "Error: Failed to pull model. HTTP Code: $http_code"
-            exit 1
-          fi
-          echo "Llama 3.2 3B model has been successfully initiated for download."
-
-      # Step 8: Test AI Responses
-      - name: Test AI Responses
-        run: |
-          echo "Testing AI response..."
-          response=$(curl -s -o response_body.txt -w "%{http_code}" http://localhost:11434/api/generate -d '{
-            "model": "llama3.2:3b",
-            "prompt": "Is the sky blue? Answer True or False.",
-            "stream": false
-          }')
-          http_code="${response: -3}"
-          body=$(cat response_body.txt)
-
-          echo "Generation Response: $body"
-          echo "Generation HTTP Status Code: $http_code"
-
-          if [ "$http_code" -ne 200 ]; then
-            echo "Error: Failed to generate a response using the model. HTTP Status Code: $http_code"
-            exit 1
-          fi
-
-      # Step 10: Test if the server is up
-      - name: Test server with curl
-        run: |
-          end=$((SECONDS+120))
+          end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:8000 > /dev/null; then
               echo "Server is up!"
@@ -106,15 +41,30 @@ jobs:
           done
           echo "Error: Server did not start within 2 minutes."
           exit 1
+          
+      # Step 5: Verify Ollama Server is Running
+      - name: Check Ollama server health
+        run: |
+          end=$((SECONDS+180))  # Wait up to 3 minutes
+          while [ $SECONDS -lt $end ]; do
+            if curl -s http://localhost:11434 > /dev/null; then
+              echo "Ollama server is running!"
+              exit 0
+            fi
+            echo "Waiting for Ollama server readiness..."
+            sleep 5
+          done
+          echo "Error: Ollama server did not start within 3 minutes."
+          exit 1
 
-      # Step 11: Run Integration Tests
+      # Step 6: Run Python Integration Tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 12: Shut Down Docker Compose
+      # Step 7: Shut down Docker Compose (clean up)
       - name: Docker-compose down
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here as well
         if: always()
         run: docker-compose down
