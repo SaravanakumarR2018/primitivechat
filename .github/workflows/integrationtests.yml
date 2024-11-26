@@ -28,10 +28,26 @@ jobs:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      # Step 4: Test if the server is up
+      # Step 4: Check if Ollama server is up
+      - name: Check Ollama server status
+        run: |
+          end=$((SECONDS+120))  # Wait up to 2 minutes
+          while [ $SECONDS -lt $end ]; do
+            if curl -s http://localhost:11434 > /dev/null; then
+              echo "Ollama server is up!"
+              exit 0
+            else
+              echo "Waiting for Ollama server to be up..."
+              sleep 5
+            fi
+          done
+          echo "Error: Ollama server did not start within 2 minutes."
+          exit 1
+
+      # Step 5: Test if the main server is up
       - name: Test server with curl
         run: |
-          end=$((SECONDS+180))
+          end=$((SECONDS+180))  # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:8000 > /dev/null; then
               echo "Server is up!"
@@ -43,14 +59,14 @@ jobs:
           done
           echo "Error: Server did not start within 3 minutes."
           exit 1
-          
-      # Step 5: Run integration tests
+
+      # Step 6: Run Python Integration Tests
       - name: Run Python Integration Tests
-        working-directory: ${{ github.workspace }}
+        working-directory: src/backend  # Ensure the correct directory for tests
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 6: Shut down Docker Compose (clean up)
+      # Step 7: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
