@@ -74,8 +74,9 @@ jobs:
       # Step 6: Run Python Integration Tests
       - name: Run Python Integration Tests
         working-directory: src/backend
-        run: |
-          python -m unittest discover -s ./test/IntegrationTests
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: python -m unittest discover -s ./test/IntegrationTests
 
       # Step 7: Shut down Docker Compose (clean up)
       - name: Docker-compose down
