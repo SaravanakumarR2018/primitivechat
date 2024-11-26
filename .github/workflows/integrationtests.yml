@@ -93,7 +93,7 @@ jobs:
 
       # Step 9: Run Integration Tests
       - name: Run Python Integration Tests
-        working-directory: src/backend
+        working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
