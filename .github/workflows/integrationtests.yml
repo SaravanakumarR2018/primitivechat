@@ -15,34 +15,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker and Docker Compose
-      - name: Install Docker
+      # Step 2: Set up Docker Compose
+      - name: Install Docker Compose
         run: |
           sudo apt-get update
-          sudo apt-get install -y docker.io
           sudo apt-get install -y docker-compose
-          sudo systemctl start docker
-          sudo systemctl enable docker
-
-      # Check Docker version
-      - name: Check Docker version
-        run: docker --version
 
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      # View Docker logs
-      - name: View Docker logs
-        run: docker-compose logs
-
       # Step 4: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
-          end=$((SECONDS+180))  # Wait up to 3 minutes
+          end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:11434 > /dev/null; then
               echo "Ollama server is up!"
@@ -52,13 +41,13 @@ jobs:
               sleep 5
             fi
           done
-          echo "Error: Ollama server did not start within 3 minutes."
+          echo "Error: Ollama server did not start within 2 minutes."
           exit 1
 
       # Step 5: Test if the main server is up
       - name: Test server with curl
         run: |
-          end=$((SECONDS+240))  # Wait up to 4 minutes
+          end=$((SECONDS+180))  # Wait up to 3 minutes
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:8000 > /dev/null; then
               echo "Server is up!"
@@ -68,18 +57,23 @@ jobs:
               sleep 5
             fi
           done
-          echo "Error: Server did not start within 4 minutes."
+          echo "Error: Server did not start within 3 minutes."
           exit 1
 
-      # Step 6: Run Python Integration Tests
+      # Step 6: List files in the directory for debugging
+      - name: List directory contents (for debugging)
+        run: |
+          ls -R src/backend  # List all files and subdirectories for debugging
+
+      # Step 7: Run Python Integration Tests
       - name: Run Python Integration Tests
         working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 7: Shut down Docker Compose (clean up)
+      # Step 8: Shut down Docker Compose (clean up)
       - name: Docker-compose down
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here as well
         if: always()
         run: docker-compose down
