@@ -59,14 +59,30 @@ jobs:
           done
           echo "Error: Ollama server did not start within 2 minutes."
           exit 1
+          
+      # Step 7: Pull the Llama model
+      - name: Pull Llama model
+        run: |
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/pull -d '{"name": "llama3.2:3b"}')
+          http_code=${response: -3}
+          body=${response%${http_code}}
+          echo "Response Body: $body"
+          echo "HTTP Status Code: $http_code"
 
-      # Step 6: Run integration tests
+          if [ "$http_code" -eq 200 ]; then
+            echo "Model llama3.2:3b pulled successfully."
+          else
+            echo "Failed to pull model. Exiting."
+            exit 1
+          fi
+
+      # Step 8: Run integration tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 7: Shut down Docker Compose (clean up)
+      # Step 9: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
