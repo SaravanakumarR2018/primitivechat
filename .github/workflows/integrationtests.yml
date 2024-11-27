@@ -43,7 +43,7 @@ jobs:
           done
           echo "Error: Server did not start within 2 minutes."
           exit 1
-          
+
        # Step 5: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
@@ -59,8 +59,8 @@ jobs:
           done
           echo "Error: Ollama server did not start within 2 minutes."
           exit 1
-          
-      # Step 7: Pull the Llama model
+
+      # Step 6: Pull the Llama model
       - name: Pull Llama model
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/pull -d '{"name": "llama3.2:3b"}')
@@ -73,6 +73,26 @@ jobs:
             echo "Model llama3.2:3b pulled successfully."
           else
             echo "Failed to pull model. Exiting."
+            exit 1
+          fi
+          
+      # Step 7: Test model response
+      - name: Test model response
+        run: |
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/generate -d '{
+            "model": "llama3.2:3b",
+            "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
+            "stream": false
+          }')
+          http_code=${response: -3}
+          body=${response%${http_code}}
+          echo "Response Body: $body"
+          echo "HTTP Status Code: $http_code"
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "Model generated a response successfully."
+          else
+            echo "Failed to generate model response. Exiting."
             exit 1
           fi
 
