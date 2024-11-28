@@ -14,7 +14,7 @@ class TestAPI(unittest.TestCase):
         self.generate_endpoint = "/api/generate"
         self.valid_model = "llama3.2:3b"
         self.valid_prompt = "What is the capital of France?"
-        
+
 
         # Verify the server is running
         try:
@@ -61,6 +61,25 @@ class TestAPI(unittest.TestCase):
         self.assertIn("response", response_json, "Response JSON should contain 'response' key.")
         self.assertIn("Paris", response_json["response"], "Expected response to contain 'Paris'.")
         logger.info("Test Case Passed: Valid prompt generated a correct response.\n")
+
+    # Negative Test Cases
+    def test_generate_missing_prompt(self):
+        """Test generating a response with a missing prompt."""
+        logger.info("=== Starting Negative Test Case: Generate Missing Prompt ===")
+        payload = {"model": "llama3.2:3b", "stream": False}
+        response = self.send_post_request(self.generate_endpoint, payload)
+
+        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing prompt.")
+
+        try:
+            response_json = response.json()
+            logger.info(f"Response JSON: {response_json}")
+            self.assertIn("error", response_json, "Response JSON should contain 'error' key.")
+            self.assertEqual(response_json["error"], "Missing prompt", "Expected error message 'Missing prompt'.")
+        except ValueError:
+            self.fail(f"Expected JSON response, but received: {response.text}")
+
+        logger.info("Test Case Passed: Missing prompt generated the expected error.\n")
 
 
 if __name__ == "__main__":
