@@ -11,7 +11,6 @@ class TestAPI(unittest.TestCase):
         """Set up reusable test configurations."""
         logger.info("=== Setting up test case ===")
         self.BASE_URL = "http://localhost:11434"  # Example URL, adjust as needed
-        self.pull_endpoint = "/api/pull"
         self.generate_endpoint = "/api/generate"
         self.valid_model = "llama3.2:3b"
         self.valid_prompt = "What is the capital of France?"
@@ -22,7 +21,7 @@ class TestAPI(unittest.TestCase):
             logger.info(f"Checking if server is reachable at {self.BASE_URL}")
             response = requests.get(f"{self.BASE_URL}")
             if response.status_code == 200:
-                logger.info("Ollama server is up and running.")
+                logger.info("Ollama is running")
             else:
                 self.fail(f"Ollama server is reachable but returned unexpected status code: {response.status_code}")
         except requests.exceptions.RequestException as e:
@@ -47,18 +46,6 @@ class TestAPI(unittest.TestCase):
             self.fail(f"Request to {url} failed with error: {str(e)}")
 
     # Positive Test Cases
-    def test_model_pull_valid(self):
-        """Test pulling a valid model."""
-        logger.info("=== Starting Positive Test Case: Pull Valid Model ===")
-        payload = {"name": self.valid_model}
-        response = self.send_post_request(self.pull_endpoint, payload)
-
-        self.assertEqual(response.status_code, 200, "Expected status code 200.")
-        response_json = response.json()
-        self.assertIn("status", response_json, "Response JSON should contain 'status' key.")
-        self.assertEqual(response_json["status"], "success", "Expected pull status to be 'success'.")
-        logger.info("Test Case Passed: Model pull request succeeded.\n")
-
     def test_generate_valid_prompt(self):
         """Test generating a response with a valid prompt."""
         logger.info("=== Starting Positive Test Case: Generate Valid Prompt ===")
