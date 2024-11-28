@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TestOllamaServer(unittest.TestCase):
-    BASE_URL = "http://localhost:11434"  # Change to your local server URL and port
+    BASE_URL = "http://localhost:11434"
 
     def send_post_request(self, endpoint, payload):
         """Helper function to send a POST request and return the response."""
@@ -20,111 +20,151 @@ class TestOllamaServer(unittest.TestCase):
             return response
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed: {e}")
-            if 'response' in locals():
-                logger.error(f"Response content: {response.text}")  # Log raw response
+            if 'response' in locals() and response is not None:
+                logger.error(f"Response content: {response.text}")
             raise
 
     # Positive Test Cases
-    def test_pull_model(self):
-        """Test pulling a valid model."""
-        logger.info("=== Starting Test Case 1: Pull Model ===")
 
+    def test_model_pull_valid(self):
+        """Test pulling a valid model."""
+        logger.info("=== Starting Positive Test Case 1: Pull Valid Model ===")
         payload = {"name": "llama3.2:3b"}
         response = self.send_post_request("/api/pull", payload)
 
-        self.assertEqual(response.status_code, 200, "Expected status code 200 for pulling model")
-        self.assertIn("message", response.json(), "Response JSON does not contain 'message' key")
-        self.assertEqual(response.json().get("message"), "Model pulled successfully.", "Expected success message.")
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("status", response_json, "Response JSON should contain 'status' key")
+        self.assertEqual(response_json["status"], "success", "Expected status to be 'success'")
+        logger.info("Test Case Passed: Model pull request succeeded with status code 200.\n")
 
-        logger.info("=== Test Case 1 Completed ===\n")
-
-    def test_generate_response(self):
-        """Test generating a response from the model."""
-        logger.info("=== Starting Test Case 2: Generate Response ===")
-
+    def test_generate_valid_prompt(self):
+        """Test generating a response with a valid prompt."""
+        logger.info("=== Starting Positive Test Case 2: Generate Valid Prompt ===")
         payload = {
             "model": "llama3.2:3b",
-            "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
+            "prompt": "What is the capital of France?",
             "stream": False
         }
         response = self.send_post_request("/api/generate", payload)
 
-        self.assertEqual(response.status_code, 200, "Expected status code 200 for generating response")
-        self.assertIn("response", response.json(), "Response JSON does not contain 'response' key")
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key")
+        self.assertIn("Paris", response_json["response"], "Expected response to contain 'Paris'")
+        logger.info("Test Case Passed: Valid prompt generated a correct response.\n")
 
-        logger.info("=== Test Case 2 Completed ===\n")
+    def test_generate_streaming(self):
+        """Test generating a response with streaming enabled."""
+        logger.info("=== Starting Positive Test Case 3: Generate with Streaming ===")
+        payload = {
+            "model": "llama3.2:3b",
+            "prompt": "Explain the theory of relativity in detail.",
+            "stream": True
+        }
+        response = self.send_post_request("/api/generate", payload)
+
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key")
+        self.assertTrue(len(response_json["response"]) > 0, "Response should not be empty")
+        logger.info("Test Case Passed: Streaming response generated successfully.\n")
 
     # Negative Test Cases
-    def test_pull_invalid_model(self):
-        """Test pulling an invalid model."""
-        logger.info("=== Starting Test Case 3: Pull Invalid Model ===")
 
-        payload = {"name": "invalid_model_name"}
+    def test_model_pull_invalid(self):
+        """Test pulling a model with an invalid name."""
+        logger.info("=== Starting Negative Test Case 4: Pull Invalid Model ===")
+        payload = {"name": "nonexistent_model"}
         response = self.send_post_request("/api/pull", payload)
 
-        self.assertEqual(response.status_code, 404, "Expected status code 404 for pulling invalid model")
-        self.assertIn("error", response.json(), "Response JSON does not contain 'error' key")
+        self.assertEqual(response.status_code, 400, f"Expected status code 400 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("error", response_json, "Response JSON should contain 'error' key")
+        self.assertEqual(response_json["error"], "Model not found", "Expected error message to be 'Model not found'")
+        logger.info("Test Case Passed: Invalid model pull request returned expected error.\n")
 
-        logger.info("=== Test Case 3 Completed ===\n")
-
-    def test_generate_response_invalid_model(self):
-        """Test generating a response from an invalid model."""
-        logger.info("=== Starting Test Case 4: Generate Response Invalid Model ===")
-
+    def test_generate_invalid_model(self):
+        """Test generating a response with an invalid model."""
+        logger.info("=== Starting Negative Test Case 5: Generate with Invalid Model ===")
         payload = {
-            "model": "invalid_model_name",
-            "prompt": "Is the sky blue?",
+            "model": "nonexistent_model",
+            "prompt": "What is the capital of France?",
             "stream": False
         }
         response = self.send_post_request("/api/generate", payload)
 
-        self.assertEqual(response.status_code, 404, "Expected status code 404 for generating response with invalid model")
-        self.assertIn("error", response.json(), "Response JSON does not contain 'error' key")
+        self.assertEqual(response.status_code, 400, f"Expected status code 400 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("error", response_json, "Response JSON should contain 'error' key")
+        self.assertEqual(response_json["error"], "Model not found", "Expected error message to be 'Model not found'")
+        logger.info("Test Case Passed: Invalid model name generated the expected error.\n")
 
-        logger.info("=== Test Case 4 Completed ===\n")
-
-    def test_generate_response_missing_prompt(self):
+    def test_generate_missing_prompt(self):
         """Test generating a response with a missing prompt."""
-        logger.info("=== Starting Test Case 5: Generate Response Missing Prompt ===")
-
+        logger.info("=== Starting Negative Test Case 6: Generate Missing Prompt ===")
         payload = {
             "model": "llama3.2:3b",
             "stream": False
         }
         response = self.send_post_request("/api/generate", payload)
 
-        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing prompt")
-        self.assertIn("error", response.json(), "Response JSON does not contain 'error' key")
+        self.assertEqual(response.status_code, 400, f"Expected status code 400 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("error", response_json, "Response JSON should contain 'error' key")
+        self.assertEqual(response_json["error"], "Missing prompt", "Expected error message to be 'Missing prompt'")
+        logger.info("Test Case Passed: Missing prompt generated the expected error.\n")
 
-        logger.info("=== Test Case 5 Completed ===\n")
+    # Edge Test Cases
 
-    def test_generate_response_empty_prompt(self):
-        """Test generating a response with an empty prompt."""
-        logger.info("=== Starting Test Case 6: Generate Response Empty Prompt ===")
-
+    def test_generate_long_prompt(self):
+        """Test generating a response with a very long prompt."""
+        logger.info("=== Starting Edge Test Case 7: Generate Long Prompt ===")
+        long_prompt = "Explain the theory of relativity. " * 500  # Very long prompt
         payload = {
             "model": "llama3.2:3b",
-            "prompt": "",
+            "prompt": long_prompt,
             "stream": False
         }
         response = self.send_post_request("/api/generate", payload)
 
-        self.assertEqual(response.status_code, 400, "Expected status code 400 for empty prompt")
-        self.assertIn("error", response.json(), "Response JSON does not contain 'error' key")
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key")
+        self.assertTrue(len(response_json["response"]) > 0, "Response should not be empty")
+        logger.info("Test Case Passed: Long prompt generated a valid response.\n")
 
-        logger.info("=== Test Case 6 Completed ===\n")
+    def test_generate_special_characters(self):
+        """Test generating a response with special characters in the prompt."""
+        logger.info("=== Starting Edge Test Case 8: Generate Special Characters ===")
+        payload = {
+            "model": "llama3.2:3b",
+            "prompt": "!@#$%^&*() What is this?",
+            "stream": False
+        }
+        response = self.send_post_request("/api/generate", payload)
 
-    def test_pull_model_empty_name(self):
-        """Test pulling a model with an empty name."""
-        logger.info("=== Starting Test Case 7: Pull Model Empty Name ===")
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key")
+        logger.info("Test Case Passed: Prompt with special characters generated a valid response.\n")
 
-        payload = {"name": ""}
-        response = self.send_post_request("/api/pull", payload)
+    def test_generate_numeric_prompt(self):
+        """Test generating a response with a numeric-only prompt."""
+        logger.info("=== Starting Edge Test Case 9: Generate Numeric Prompt ===")
+        payload = {
+            "model": "llama3.2:3b",
+            "prompt": "1234567890",
+            "stream": False
+        }
+        response = self.send_post_request("/api/generate", payload)
 
-        self.assertEqual(response.status_code, 400, "Expected status code 400 for pulling model with empty name")
-        self.assertIn("error", response.json(), "Response JSON does not contain 'error' key")
+        self.assertEqual(response.status_code, 400, f"Expected status code 400 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("error", response_json, "Response JSON should contain 'error' key")
+        self.assertEqual(response_json["error"], "Invalid prompt", "Expected error message to be 'Invalid prompt'")
+        logger.info("Test Case Passed: Numeric-only prompt generated the expected error.\n")
 
-        logger.info("=== Test Case 7 Completed ===\n")
 
 if __name__ == "__main__":
     unittest.main()
