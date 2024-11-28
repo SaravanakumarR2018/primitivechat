@@ -121,7 +121,7 @@ class TestAPI(unittest.TestCase):
 
     def test_generate_numeric_prompt(self):
         """Test generating a response with a numeric-only prompt."""
-        logger.info("=== Starting Edge Test Case 9: Generate Numeric Prompt ===")
+        logger.info("=== Starting Edge Test Case: Generate Numeric Prompt ===")
         payload = {
             "model": "llama3.2:3b",
             "prompt": "1234567890",
@@ -129,11 +129,12 @@ class TestAPI(unittest.TestCase):
         }
         response = self.send_post_request(self.generate_endpoint, payload)
 
-        self.assertEqual(response.status_code, 400, f"Expected status code 400 but got {response.status_code}")
+        # Test for allowing numeric prompts
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
         response_json = response.json()
-        self.assertIn("error", response_json, "Response JSON should contain 'error' key")
-        self.assertEqual(response_json["error"], "Invalid prompt", "Expected error message to be 'Invalid prompt'")
-        logger.info("Test Case Passed: Numeric-only prompt generated the expected error.\n")
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key.")
+        self.assertTrue(len(response_json["response"]) > 0, "Response should not be empty.")
+        logger.info("Test Case Passed: Numeric-only prompt generated a valid response.\n")
 
 
 if __name__ == "__main__":
