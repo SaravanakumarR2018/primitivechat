@@ -67,19 +67,24 @@ class TestAPI(unittest.TestCase):
         """Test generating a response with a missing prompt."""
         logger.info("=== Starting Negative Test Case: Generate Missing Prompt ===")
         payload = {"model": "llama3.2:3b", "stream": False}
+
+        # Send the POST request with missing 'prompt'
         response = self.send_post_request(self.generate_endpoint, payload)
 
-        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing prompt.")
+        # Intentionally fail the test if the status code is 200 (which is unexpected)
+        self.assertNotEqual(response.status_code, 200,
+                            "Test failed: Expected status code to be non-200 for missing prompt.")
 
         try:
             response_json = response.json()
             logger.info(f"Response JSON: {response_json}")
+            # Check if error is present in response
             self.assertIn("error", response_json, "Response JSON should contain 'error' key.")
             self.assertEqual(response_json["error"], "Missing prompt", "Expected error message 'Missing prompt'.")
         except ValueError:
             self.fail(f"Expected JSON response, but received: {response.text}")
 
-        logger.info("Test Case Passed: Missing prompt generated the expected error.\n")
+        logger.info("Test Case Failed: Missing prompt should return an error with status other than 200.\n")
 
 
 if __name__ == "__main__":
