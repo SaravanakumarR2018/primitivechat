@@ -119,6 +119,22 @@ class TestAPI(unittest.TestCase):
         self.assertIn("response", response_json, "Response JSON should contain 'response' key")
         logger.info("Test Case Passed: Prompt with special characters generated a valid response.\n")
 
+    def test_generate_numeric_prompt(self):
+        """Test generating a response with a numeric-only prompt."""
+        logger.info("=== Starting Edge Test Case 9: Generate Numeric Prompt ===")
+        payload = {
+            "model": "llama3.2:3b",
+            "prompt": "1234567890",
+            "stream": False
+        }
+        response = self.send_post_request(self.generate_endpoint, payload)
+
+        self.assertEqual(response.status_code, 400, f"Expected status code 400 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("error", response_json, "Response JSON should contain 'error' key")
+        self.assertEqual(response_json["error"], "Invalid prompt", "Expected error message to be 'Invalid prompt'")
+        logger.info("Test Case Passed: Numeric-only prompt generated the expected error.\n")
+
 
 if __name__ == "__main__":
     unittest.main()
