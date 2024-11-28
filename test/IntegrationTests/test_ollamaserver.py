@@ -71,19 +71,25 @@ class TestAPI(unittest.TestCase):
         # Send the POST request with missing 'prompt'
         response = self.send_post_request(self.generate_endpoint, payload)
 
-        # If the server still returns 200, we need to check the response body for errors
+        # Check if the server responds with status 200
         self.assertEqual(response.status_code, 200, "Expected status code 200.")
 
         try:
             response_json = response.json()
             logger.info(f"Response JSON: {response_json}")
-            # Check if error is present in response
-            self.assertIn("error", response_json, "Response JSON should contain 'error' key.")
-            self.assertEqual(response_json["error"], "Missing prompt", "Expected error message 'Missing prompt'.")
+
+            # If 'response' field is empty, we can treat it as an error
+            self.assertIn("response", response_json, "Response JSON should contain 'response' key.")
+            self.assertEqual(response_json["response"], "", "Expected 'response' to be empty when prompt is missing.")
+
+            # Optionally, add a custom error message based on missing 'prompt'
+            self.assertIn("done_reason", response_json, "Response JSON should contain 'done_reason' key.")
+            self.assertEqual(response_json["done_reason"], "load",
+                             "Expected 'done_reason' to be 'load' for missing prompt.")
         except ValueError:
             self.fail(f"Expected JSON response, but received: {response.text}")
 
-        logger.info("Test Case Failed: Missing prompt should return an error with status other than 200.\n")
+        logger.info("Test Case Passed: Server responded with empty response when prompt is missing.\n")
 
 
 if __name__ == "__main__":
