@@ -15,7 +15,6 @@ class TestAPI(unittest.TestCase):
         self.valid_model = "llama3.2:3b"
         self.valid_prompt = "What is the capital of France?"
 
-
         # Verify the server is running
         try:
             logger.info(f"Checking if server is reachable at {self.BASE_URL}")
@@ -91,6 +90,19 @@ class TestAPI(unittest.TestCase):
 
         logger.info("Test Case Passed: Server responded with empty response when prompt is missing.\n")
 
+    # Edge Test Cases
+    def test_generate_long_prompt(self):
+        """Test generating a response with a very long prompt."""
+        logger.info("=== Starting Edge Test Case: Generate Long Prompt ===")
+        long_prompt = "Explain the theory of relativity. " * 500  # Creating a long prompt
+        payload = {"model": "llama3.2:3b", "prompt": long_prompt, "stream": False}
+        response = self.send_post_request(self.generate_endpoint, payload)
+
+        self.assertEqual(response.status_code, 200, "Expected status code 200.")
+        response_json = response.json()
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key.")
+        self.assertTrue(len(response_json["response"]) > 0, "Response should not be empty.")
+        logger.info("Test Case Passed: Long prompt generated a valid response.\n")
 
 if __name__ == "__main__":
     unittest.main()
