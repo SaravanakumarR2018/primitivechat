@@ -100,7 +100,8 @@ class MinioManager:
                 raise HTTPException(status_code=400, detail="File does not exist in the specified bucket")
 
             logger.info(f"File '{filename}' downloaded successfully from bucket '{bucket_name}'.")
-            return response
+            #return response
+            return self.client.get_object(bucket_name, filename)
 
         except S3Error as e:
             logger.error(f"Error downloading file '{filename}' from bucket '{bucket_name}'{e}")
