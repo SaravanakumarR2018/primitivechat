@@ -28,19 +28,33 @@ class TestAPI(unittest.TestCase):
             self.fail(f"Failed to connect to the server: {str(e)}")
 
     def send_post_request(self, endpoint, payload):
-        """Helper function to send a POST request and handle JSON response."""
+        """Helper function to send a POST request and handle streaming response."""
         url = f"{self.BASE_URL}{endpoint}"
         logger.info(f"Sending POST request to {url} with payload: {payload}")
         try:
-            response = requests.post(url, json=payload)
+            response = requests.post(url, json=payload, stream=True)  # Enable streaming
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx, 5xx)
+
+            # Handle the streaming response
             try:
-                response_data = response.json()
-                logger.info(f"Received response: {response.status_code}, {response_data}")
-                return response
-            except ValueError:
-                logger.error(f"Invalid JSON received: {response.text}")
-                self.fail(f"Expected JSON response but received: {response.text}")
+                chunks = []
+                for chunk in response.iter_lines(decode_unicode=True):
+                    if chunk:
+                        chunks.append(chunk)
+                full_response = ''.join(chunks)  # Combine all chunks into one string
+                logger.info(f"Received response: {response.status_code}, {full_response}")
+
+                # If the server responds with a single JSON object, we can parse it.
+                try:
+                    response_data = response.json()
+                    return response_data
+                except ValueError:
+                    logger.error(f"Invalid JSON received: {full_response}")
+                    self.fail(f"Expected JSON response but received: {full_response}")
+            except Exception as e:
+                logger.error(f"Error processing stream: {e}")
+                self.fail(f"Error while handling the streaming response: {str(e)}")
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed: {e}")
             self.fail(f"Request to {url} failed with error: {str(e)}")
