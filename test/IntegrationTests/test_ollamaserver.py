@@ -104,5 +104,21 @@ class TestAPI(unittest.TestCase):
         self.assertTrue(len(response_json["response"]) > 0, "Response should not be empty.")
         logger.info("Test Case Passed: Long prompt generated a valid response.\n")
 
+    def test_generate_special_characters(self):
+        """Test generating a response with special characters in the prompt."""
+        logger.info("=== Starting Edge Test Case 8: Generate Special Characters ===")
+        payload = {
+            "model": "llama3.2:3b",
+            "prompt": "!@#$%^&*() What is this?",
+            "stream": False
+        }
+        response = self.send_post_request(self.generate_endpoint, payload)
+
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
+        response_json = response.json()
+        self.assertIn("response", response_json, "Response JSON should contain 'response' key")
+        logger.info("Test Case Passed: Prompt with special characters generated a valid response.\n")
+
+
 if __name__ == "__main__":
     unittest.main()
