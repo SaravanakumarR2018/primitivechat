@@ -6,7 +6,50 @@ import magic
 from src.backend.minio.minio_manager import MinioManager, logger
 
 
+<<<<<<< HEAD
 class CheckFileType:
+=======
+class DocumentReader:
+    def __init__(self):
+
+        try:
+            self.client = Minio(
+                os.getenv('MINIO_HOST', 'minio:9000'),
+                access_key=os.getenv('MINIO_ROOT_USER', 'minioadmin'),
+                secret_key=os.getenv('MINIO_ROOT_PASSWORD', 'minioadmin'),
+                secure=False
+            )
+            logger.info("MinIO client initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing MinIO client: {e}")
+            raise HTTPException(status_code=500, detail="Error initializing MinIO client")
+
+    def upload_file(self, bucket_name, filename):
+
+        try:
+            self.client.put_object(
+                bucket_name=bucket_name,
+                object_name=filename,
+            )
+            logger.info(f"File '{filename}' uploaded successfully to bucket '{bucket_name}'")
+            return bucket_name, filename
+        except S3Error as e:
+            logger.error(f"Error uploading file '{filename}' to bucket '{bucket_name}': {e}")
+            raise HTTPException(status_code=500, detail="Error uploading file")
+
+    def get_customer_guid_and_filename(self):
+        customer_guid = input("Enter the customer GUID: ")
+        filename = input("Enter the filename")
+        return self.upload_file(customer_guid, filename)
+
+    def get_file_from_minio(self, filename):
+        try:
+            file_data = self.client.get_object(filename)
+            return file_data
+        except S3Error as e:
+            logger.error(f"Error retrieving file '{filename}' from MinIO: {e}")
+            raise HTTPException(status_code=500, detail="Error retrieving file")
+>>>>>>> 3148c3b1164030ca19fe63505a4ec23a2b269e6a
 
     def check_file_type(self, filename):
 
