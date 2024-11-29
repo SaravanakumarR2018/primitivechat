@@ -4,8 +4,11 @@ import pdfplumber
 import magic
 import easyocr
 import numpy as np
-from src.backend.minio.minio_manager import logger
+import logging
 
+#config logging
+logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class CheckFileType:
 
