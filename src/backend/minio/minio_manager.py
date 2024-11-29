@@ -1,5 +1,6 @@
 import logging
 import os
+from fastapi import HTTPException
 
 from minio import Minio
 from minio.error import S3Error
@@ -68,7 +69,7 @@ class MinioManager:
         try:
             if not self.client.bucket_exists(bucket_name):
                 logger.error(f"Bucket '{bucket_name}' does not exist.")
-                raise Exception(f"Bucket '{bucket_name}' does not exist.")
+                raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
             objects = self.client.list_objects(bucket_name)
             file_list = [obj.object_name for obj in objects]
@@ -79,15 +80,26 @@ class MinioManager:
             logger.error(f"Error listing files in bucket '{bucket_name}': {e}")
             return {"error":f"Error listing files in bucket {bucket_name}"}
         except Exception as e:
-            logger.error(f"Unexpected error while listing files: {e}")
-            return f"Unexpected error while listing the files:'{bucket_name}':{e}"
+            if isinstance(e,HTTPException):
+                logger.error(f"Invalid customer_guid:{e.detail}")
+                raise e
+            else:
+                logger.error(f"Unexpected error while listing a files: {e}")
+                raise HTTPException(status_code=500, detail=f"Unexpected error while listing a files in bucket '{bucket_name}'")
 
     #Download a file from MinIO bucket
     def download_file(self,bucket_name,filename):
         try:
-            response=self.client.get_object(bucket_name,filename)
+            if not self.client.bucket_exists(bucket_name):
+                logger.error(f"Bucket '{bucket_name}' does not exist.")
+                raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-            logger.info(f"File '{filename}' Downloaded Successfully from bucket '{bucket_name}'")
+            response = self.client.get_object(bucket_name, filename)
+            if not response:
+                logger.error(f"File '{filename}' does not exist in bucket '{bucket_name}'")
+                raise HTTPException(status_code=400, detail="File does not exist in the specified bucket")
+
+            logger.info(f"File '{filename}' downloaded successfully from bucket '{bucket_name}'.")
             return response
 
         except S3Error as e:
@@ -95,6 +107,13 @@ class MinioManager:
             return {"error":f"Failed to download file: {e}"}
 
         except Exception as e:
-            logger.error(f"Unexpected error during file download:{e}")
-            return {"error":f"An error occurred:{e}"}
-
+            if isinstance(e, HTTPException):
+                if e.status_code==404:
+                    logger.error(f"Invalid customer_guid:{e.detail}")
+                    raise e
+                else:
+                    logger.error(f"File '{filename}' does not exist in bucket '{bucket_name}': {e}")
+                    raise e
+            else:
+                logger.error(f"Unexpected error during file download:{e}")
+                return {"error":f"An error occurred:{e}"}
