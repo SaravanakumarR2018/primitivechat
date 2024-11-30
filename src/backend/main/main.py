@@ -39,9 +39,8 @@ async def add_correlation_id(request: Request, call_next):
     response.headers['X-Correlation-ID'] = correlation_id
     return response
 
-
 # Health check endpoint at the root path to verify the server is up
-@main_app.get("/health", tags=["Health Check"])
+@main_app.get("/", tags=["Health Check"])
 async def check_server_status(request: Request):
     logger.debug(f"Entering check_server_status() with Correlation ID: {request.state.correlation_id}")
     logger.debug(f"Exiting check_server_status() with Correlation ID: {request.state.correlation_id}")
