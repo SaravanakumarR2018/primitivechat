@@ -1,8 +1,6 @@
 import logging
-import uuid
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
@@ -15,16 +13,9 @@ from src.backend.weaviate.weaviate_manager import WeaviateManager
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = APIRouter()
 
 # Allow CORS if necessary
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 db_manager = DatabaseManager()
 minio_manager = MinioManager()
@@ -47,19 +38,6 @@ class GetAllChatsRequest(BaseModel):
 class DeleteChatsRequest(BaseModel):
     customer_guid: str
     chat_id: str
-
-
-@app.middleware("http")
-async def add_correlation_id(request: Request, call_next):
-    correlation_id = str(uuid.uuid4())
-    request.state.correlation_id = correlation_id
-    logger.info(f"Request received with Correlation ID: {correlation_id}")
-
-    response = await call_next(request)
-
-    # Add correlation ID to response headers
-    response.headers['X-Correlation-ID'] = correlation_id
-    return response
 
 
 # API endpoint to add a new customer
@@ -257,18 +235,3 @@ async def delete_chats(request: Request, delete_chats_request: DeleteChatsReques
         raise HTTPException(status_code=500, detail="Failed to delete chats")
     logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
     return {"message": "Chat deleted successfully"}
-
-
-# Health check endpoint at the root path to verify the server is up
-@app.get("/", tags=["Health Check"])
-async def check_server_status(request: Request):
-    logger.debug(f"Entering check_server_status() with Correlation ID: {request.state.correlation_id}")
-    logger.debug(f"Exiting check_server_status() with Correlation ID: {request.state.correlation_id}")
-    return {"message": "The server is up and running!"}
-
-
-# Run the server
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
