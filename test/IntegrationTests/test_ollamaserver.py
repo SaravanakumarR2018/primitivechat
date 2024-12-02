@@ -77,7 +77,7 @@ class TestAPI(unittest.TestCase):
     def test_generate_long_prompt(self):
         """Test generating a response with a very long prompt."""
         logger.info("=== Starting Edge Test Case 2: Generate Long Prompt ===")
-        long_prompt = "Explain the theory of relativity. " * 500  # Creating a long prompt
+        long_prompt = "Explain the theory of Electricity. " * 500  # Creating a long prompt
         payload = {"model": "llama3.2:3b", "prompt": long_prompt, "stream": False}
         response = self.send_post_request(self.generate_endpoint, payload)
 
