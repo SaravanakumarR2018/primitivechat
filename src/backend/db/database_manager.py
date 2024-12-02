@@ -2,8 +2,6 @@ import logging
 import os
 import uuid
 from enum import Enum
-from uuid import UUID
-from typing import List
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -112,25 +110,14 @@ class DatabaseManager:
             session.execute(text(create_custom_fields_table_query))
 
             # Creating ticket_field_values table if not exists
-            create_ticket_field_values_table_query = """
-            CREATE TABLE IF NOT EXISTS ticket_field_values (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                ticket_id BIGINT NOT NULL,
-                field_name VARCHAR(255) NOT NULL,
-                field_value TEXT,
-                FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE,
-                FOREIGN KEY (field_name) REFERENCES custom_fields(field_name) ON DELETE CASCADE
+            create_custom_field_values_table_query = """
+            CREATE TABLE IF NOT EXISTS custom_field_values ( 
+                ticket_id BIGINT PRIMARY KEY, 
+                FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE 
+                -- Custom fields will be added here dynamically as columns 
             );
             """
-            session.execute(text(create_ticket_field_values_table_query))
-
-            # Creating ticket_states table if not exists
-            create_ticket_states_table_query = """
-            CREATE TABLE IF NOT EXISTS ticket_states (
-                state VARCHAR(50) PRIMARY KEY
-            );
-            """
-            session.execute(text(create_ticket_states_table_query))
+            session.execute(text(create_custom_field_values_table_query))
 
             session.commit()
 
@@ -312,10 +299,23 @@ class DatabaseManager:
     def add_custom_field(self, customer_guid, field_name, field_type, required):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
+
+        # Mapping field_type to SQL types
+        sql_type_map = {
+            'string': 'VARCHAR(255)',
+            'integer': 'INT',
+            'boolean': 'BOOLEAN',
+            'date': 'DATE'
+        }
+        sql_type = sql_type_map.get(field_type)
+        if not sql_type:
+            raise ValueError(f"Unsupported field type: {field_type}")
+
         try:
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
+            # Add metadata to custom_fields table
             query = '''INSERT INTO custom_fields (field_name, field_type, required)
                        VALUES (:field_name, :field_type, :required)'''
             session.execute(
@@ -326,12 +326,33 @@ class DatabaseManager:
                     "required": required,
                 },
             )
+
+            # Dynamically add column to custom_field_values table
+            alter_table_query = f"""
+            ALTER TABLE custom_field_values
+            ADD COLUMN {field_name} {sql_type};
+            """
+            session.execute(text(alter_table_query))
+
+            # Verify if the column was added
+            verify_column_query = f"""
+            SHOW COLUMNS FROM custom_field_values LIKE '{field_name}';
+            """
+            result = session.execute(text(verify_column_query)).fetchone()
+
+            if result:
+                logger.info(f"Custom field '{field_name}' added successfully as a column in custom_field_values.")
+            else:
+                logger.error(f"Failed to add column '{field_name}' in custom_field_values.")
+                session.rollback()
+                raise ValueError(f"Column '{field_name}' was not added successfully.")
+
             session.commit()
             return True
         except IntegrityError as e:
             logger.error(f"Duplicate field name error: {e}")
             session.rollback()
-            raise ValueError("A custom field with this name already exists")
+            raise ValueError("A custom field with this name already exists.")
         except SQLAlchemyError as e:
             logger.error(f"Error adding custom field: {e}")
             session.rollback()
@@ -384,10 +405,18 @@ class DatabaseManager:
                 logger.debug(f"No custom field found with name: {field_name}")
                 return False  # Field does not exist
 
-            # Proceed to delete the field
+            # Delete the column from custom_field_values table
+            logger.debug(f"Dropping column {field_name} from custom_field_values table")
+            alter_table_query = f"""ALTER TABLE custom_field_values DROP COLUMN `{field_name}`;"""
+            session.execute(text(alter_table_query))
+
+            # Remove the field details from the custom_fields table
+            logger.debug(f"Deleting field {field_name} from custom_fields table")
             query_delete = '''DELETE FROM custom_fields WHERE field_name = :field_name'''
             session.execute(text(query_delete), {"field_name": field_name})
+
             session.commit()
+            logger.info(f"Custom field {field_name} deleted successfully")
             return True
         except SQLAlchemyError as e:
             logger.error(f"Error deleting custom field: {e}")
@@ -395,5 +424,3 @@ class DatabaseManager:
             return False
         finally:
             session.close()
-
-    
