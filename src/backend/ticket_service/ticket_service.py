@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional, Dict
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -51,7 +51,7 @@ async def add_custom_field(custom_field: CustomField):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ***Need to handle error for empty custom_fields****
+
 @app.get("/custom_fields", response_model=List[CustomFieldResponse])
 async def list_custom_fields(customer_guid: UUID):
     """List all custom fields for a customer"""
@@ -91,18 +91,14 @@ async def list_custom_fields(customer_guid: UUID):
 async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
     """Delete a custom field"""
     try:
-        deleted = db_manager.delete_custom_field(str(customer_guid), field_name)
-        if deleted:
+        result = db_manager.delete_custom_field(str(customer_guid), field_name)
+        if result["status"] == "deleted":
             return {"field_name": field_name, "status": "deleted"}
+        elif result["status"] == "not_found":
+            return {
+                "message": f"Custom field '{field_name}' was not found, no action needed",
+            }
         else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No custom field found with name '{field_name}' to delete",
-            )
-    except HTTPException as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No custom field found with name '{field_name}' to delete",
-        )
+            raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
