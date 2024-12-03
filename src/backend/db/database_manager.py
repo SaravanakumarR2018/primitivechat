@@ -64,7 +64,7 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
         try:
             logger.debug(f"Creating database: {customer_db_name}")
-            create_db_query = f"CREATE DATABASE IF NOT EXISTS `{customer_db_name}`"
+            create_db_query = f"CREATE DATABASE `{customer_db_name}`"
             session.execute(text(create_db_query))
 
             logger.debug(f"Switching to database: {customer_db_name}")
@@ -103,7 +103,7 @@ class DatabaseManager:
             create_custom_fields_table_query = """
             CREATE TABLE IF NOT EXISTS custom_fields (
                 field_name VARCHAR(255) PRIMARY KEY,
-                field_type ENUM('string', 'integer', 'boolean', 'date') NOT NULL,
+                field_type ENUM('VARCHAR(255)', 'INT', 'BOOLEAN', 'DATE', 'MEDIUMTEXT') NOT NULL,
                 required BOOLEAN DEFAULT FALSE
             );
             """
@@ -296,20 +296,17 @@ class DatabaseManager:
         finally:
             session.close()
 
+    #Custom Fields Related Functions
     def add_custom_field(self, customer_guid, field_name, field_type, required):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
 
-        # Mapping field_type to SQL types
-        sql_type_map = {
-            'string': 'VARCHAR(255)',
-            'integer': 'INT',
-            'boolean': 'BOOLEAN',
-            'date': 'DATE'
-        }
-        sql_type = sql_type_map.get(field_type)
-        if not sql_type:
-            raise ValueError(f"Unsupported field type: {field_type}")
+        # Define a set of allowed SQL data types
+        allowed_sql_types = {"VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT"}
+
+        # Validate the field type
+        if field_type not in allowed_sql_types:
+            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(allowed_sql_types)}")
 
         try:
             logger.debug(f"Switching to customer database: {customer_db_name}")
@@ -330,7 +327,7 @@ class DatabaseManager:
             # Dynamically add column to custom_field_values table
             alter_table_query = f"""
             ALTER TABLE custom_field_values
-            ADD COLUMN {field_name} {sql_type};
+            ADD COLUMN {field_name} {field_type};
             """
             session.execute(text(alter_table_query))
 
@@ -403,7 +400,7 @@ class DatabaseManager:
 
             if result == 0:
                 logger.debug(f"No custom field found with name: {field_name}")
-                return False  # Field does not exist
+                return {"status": "not_found"}  # Field does not exist
 
             # Delete the column from custom_field_values table
             logger.debug(f"Dropping column {field_name} from custom_field_values table")
@@ -417,10 +414,10 @@ class DatabaseManager:
 
             session.commit()
             logger.info(f"Custom field {field_name} deleted successfully")
-            return True
+            return {"status": "deleted"}
         except SQLAlchemyError as e:
             logger.error(f"Error deleting custom field: {e}")
             session.rollback()
-            return False
+            return {"status": "error", "error": str(e)}
         finally:
             session.close()
