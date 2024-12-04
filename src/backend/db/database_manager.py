@@ -20,6 +20,8 @@ class SenderType(Enum):
 class DatabaseManager:
     _session_factory = None
 
+    allowed_custom_field_sql_types = {"VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT"}
+
     def __init__(self):
         logger.debug("Initializing DatabaseManager")
         if DatabaseManager._session_factory is None:
@@ -103,7 +105,7 @@ class DatabaseManager:
             create_custom_fields_table_query = """
             CREATE TABLE IF NOT EXISTS custom_fields (
                 field_name VARCHAR(255) PRIMARY KEY,
-                field_type ENUM('VARCHAR(255)', 'INT', 'BOOLEAN', 'DATE', 'MEDIUMTEXT') NOT NULL,
+                field_type VARCHAR(255) NOT NULL,
                 required BOOLEAN DEFAULT FALSE
             );
             """
@@ -301,12 +303,9 @@ class DatabaseManager:
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
 
-        # Define a set of allowed SQL data types
-        allowed_sql_types = {"VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT"}
-
         # Validate the field type
-        if field_type not in allowed_sql_types:
-            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(allowed_sql_types)}")
+        if field_type not in self.allowed_custom_field_sql_types:
+            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
 
         try:
             logger.debug(f"Switching to customer database: {customer_db_name}")
