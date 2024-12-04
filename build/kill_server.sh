@@ -48,3 +48,22 @@ echo "OLLAMA_PORT=$OLLAMA_PORT"
 cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Bringing Docker down"
 docker-compose down
+
+# Pull required images
+echo "Pulling required Docker images..."
+docker-compose pull mysql_db
+docker-compose pull minio
+docker-compose pull ollama
+
+# Pull weaviate image with retry
+echo "Pulling weaviate image..."
+for i in {1..5}; do
+  docker-compose pull weaviate
+  if [ $? -eq 0 ]; then
+    break
+  fi
+  echo "Pull failed, retrying in 10 seconds..."
+  sleep 10
+done
+
+echo "All required Docker images pulled successfully."
