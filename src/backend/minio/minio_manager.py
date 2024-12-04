@@ -14,10 +14,10 @@ class MinioManager:
     def __init__(self):
 
         try:
-            self.client=Minio(
-                os.getenv('MINIO_HOST','minio:9000'),
-                access_key=os.getenv('MINIO_ROOT_USER','minioadmin'),
-                secret_key=os.getenv('MINIO_ROOT_PASSWORD','minioadmin'),
+            self.client = Minio(
+                f"{os.getenv('MINIO_HOST', 'minio')}:9000",
+                access_key=os.getenv('MINIO_ROOT_USER', 'minioadmin'),
+                secret_key=os.getenv('MINIO_ROOT_PASSWORD', 'minioadmin'),
                 secure=False
             )
             logger.info("Successfully connected to MinIO.")
@@ -117,4 +117,3 @@ class MinioManager:
             else:
                 logger.error(f"Unexpected error during file download:{e}")
                 return {"error":f"An error occurred:{e}"}
-

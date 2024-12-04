@@ -11,6 +11,37 @@ PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
 export PROJECT_ROOT
 echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
 
+# Set fallback values for critical environment variables
+export CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT:-8000}
+export DB_USER=${DB_USER:-root}
+export DB_PASSWORD=${DB_PASSWORD:-admin123}
+export DB_HOST=${DB_HOST:-mysql_db}
+export MYSQL_DATABASE=${MYSQL_DATABASE:-mydatabase}
+export MYSQL_PORT=${MYSQL_PORT:-3306}
+export MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+export MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+export MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT:-9001}
+export MINIO_SERVER_PORT=${MINIO_SERVER_PORT:-9000}
+export WEAVIATE_PORT=${WEAVIATE_PORT:-8080}
+export WEAVIATE_GRPC_PORT=${WEAVIATE_GRPC_PORT:-50051}
+export OLLAMA_PORT=${OLLAMA_PORT:-11434}
+
+# Display the loaded environment variables (optional, for debugging)
+echo "Loaded environment variables:"
+echo "CHAT_SERVICE_PORT=$CHAT_SERVICE_PORT"
+echo "DB_USER=$DB_USER"
+echo "DB_PASSWORD=$DB_PASSWORD"
+echo "DB_HOST=$DB_HOST"
+echo "MYSQL_DATABASE=$MYSQL_DATABASE"
+echo "MYSQL_PORT=$MYSQL_PORT"
+echo "MINIO_ROOT_USER=$MINIO_ROOT_USER"
+echo "MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD"
+echo "MINIO_CONSOLE_PORT=$MINIO_CONSOLE_PORT"
+echo "MINIO_SERVER_PORT=$MINIO_SERVER_PORT"
+echo "WEAVIATE_PORT=$WEAVIATE_PORT"
+echo "WEAVIATE_GRPC_PORT=$WEAVIATE_GRPC_PORT"
+echo "OLLAMA_PORT=$OLLAMA_PORT"
+
 # Move to the backend directory
 cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Changed directory to src/backend"
@@ -40,7 +71,7 @@ LOG_PID=$!
 trap 'kill $LOG_PID 2>/dev/null' EXIT
 
 # Check if the Ollama server is up by hitting the health endpoint
-URL="http://localhost:11434/"
+URL="http://localhost:$OLLAMA_PORT/"
 MAX_WAIT_TIME=1200  # 20 minutes
 CHECK_INTERVAL=5    # 5 seconds
 elapsed_time=0
@@ -79,7 +110,7 @@ fi
 
 # Pull the model (llama3.2:3b) once the server is up
 echo "Pulling the llama3.2:3b model..."
-PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:11434/api/pull -d '{
+PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:$OLLAMA_PORT/api/pull -d '{
   "name": "llama3.2:3b"
 }')
 
@@ -99,7 +130,7 @@ fi
 
 # Check if the model was successfully pulled by generating a response
 echo "Checking if model is working by generating a response..."
-GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:11434/api/generate -d '{
+GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:$OLLAMA_PORT/api/generate -d '{
   "model": "llama3.2:3b",
   "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
   "stream": false
@@ -118,8 +149,9 @@ else
   echo "Ollama server failed to generate a response. Response code: $GEN_HTTP_CODE"
   exit 1
 fi
+
 # Check if the server is up (replace http://localhost:8000 with the actual URL if needed)
-URL="http://localhost:8000"  # Updated URL to localhost
+URL="http://localhost:$CHAT_SERVICE_PORT"
 EXPECTED_OUTPUT='{"message":"The server is up and running!"}'
 MAX_WAIT_TIME=1200  # 20 minutes
 CHECK_INTERVAL=5    # 5 seconds

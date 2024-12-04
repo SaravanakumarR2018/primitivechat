@@ -1,6 +1,7 @@
 import unittest
 import requests
 import logging
+import os
 
 from requests import request
 
@@ -11,7 +12,8 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestUploadFileAPI(unittest.TestCase):
-    BASE_URL="http://localhost:8000"
+    # Get the port from environment variables (default to 8000 if not set)
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def setUp(self):
         logger.info("===Starting setup process===")

@@ -119,4 +119,3 @@ volumes:
 # Define the absolute path for PROJECT_ROOT
 x-environment:
   PROJECT_ROOT: ${PROJECT_ROOT}
-
