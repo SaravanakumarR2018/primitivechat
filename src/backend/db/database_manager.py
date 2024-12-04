@@ -4,7 +4,7 @@ import uuid
 from enum import Enum
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 # Configure logging
@@ -19,6 +19,8 @@ class SenderType(Enum):
 
 class DatabaseManager:
     _session_factory = None
+
+    allowed_custom_field_sql_types = {"VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT"}
 
     def __init__(self):
         logger.debug("Initializing DatabaseManager")
@@ -71,7 +73,8 @@ class DatabaseManager:
             use_db_query = f"USE `{customer_db_name}`"
             session.execute(text(use_db_query))
 
-            create_table_query = """
+            # Creating chat_messages table if not exists
+            create_chat_messages_table_query = """
             CREATE TABLE chat_messages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 chat_id VARCHAR(255) NOT NULL,
@@ -81,7 +84,43 @@ class DatabaseManager:
                 timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6)
             );
             """
-            session.execute(text(create_table_query))
+            session.execute(text(create_chat_messages_table_query))
+
+            # Creating tickets table if not exists
+            create_tickets_table_query = """
+            CREATE TABLE IF NOT EXISTS tickets (
+                ticket_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                chat_id VARCHAR(255) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
+                status VARCHAR(50) DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            );
+            """
+            session.execute(text(create_tickets_table_query))
+
+            # Creating custom_fields table if not exists
+            create_custom_fields_table_query = """
+            CREATE TABLE IF NOT EXISTS custom_fields (
+                field_name VARCHAR(255) PRIMARY KEY,
+                field_type VARCHAR(255) NOT NULL,
+                required BOOLEAN DEFAULT FALSE
+            );
+            """
+            session.execute(text(create_custom_fields_table_query))
+
+            # Creating ticket_field_values table if not exists
+            create_custom_field_values_table_query = """
+            CREATE TABLE IF NOT EXISTS custom_field_values ( 
+                ticket_id BIGINT PRIMARY KEY, 
+                FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE 
+                -- Custom fields will be added here dynamically as columns 
+            );
+            """
+            session.execute(text(create_custom_field_values_table_query))
+
             session.commit()
 
             logger.info(f"Customer added with GUID: {customer_guid}")
@@ -259,3 +298,125 @@ class DatabaseManager:
         finally:
             session.close()
 
+    #Custom Fields Related Functions
+    def add_custom_field(self, customer_guid, field_name, field_type, required):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
+        # Validate the field type
+        if field_type not in self.allowed_custom_field_sql_types:
+            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
+
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Add metadata to custom_fields table
+            query = '''INSERT INTO custom_fields (field_name, field_type, required)
+                       VALUES (:field_name, :field_type, :required)'''
+            session.execute(
+                text(query),
+                {
+                    "field_name": field_name,
+                    "field_type": field_type,
+                    "required": required,
+                },
+            )
+
+            # Dynamically add column to custom_field_values table
+            alter_table_query = f"""
+            ALTER TABLE custom_field_values
+            ADD COLUMN {field_name} {field_type};
+            """
+            session.execute(text(alter_table_query))
+
+            # Verify if the column was added
+            verify_column_query = f"""
+            SHOW COLUMNS FROM custom_field_values LIKE '{field_name}';
+            """
+            result = session.execute(text(verify_column_query)).fetchone()
+
+            if result:
+                logger.info(f"Custom field '{field_name}' added successfully as a column in custom_field_values.")
+            else:
+                logger.error(f"Failed to add column '{field_name}' in custom_field_values.")
+                session.rollback()
+                raise ValueError(f"Column '{field_name}' was not added successfully.")
+
+            session.commit()
+            return True
+        except IntegrityError as e:
+            logger.error(f"Duplicate field name error: {e}")
+            session.rollback()
+            raise ValueError("A custom field with this name already exists.")
+        except SQLAlchemyError as e:
+            logger.error(f"Error adding custom field: {e}")
+            session.rollback()
+            return False
+        finally:
+            session.close()
+
+    def list_custom_fields(self, customer_guid):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            query = '''SELECT * FROM custom_fields'''
+            results = session.execute(text(query)).fetchall()
+            logger.debug(results)
+
+            if results:
+                return [
+                    {"field_name": result[0] or "Unknown",  # Default if field_name is None
+                     "field_type": result[1] or "Unknown",  # Default if field_type is None
+                     "required": result[2] if result[2] is not None else False}  # Default if required is None
+                    for result in results
+                ]
+            else:
+                # If no results found, log and return an empty list
+                logger.info(f"No custom fields found for customer: {customer_guid}")
+                return []
+
+        except SQLAlchemyError as e:
+            # Log the error and return an empty list or raise an exception
+            logger.error(f"Error listing custom fields for customer {customer_guid}: {e}")
+            return []  # You could also raise a custom exception here, if needed
+        finally:
+            session.close()
+
+    def delete_custom_field(self, customer_guid, field_name):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the field exists
+            query_check = '''SELECT COUNT(*) FROM custom_fields WHERE field_name = :field_name'''
+            result = session.execute(text(query_check), {"field_name": field_name}).scalar()
+
+            if result == 0:
+                logger.debug(f"No custom field found with name: {field_name}")
+                return {"status": "not_found"}  # Field does not exist
+
+            # Delete the column from custom_field_values table
+            logger.debug(f"Dropping column {field_name} from custom_field_values table")
+            alter_table_query = f"""ALTER TABLE custom_field_values DROP COLUMN `{field_name}`;"""
+            session.execute(text(alter_table_query))
+
+            # Remove the field details from the custom_fields table
+            logger.debug(f"Deleting field {field_name} from custom_fields table")
+            query_delete = '''DELETE FROM custom_fields WHERE field_name = :field_name'''
+            session.execute(text(query_delete), {"field_name": field_name})
+
+            session.commit()
+            logger.info(f"Custom field {field_name} deleted successfully")
+            return {"status": "deleted"}
+        except SQLAlchemyError as e:
+            logger.error(f"Error deleting custom field: {e}")
+            session.rollback()
+            return {"status": "error", "error": str(e)}
+        finally:
+            session.close()

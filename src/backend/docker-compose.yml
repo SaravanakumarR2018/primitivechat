@@ -15,7 +15,7 @@ services:
       pwd &&
       apt-get update && apt-get install -y curl &&
       pip install -r ./src/backend/lib/requirements.txt &&
-      uvicorn src.backend.chat_service.chat_service:app --host 0.0.0.0 --port 8000
+      uvicorn src.backend.main.main:main_app --host 0.0.0.0 --port 8000
       "
     ports:
       - "8000:8000"  # Expose FastAPI on port 8000
