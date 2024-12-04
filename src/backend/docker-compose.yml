@@ -18,7 +18,7 @@ services:
       uvicorn src.backend.chat_service.chat_service:app --host 0.0.0.0 --port ${CHAT_SERVICE_PORT}
       "
     ports:
-      - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"  # Expose FastAPI on port CHAT_SERVICE_PORT
+      - "8000:8000"  # Expose FastAPI on port 8000
     depends_on:
       mysql_db:
         condition: service_healthy
@@ -39,7 +39,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-admin123}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-mydatabase}
-      MYSQL_ROOT_USER: ${DB_USER:-admin}
+      MYSQL_USER: ${DB_USER:-admin}
       MYSQL_PASSWORD: ${DB_PASSWORD:-admin123}
       MYSQL_PORT: ${MYSQL_PORT:-3306}
     command: --default-authentication-plugin=caching_sha2_password
@@ -64,8 +64,8 @@ services:
       - minio-data:/data  # Persistent storage for MinIO
     command: server /data
     ports:
-      - "${MINIO_SERVER_PORT}:${MINIO_SERVER_PORT}"         # MinIO access port
-      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"         # MinIO console port
+      - "9000:9000"         # MinIO access port
+      - "9001:9001"         # MinIO console port
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${MINIO_SERVER_PORT}/minio/health/live"]
       interval: 10s
@@ -83,8 +83,8 @@ services:
     - http
     image: cr.weaviate.io/semitechnologies/weaviate:1.27.2
     ports:
-    - "${WEAVIATE_PORT}:${WEAVIATE_PORT}"
-    - "${WEAVIATE_GRPC_PORT}:${WEAVIATE_GRPC_PORT}"
+      - 9002:8080
+      - 50051:50051
     restart: on-failure:0
     volumes:
     - ./weaviate_data:/var/lib/weaviate
@@ -108,7 +108,7 @@ services:
     volumes:
       - ollama_model_data:/root/.ollama  # Persist model data to avoid repeated downloads
     ports:
-      - "${OLLAMA_PORT}:${OLLAMA_PORT}"  # Expose Ollama on port OLLAMA_PORT
+      - "11434:11434"  # Expose Ollama on port 11434
     restart: unless-stopped
 
 
