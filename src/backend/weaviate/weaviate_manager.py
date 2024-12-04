@@ -11,8 +11,9 @@ class WeaviateManager:
     def __init__(self):
 
         try:
+            weaviate_port = os.getenv('WEAVIATE_PORT', '8080')  # Default to 8080 if not set
             self.client = Client(
-                os.getenv('WEAVIATE_HOST', 'http://weaviate:8080')
+                f"http://weaviate:{weaviate_port}"
             )
             logger.info("Successfully connected to Weaviate")
         except Exception as e:
