@@ -1,33 +1,31 @@
 import os
 import logging
-import magic # Used to detect file type
+import magic  # Used to detect file type
 from src.backend.minio.minio_manager import MinioManager
 import easyocr
 import numpy as np
 import pdfplumber
-from fastapi import HTTPException
+import json
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
 class UploadFileForChunks:
     def __init__(self):
-
         self.minio_manager = MinioManager()
-        self.file_extract =FileExtractor()
+        self.file_extract = FileExtractor()
 
-    def extract_file(self, customer_guid: str, filename: str):
-        logger.info(f"Extracting PDF file '{filename}' for customer '{customer_guid}'")
+    def download_and_save_file(self, customer_guid: str, filename: str):
 
         try:
-            # Download file from MinIO
             file_pointer = self.minio_manager.download_file(customer_guid, filename)
 
             # Check if file_pointer is valid
             if isinstance(file_pointer, dict) and "error" in file_pointer:
                 logger.error(f"Error retrieving file: {file_pointer['error']}")
-                raise HTTPException(status_code=500, detail=file_pointer["error"])
+                raise Exception(f"Error retrieving file: {file_pointer['error']}")
 
             local_path = f"/tmp/{customer_guid}/{filename}"
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -38,54 +36,67 @@ class UploadFileForChunks:
                     local_file.write(chunk)
 
             logger.info(f"File '{filename}' downloaded and stored at '{local_path}'")
+            return local_path
         except Exception as e:
             logger.error(f"Unexpected error during file download '{filename}': {e}")
-            raise HTTPException(status_code=500, detail="File download failed.")
+            raise Exception(f"File download failed: {e}")
+
+    def upload_extracted_content(self, customer_guid: str, filename: str, output_file: str):
+
+        try:
+            with open(output_file, "rb") as file_pointer:
+                self.minio_manager.upload_file(customer_guid, f"{filename}.rawcontent", file_pointer)
+
+            logger.info(f"Raw content file '{filename}.rawcontent' uploaded to MinIO bucket '{customer_guid}'")
+        except Exception as e:
+            logger.error(f"Failed to upload raw content: {e}")
+            raise Exception(f"File upload failed: {e}")
+
+    def extract_file(self, customer_guid: str, filename: str):
+        logger.info(f"Extracting PDF file '{filename}' for customer '{customer_guid}'")
+
+        #Download and save file locally
+        local_path = self.download_and_save_file(customer_guid, filename)
 
         #Verify file type
         try:
             file_type = self.file_extract.detect_file_type(local_path)
             if file_type != ".pdf":
                 logger.error(f"File '{filename}' is not a valid PDF (detected type: {file_type})")
-                raise HTTPException(status_code=415, detail="Uploaded file is not a PDF.")
+                raise Exception("Invalid file type: Uploaded file is not a PDF.")
             logger.info(f"Verified file '{filename}' as a valid PDF.")
-
         except Exception as e:
             logger.error(f"Error detecting file type for '{filename}': {e}")
-            raise HTTPException(status_code=400, detail="File type detection failed.")
+            raise Exception("File type detection failed.")
 
         #Extract PDF content
         try:
-             return self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
+            output_file = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
+            # Step 4: Upload extracted content
+            self.upload_extracted_content(customer_guid, filename, output_file)
+            return {"message": "PDF extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"PDF extraction error: {e}")
-            raise HTTPException(status_code=500, detail="While extraction a file is failed")
+            raise Exception(f"File extraction failed.{e}")
 
 
 class FileExtractor:
-
     def __init__(self):
-
-        # Initialize EasyOCR Reader
         self.ocr_reader = easyocr.Reader(['en'], gpu=False)
 
-        self.minio_manager = MinioManager()
-
-    def detect_file_type(self,file_path:str):
-        MIME_TO_EXTENSION = {
-            "application/pdf": ".pdf"
-        }
+    def detect_file_type(self, file_path: str):
+        MIME_TO_EXTENSION = {"application/pdf": ".pdf"}
         try:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
             extension = MIME_TO_EXTENSION.get(file_type)
             if not extension:
                 logger.error(f"Unsupported file type detected: {file_type}")
-                raise HTTPException(status_code=415, detail="Unsupported file type.")
+                raise Exception("Unsupported file type: This system only supports PDF files.")
             return extension
         except Exception as e:
             logger.error(f"Error detecting file type for {file_path}: {e}")
-            raise HTTPException(status_code=400, detail="File type detection failed.")
+            raise Exception(f"File type detection failed: {e}")
 
     def format_table_as_text(self, table):
         try:
@@ -103,7 +114,7 @@ class FileExtractor:
 
         except Exception as e:
             logger.error(f"Error formatting table: {e}")
-            return "Error occurred while formatting table."
+            raise Exception(f"Table formatting failed: {e}")
 
     def extract_pdf_content(self, customer_guid: str, file_path: str, filename: str):
         results = []
@@ -129,45 +140,38 @@ class FileExtractor:
                             "x0": bbox[0],
                             "y0": bbox[1]
                         })
-
+                    if not page.extract_text():
                         pil_image = page.to_image(resolution=300).original
                         numpy_image = np.array(pil_image)
                         ocr_result = self.ocr_reader.readtext(numpy_image)
-                        ocr_text = " ".join([text[1] for text in ocr_result])
                         page_elements.append({
-                        "type": "image",
-                        "content": f"Data obtained from image: {ocr_text.strip()}",
-                        "x0": 0,  # Assuming full-page images
-                        "y0": 0
+                            "type": "image",
+                            "content":ocr_result.strip(),
+                            "x0": 0,  # Assuming full-page images
+                            "y0": 0
                         })
                     page_elements.sort(key=lambda e: (e["y0"], e["x0"]))
                     page_text = " ".join([element["content"] for element in page_elements])
                     results.append({
-                        "metadata": {"page_number": page_number},
-                        "text": page_text
+                            "metadata": {"page_number": page_number},
+                            "text": page_text
                     })
 
-            # Save extracted content to a new file
+            # Save the extracted content
             output_file = f"/tmp/{customer_guid}/{filename}.rawcontent"
-            with open(output_file, "w") as raw_content_file:
-                raw_content_file.write(str(results))
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            with open(output_file, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
 
             logger.info(f"Extracted content saved to '{output_file}'")
-
-            # Step 4: Upload the raw content back to MinIO
-            with open(output_file, "rb") as file_pointer:
-                self.minio_manager.upload_file(customer_guid, f"{filename}.rawcontent", file_pointer)
-
-            logger.info(f"Raw content file '{filename}.rawcontent' uploaded to MinIO bucket '{customer_guid}'")
-            return {"message": "PDF extracted and uploaded successfully."}
-
+            return output_file
         except Exception as e:
             logger.error(f"Error extracting content from PDF file '{filename}': {e}")
-            raise HTTPException(status_code=500, detail="PDF extraction failed.")
+            raise Exception(f"PDF content extraction failed: {e}")
+
 
 if __name__ == "__main__":
-    customer_guid = "8b0aca4f-735c-4ad7-a516-5ecbb7e1027f"  # Replace with a valid customer GUID
-    filename = "Googleprocess.pdf"    # Replace with a valid filename
-
+    customer_guid = "fc461914-321e-4f1f-bba1-ab767ad8edd2"
+    filename = "sample.pdf"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
