@@ -41,7 +41,7 @@ class DatabaseManager:
         logger.info(f"Connecting to database as user: {db_config['user']} on host: {db_config['host']}")
 
         engine = create_engine(
-            f"mysql+mysqlconnector://{db_config['user']}:{db_config['password']}@{db_config['host']}",
+            f"mysql+mysqlconnector://{db_config['user']}:{db_config['password']}@{db_config['host']}:{os.getenv('DB_PORT', '3306')}",
             pool_size=db_config['pool_size'],
             max_overflow=db_config['max_overflow'],
             pool_timeout=db_config['pool_timeout'],
