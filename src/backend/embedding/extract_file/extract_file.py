@@ -1,9 +1,8 @@
 import os
 import logging
 import magic  # Used to detect file type
+import pytesseract
 from src.backend.minio.minio_manager import MinioManager
-import easyocr
-import numpy as np
 import pdfplumber
 import json
 
@@ -71,9 +70,9 @@ class UploadFileForChunks:
 
         #Extract PDF content
         try:
-            output_file = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
-            # Step 4: Upload extracted content
-            self.upload_extracted_content(customer_guid, filename, output_file)
+            output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
+            #Upload extracted content
+            self.upload_extracted_content(customer_guid, filename, output_file_path)
             return {"message": "PDF extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"PDF extraction error: {e}")
@@ -81,8 +80,6 @@ class UploadFileForChunks:
 
 
 class FileExtractor:
-    def __init__(self):
-        self.ocr_reader = easyocr.Reader(['en'], gpu=False)
 
     def detect_file_type(self, file_path: str):
         MIME_TO_EXTENSION = {"application/pdf": ".pdf"}
@@ -100,25 +97,32 @@ class FileExtractor:
 
     def format_table_as_text(self, table):
         try:
-            if table is None or not table:
+            if not table:
                 logger.error("Empty or None table received for formatting.")
                 return "Empty table"
 
-            table = [[str(item) if item is not None else "" for item in row] for row in table]
-            max_columns = max(len(row) for row in table)
-            table = [row + [""] * (max_columns - len(row)) for row in table]  # Fill missing cells with empty strings
-            col_widths = [max(len(str(item)) for item in col) for col in zip(*table)]
-            row_format = " | ".join(f"{{:<{w}}}" for w in col_widths)
-            formatted_table = "\n".join(row_format.format(*row) for row in table)
-            return formatted_table.strip()
+            headers = table[0]
+            rows = table[1:]
+            result = []
 
+            for row in rows:
+                key_value_pairs = [f"{headers[i]}: {row[i] if i < len(row) else 'NA'}" for i in range(len(headers))]
+                result.append("\n".join(key_value_pairs))
+
+            return "\n".join(result).strip()
         except Exception as e:
             logger.error(f"Error formatting table: {e}")
             raise Exception(f"Table formatting failed: {e}")
 
+    def is_within_bbox(self, point: tuple, bbox: tuple):
+        x, y = point
+        x0, y0, x1, y1 = bbox
+        return x0 <= x <= x1 and y0 <= y <= y1
+
     def extract_pdf_content(self, customer_guid: str, file_path: str, filename: str):
-        results = []
+
         try:
+            results = []
             with pdfplumber.open(file_path) as pdf:
                 for page_number, page in enumerate(pdf.pages, start=1):
                     page_elements = []
@@ -131,26 +135,36 @@ class FileExtractor:
                             "y0": block["top"]
                         })
 
-                    for table in page.extract_tables():
+                    tables = page.extract_tables()
+                    table_bboxes = [table.bbox for table in page.find_tables()] if hasattr(page,"find_tables") else []
+                    for table, bbox in zip(tables, table_bboxes):
                         table_text = self.format_table_as_text(table)
-                        bbox = page.find_tables()[0].bbox  # Get bounding box for the first table
                         page_elements.append({
                             "type": "table",
                             "content": table_text,
                             "x0": bbox[0],
                             "y0": bbox[1]
                         })
+
+                    raw_text = page.extract_text()
+                    if raw_text:
+                        non_overlapping_text = []
+                        for block in page.extract_words():
+                            if not any(self.is_within_bbox((block["x0"], block["top"]), bbox) for bbox in
+                                        table_bboxes):
+                                non_overlapping_text.append(block["text"])
+
                     if not page.extract_text():
-                        pil_image = page.to_image(resolution=300).original
-                        numpy_image = np.array(pil_image)
-                        ocr_result = self.ocr_reader.readtext(numpy_image)
+                        page_image = page.to_image(resolution=300).original
+                        ocr_text = pytesseract.image_to_string(page_image)
                         page_elements.append({
                             "type": "image",
-                            "content":ocr_result.strip(),
-                            "x0": 0,  # Assuming full-page images
+                            "content":ocr_text.strip(),
+                            "x0": 0,
                             "y0": 0
                         })
-                    page_elements.sort(key=lambda e: (e["y0"], e["x0"]))
+
+                    page_elements.sort(key=lambda w: (w["y0"], w["x0"]))
                     page_text = " ".join([element["content"] for element in page_elements])
                     results.append({
                             "metadata": {"page_number": page_number},
@@ -158,20 +172,20 @@ class FileExtractor:
                     })
 
             # Save the extracted content
-            output_file = f"/tmp/{customer_guid}/{filename}.rawcontent"
-            os.makedirs(os.path.dirname(output_file), exist_ok=True)
-            with open(output_file, "w", encoding="utf-8") as raw_content_file:
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
                 json.dump(results, raw_content_file, indent=4)
 
-            logger.info(f"Extracted content saved to '{output_file}'")
-            return output_file
+            logger.info(f"Extracted content saved to '{output_file_path}'")
+            return output_file_path
         except Exception as e:
             logger.error(f"Error extracting content from PDF file '{filename}': {e}")
             raise Exception(f"PDF content extraction failed: {e}")
 
 
 if __name__ == "__main__":
-    customer_guid = "fc461914-321e-4f1f-bba1-ab767ad8edd2"
-    filename = "sample.pdf"
+    customer_guid = "15b5e56c-525a-4f14-b9aa-6fef4c5f9f89"
+    filename = "PrinceCatalogue.pdf"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
