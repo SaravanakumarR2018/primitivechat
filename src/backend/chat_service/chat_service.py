@@ -212,15 +212,23 @@ async def chat(request: Request, chat_request: ChatRequest):
 
 
 # API endpoint to retrieve chat messages in reverse chronological order (paginated)
-@app.post("/getallchats", tags=["Chat Management"])
-async def get_all_chats(request: Request, get_all_chats_request: GetAllChatsRequest):
+@app.get("/getallchats", tags=["Chat Management"])
+async def get_all_chats(
+        request: Request,
+        customer_guid: str,
+        chat_id: str,
+        page: int = 1,
+        page_size: int = 10
+):
     logger.debug(f"Entering get_all_chats() with Correlation ID: {request.state.correlation_id}")
-    messages = db_manager.get_paginated_chat_messages(get_all_chats_request.customer_guid,
-                                                      get_all_chats_request.chat_id,
-                                                      get_all_chats_request.page, get_all_chats_request.page_size)
+
+    # Call the database manager to get paginated chat messages
+    messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page, page_size)
+
     if not messages:
         logger.error("No chats found for this customer and chat ID")
         raise HTTPException(status_code=404, detail="No chats found for this customer and chat ID")
+
     logger.debug(f"Exiting get_all_chats() with Correlation ID: {request.state.correlation_id}")
     return {"messages": messages}
 
