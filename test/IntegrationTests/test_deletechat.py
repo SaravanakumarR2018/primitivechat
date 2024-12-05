@@ -76,21 +76,18 @@ class TestDeleteChatAPI(unittest.TestCase):
 
         logger.info("=== All messages added successfully ===")
 
-        # Step 3: Retrieve chats to verify they exist
-        get_chats_url = f"{self.BASE_URL}/getallchats"
-        retrieve_data = {
-            "customer_guid": self.valid_customer_guid,
-            "chat_id": local_chat_id,
-            "page": 1,
-            "page_size": 10  # Retrieve all messages
-        }
-        logger.info(f"Retrieving chats with data: {retrieve_data}")
-        response = requests.post(get_chats_url, json=retrieve_data)
-        logger.info(f"Get Chats Response: {response.status_code}, {response.text}")
-        self.assertEqual(response.status_code, 200, "Failed to retrieve chats.")
+        # Step 3: Retrieve chats using GET request
+        get_chats_url = f"{self.BASE_URL}/getallchats"  # Define the URL here
+        url = f"{get_chats_url}?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=10"
+        logger.info(f"INPUT: Sending request to: {url}")
 
-        messages = response.json().get("messages", [])
-        self.assertGreater(len(messages), 0, "Expected to find messages in the chat.")
+        response = requests.get(url)
+        logger.info(f"OUTPUT: Response status code: {response.status_code}")
+        logger.info(f"OUTPUT: Response content: {response.text}")
+        self.assertEqual(response.status_code, 200, "Failed to retrieve chats using GET.")
+
+        messages_get = response.json().get("messages", [])
+        self.assertGreater(len(messages_get), 0, "Expected to find messages in the chat using GET.")
 
         # Step 4: Delete the chat
         delete_chat_url = f"{self.BASE_URL}/deletechat"
@@ -110,7 +107,8 @@ class TestDeleteChatAPI(unittest.TestCase):
 
         # Step 5: Verify that the chat has been deleted
         logger.info("Verifying that the chat has been deleted.")
-        response = requests.post(get_chats_url, json=retrieve_data)
+        # Use the same URL for retrieving chats after deletion
+        response = requests.get(url)  # Use the same URL constructed earlier
         logger.info(f"Retrieving chats after deletion: {response.status_code}, {response.text}")
         self.assertEqual(response.status_code, 404, "Failed to retrieve chats after deletion.")
 
