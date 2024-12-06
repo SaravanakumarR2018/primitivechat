@@ -3,6 +3,7 @@ import os
 import uuid
 from enum import Enum
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -305,7 +306,8 @@ class DatabaseManager:
 
         # Validate the field type
         if field_type not in self.allowed_custom_field_sql_types:
-            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
+            raise ValueError(
+                f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
 
         try:
             logger.debug(f"Switching to customer database: {customer_db_name}")
@@ -418,5 +420,269 @@ class DatabaseManager:
             logger.error(f"Error deleting custom field: {e}")
             session.rollback()
             return {"status": "error", "error": str(e)}
+        finally:
+            session.close()
+
+    # Tickets related function
+    def create_ticket(self, customer_guid, chat_id, title, description, priority, custom_fields):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Prepare the insert query for the ticket
+            query = '''INSERT INTO tickets (chat_id, title, description, priority)
+                       VALUES (:chat_id, :title, :description, :priority)'''
+            session.execute(
+                text(query),
+                {
+                    "chat_id": chat_id,
+                    "title": title,
+                    "description": description,
+                    "priority": priority,
+                },
+            )
+            session.commit()
+
+            # Fetch the generated ticket_id (MySQL AUTO_INCREMENT)
+            result = session.execute("SELECT LAST_INSERT_ID()").fetchone()
+            ticket_id = result[0]  # This will be the auto-generated ticket_id
+            logger.debug(f"Created ticket with ID: {ticket_id}")
+
+            # Check if the columns for custom fields exist and add them if needed
+            if custom_fields:
+                # Prepare column names and values for the INSERT query
+                columns = ', '.join([f"`{field}`" for field in custom_fields.keys()])
+                placeholders = ', '.join([f":{field}" for field in custom_fields.keys()])
+
+                query_for_insert_custom_fields = f'''
+                    INSERT INTO custom_field_values (ticket_id, {columns}) 
+                    VALUES (:ticket_id, {placeholders})
+                '''
+
+                params = {"ticket_id": ticket_id}
+                params.update(custom_fields)  # Add custom fields to parameters
+
+                logger.debug(f"Inserting custom fields: {custom_fields}")
+                session.execute(text(query_for_insert_custom_fields), params)
+
+            session.commit()
+            logger.debug(f"Ticket ID {ticket_id} created successfully with custom fields")
+
+            return {"ticket_id": ticket_id, "status": "created"}
+
+        except ValueError as e:
+            logger.error(f"Validation error: {e}")
+            session.rollback()
+            raise  # Propagate the ValueError to be handled in the API endpoint
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error creating ticket for customer {customer_guid}: {e}")
+            session.rollback()
+            raise Exception(f"Database error: {str(e)}")
+
+        except Exception as e:
+            logger.error(f"Unexpected error while creating ticket: {e}")
+            session.rollback()
+            raise
+
+        finally:
+            session.close()
+
+    def get_ticket_by_id(self, ticket_id, customer_guid):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Retrieve ticket base details
+            ticket_query = '''
+                SELECT ticket_id, chat_id, title, description, priority, status
+                FROM tickets
+                WHERE ticket_id = :ticket_id
+            '''
+            ticket_result = session.execute(
+                text(ticket_query),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            # If ticket is not found
+            if not ticket_result:
+                return None
+
+            # Process ticket base data
+            ticket_data = {
+                "ticket_id": ticket_result[0],
+                "chat_id": ticket_result[1],
+                "title": ticket_result[2],
+                "description": ticket_result[3],
+                "priority": ticket_result[4],
+                "status": ticket_result[5],
+                "custom_fields": {}
+            }
+
+            # Retrieve custom field values for the ticket
+            custom_field_query = '''
+                SELECT * 
+                FROM custom_field_values
+                WHERE ticket_id = :ticket_id
+            '''
+            custom_field_result = session.execute(
+                text(custom_field_query),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            if custom_field_result:
+                # Extract custom fields dynamically from column names and values
+                columns = custom_field_result.keys()
+                for column_name, value in zip(columns, custom_field_result):
+                    if column_name != "ticket_id" and value is not None:  # Exclude the ticket_id column and None values
+                        ticket_data["custom_fields"][column_name] = value
+
+            return ticket_data
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving ticket: {e}")
+            return None
+
+        finally:
+            session.close()
+
+    def get_tickets_by_chat_id(self, customer_guid, chat_id):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            query = '''SELECT ticket_id, chat_id, title, description, priority, status
+                FROM tickets WHERE chat_id = :chat_id'''
+            results = session.execute(
+                text(query),
+                {"chat_id": chat_id},
+            ).fetchall()
+            return [
+                {
+                    "ticket_id": result[0],
+                    "title": result[2],
+                    "status":result[5],
+                }
+                for result in results
+            ]
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving tickets: {e}")
+            return []
+        finally:
+            session.close()
+
+    def update_ticket(self, ticket_id, customer_guid, ticket_update):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the ticket exists
+            result = session.execute(
+                text("SELECT COUNT(*) FROM tickets WHERE ticket_id = :ticket_id"),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            if result[0] == 0:  # No ticket found
+                logger.error(f"Ticket ID {ticket_id} not found.")
+                raise ValueError(f"Ticket ID {ticket_id} does not exist.")
+
+            # Fetch all columns dynamically from the custom_field_values table
+            columns_result = session.execute(text("SHOW COLUMNS FROM custom_field_values")).fetchall()
+            all_custom_fields = [row[0] for row in columns_result if row[0] not in ("id", "ticket_id")]
+
+            # Update main ticket table
+            ticket_fields = {k: v for k, v in ticket_update.dict().items() if k != "custom_fields" and v is not None}
+            if ticket_fields:
+                set_clauses = [f"{column} = :{column}" for column in ticket_fields.keys()]
+                query = f'''UPDATE tickets SET {", ".join(set_clauses)} WHERE ticket_id = :ticket_id'''
+                ticket_fields["ticket_id"] = ticket_id
+                session.execute(text(query), ticket_fields)
+
+            # Update custom fields
+            if ticket_update.custom_fields:
+                custom_fields = ticket_update.custom_fields
+
+                # Only set missing custom fields to null if they are explicitly set to null in the request
+                for field in custom_fields.keys():
+                    if custom_fields[field] is None:  # Only set the field to null if explicitly set
+                        custom_fields[field] = None
+
+                # Generate the dynamic query for updating custom fields
+                column_values = ", ".join([f"`{col}` = :{col}" for col in custom_fields.keys()])
+                query = f'''
+                    INSERT INTO custom_field_values (ticket_id, {", ".join(custom_fields.keys())})
+                    VALUES (:ticket_id, {", ".join([f":{col}" for col in custom_fields.keys()])})
+                    ON DUPLICATE KEY UPDATE {column_values}
+                '''
+                custom_fields["ticket_id"] = ticket_id
+                session.execute(text(query), custom_fields)
+
+            session.commit()
+            return True
+
+        except ValueError as e:
+            # Handle custom error for non-existent ticket
+            logger.error(f"Validation error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=404, detail=str(e))
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating ticket: {e}")
+            session.rollback()
+            raise HTTPException(status_code=500, detail="Database error occurred")
+
+        finally:
+            session.close()
+
+    def delete_ticket(self, ticket_id, customer_guid):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the ticket exists before deleting
+            result = session.execute(
+                text("SELECT COUNT(*) FROM tickets WHERE ticket_id = :ticket_id"),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            if result[0] == 0:  # No ticket found
+                return False  # No ticket to delete, return False
+
+            # Delete custom fields associated with the ticket
+            delete_custom_fields_query = '''
+                DELETE FROM custom_field_values WHERE ticket_id = :ticket_id
+            '''
+            session.execute(
+                text(delete_custom_fields_query),
+                {"ticket_id": ticket_id},
+            )
+
+            # Delete the ticket
+            delete_ticket_query = '''DELETE FROM tickets WHERE ticket_id = :ticket_id'''
+            session.execute(
+                text(delete_ticket_query),
+                {"ticket_id": ticket_id},
+            )
+
+            session.commit()
+            return True  # Return True if both the ticket and custom fields are deleted
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error deleting ticket: {e}")
+            session.rollback()
+            return False  # Return False in case of error
         finally:
             session.close()
