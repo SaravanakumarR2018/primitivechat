@@ -52,7 +52,7 @@ class UploadFileForChunks:
             raise Exception(f"File upload failed: {e}")
 
     def extract_file(self, customer_guid: str, filename: str):
-        logger.info(f"Extracting PDF file '{filename}' for customer '{customer_guid}'")
+        logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
 
         #Download and save file locally
         local_path = self.download_and_save_file(customer_guid, filename)
@@ -60,29 +60,31 @@ class UploadFileForChunks:
         #Verify file type
         try:
             file_type = self.file_extract.detect_file_type(local_path)
-            if file_type != ".pdf":
-                logger.error(f"File '{filename}' is not a valid PDF (detected type: {file_type})")
-                raise Exception("Invalid file type: Uploaded file is not a PDF.")
-            logger.info(f"Verified file '{filename}' as a valid PDF.")
+            if file_type == ".pdf":
+                logger.info(f"Verified file '{filename}' as a valid PDF.")
+            else:
+                logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
+                raise Exception("Invalid file type: Uploaded file is not a Valid.")
         except Exception as e:
             logger.error(f"Error detecting file type for '{filename}': {e}")
             raise Exception("File type detection failed.")
 
-        #Extract PDF content
+        #Extract Files content here
         try:
-            output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
-            #Upload extracted content
-            self.upload_extracted_content(customer_guid, filename, output_file_path)
-            return {"message": "PDF extracted and uploaded successfully."}
+            if file_type==".pdf":
+                output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "PDF extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"PDF extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
 
-
 class FileExtractor:
 
     def detect_file_type(self, file_path: str):
-        MIME_TO_EXTENSION = {"application/pdf": ".pdf"}
+        MIME_TO_EXTENSION = {
+            "application/pdf": ".pdf"
+        }
         try:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
@@ -239,7 +241,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "58be5b25-f162-4b49-81dc-4e4d876b34dd"
-    filename = "ast_sci_data_tables_sample.pdf"
+    customer_guid = "ecb2fc17-6ec2-4629-a78f-b2d9a87a3540"
+    filename = "NewRFOCFile.pdf"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
