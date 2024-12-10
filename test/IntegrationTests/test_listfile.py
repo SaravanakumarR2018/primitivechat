@@ -10,8 +10,7 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestListFileAPI(unittest.TestCase):
-    # Get the port from environment variables (default to 8000 if not set)
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_list_files_no_files_uploaded(self):
         logger.info("Testing file listing with no files uploaded")
