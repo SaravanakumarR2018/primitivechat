@@ -4,7 +4,7 @@ import uuid
 from enum import Enum
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
 
 # Configure logging
@@ -81,7 +81,8 @@ class DatabaseManager:
                 customer_guid VARCHAR(255) NOT NULL,
                 message MEDIUMTEXT NOT NULL,
                 sender_type ENUM('customer', 'system') NOT NULL,
-                timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6)
+                timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                INDEX (chat_id)
             );
             """
             session.execute(text(create_chat_messages_table_query))
@@ -96,7 +97,8 @@ class DatabaseManager:
                 priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
                 status VARCHAR(50) DEFAULT 'open',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (chat_id) REFERENCES chat_messages(chat_id) ON DELETE CASCADE
             );
             """
             session.execute(text(create_tickets_table_query))
@@ -428,8 +430,32 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
 
         try:
+            try:
+                # Check if the database exists
+                logger.debug(f"Checking if database {customer_db_name} exists")
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                raise e
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            # Switch to the customer database
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the chat_id exists in the chat_messages table
+            chat_exists = session.execute(
+                text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+                {"chat_id": chat_id}
+            ).fetchone()
+
+            if not chat_exists:
+                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
 
             # Validate custom fields against the database columns
             if custom_fields:
@@ -494,6 +520,9 @@ class DatabaseManager:
         except OperationalError as e:
             logger.error(f"Database connectivity issue: {e}")
             raise e
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            raise e
         except Exception as e:
             logger.error(f"Unexpected error while creating ticket: {e}")
             session.rollback()
@@ -506,6 +535,17 @@ class DatabaseManager:
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
         try:
+
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
@@ -520,9 +560,8 @@ class DatabaseManager:
                 {"ticket_id": ticket_id},
             ).fetchone()
 
-            # If ticket is not found
             if not ticket_result:
-                return None
+                return None  # If ticket is not found, return None
 
             # Process ticket base data
             ticket_data = {
@@ -547,29 +586,51 @@ class DatabaseManager:
             ).fetchone()
 
             if custom_field_result:
-                # Extract custom fields dynamically from column names and values
                 columns = custom_field_result.keys()
                 for column_name, value in zip(columns, custom_field_result):
-                    if column_name != "ticket_id" and value is not None:  # Exclude the ticket_id column and None values
+                    if column_name != "ticket_id" and value is not None:
                         ticket_data["custom_fields"][column_name] = value
 
             return ticket_data
 
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
         except SQLAlchemyError as e:
-            logger.error(f"Error retrieving ticket: {e}")
-            return None
-        except OperationalError as e:
-            logger.error(f"Database connectivity issue: {e}")
-            raise e
+            logger.error(f"SQLAlchemy error: {e}")
+            raise Exception("Database query error")
         finally:
             session.close()
 
     def get_tickets_by_chat_id(self, customer_guid, chat_id):
         customer_db_name = self.get_customer_db(customer_guid)
-        session = DatabaseManager._session_factory()
         try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        try:
+                # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the chat_id exists in the chat_messages table
+            chat_exists = session.execute(
+                    text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+                    {"chat_id": chat_id}
+            ).fetchone()
+
+            if not chat_exists:
+                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
 
             query = '''SELECT ticket_id, chat_id, title, description, priority, status
                 FROM tickets WHERE chat_id = :chat_id'''
@@ -585,20 +646,43 @@ class DatabaseManager:
                 }
                 for result in results
             ]
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
         except SQLAlchemyError as e:
             logger.error(f"Error retrieving tickets: {e}")
             return []
-        except OperationalError as e:
-            logger.error(f"Database connectivity issue: {e}")
-            raise e
         finally:
             session.close()
 
     def update_ticket(self, ticket_id, customer_guid, ticket_update):
         customer_db_name = self.get_customer_db(customer_guid)
-        session = DatabaseManager._session_factory()
 
         try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+            except DatabaseError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
@@ -656,7 +740,7 @@ class DatabaseManager:
         except SQLAlchemyError as e:
             logger.error(f"Database error: {e}")
             session.rollback()
-            return {"status": "failure", "reason": "Database error occurred during ticket update."}
+            return {"status": "failure", "reason": f"Unknown database customer_{customer_guid}"}
         except OperationalError as e:
             logger.error(f"Database connectivity issue: {e}")
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
@@ -670,17 +754,45 @@ class DatabaseManager:
 
     def delete_ticket(self, ticket_id, customer_guid):
         customer_db_name = self.get_customer_db(customer_guid)
-        session = DatabaseManager._session_factory()
 
         try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
-            session.execute(text(f"USE `{customer_db_name}`"))
+            try:
+                session.execute(text(f"USE `{customer_db_name}`"))
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during USE statement: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
             # Check if the ticket exists
-            result = session.execute(
-                text("SELECT COUNT(*) FROM tickets WHERE ticket_id = :ticket_id"),
-                {"ticket_id": ticket_id},
-            ).fetchone()
+            try:
+                result = session.execute(
+                    text("SELECT COUNT(*) FROM tickets WHERE ticket_id = :ticket_id"),
+                    {"ticket_id": ticket_id},
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during ticket existence check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
             if result[0] == 0:  # Ticket not found
                 return {"status": "not_found"}
@@ -716,7 +828,9 @@ class DatabaseManager:
         except OperationalError as e:  # Handle database connectivity issues
             logger.error(f"Database connectivity issue: {e}")
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
         except Exception as e:
             logger.error(f"Unexpected error during deletion: {e}")
             session.rollback()
