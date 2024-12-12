@@ -21,26 +21,28 @@ jobs:
 
       - name: Load .env file and export variables
         run: |
-          if [ -f "./src/backend/.env" ]; then
-            echo "Loading .env file..."
-            export $(cat ./src/backend/.env | grep -v '^#' | xargs)
+          if [ -f "$PROJECT_ROOT/src/backend/.env" ]; then
+            echo "Loading environment variables from .env file..."
+            export $(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs)
           else
-            echo "Error: .env file not found."
+            echo ".env file not found in $PROJECT_ROOT/src/backend/. Exiting..."
             exit 1
           fi
 
       - name: Debug Environment Variables
-        run: env
+        run: |
+          echo "Listing environment variables..."
+          env
 
       - name: Run docker-compose up
-        working-directory: src/backend
+        working-directory: ${{ github.workspace }}/src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
       - name: Check Ollama server status
         run: |
-          end=$((SECONDS+120))  # Wait up to 2 minutes
+          end=$((SECONDS+120))  # Wait up to 2 minutes for Ollama server
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${OLLAMA_PORT} > /dev/null; then
               echo "Ollama server is up!"
@@ -55,7 +57,7 @@ jobs:
 
       - name: Test server with curl
         run: |
-          end=$((SECONDS+120))
+          end=$((SECONDS+120))  # Wait up to 2 minutes for main chat service
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${CHAT_SERVICE_PORT} > /dev/null; then
               echo "Server is up!"
