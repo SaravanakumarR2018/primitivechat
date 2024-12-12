@@ -27,7 +27,8 @@ jobs:
           else
             echo ".env file not found in $PROJECT_ROOT/src/backend/. Exiting..."
             exit 1
-          fi
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
 
       - name: Debug Environment Variables
         run: |
@@ -102,7 +103,6 @@ jobs:
           else
             echo "Failed to generate model response. Exiting."
             exit 1
-          fi
 
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
