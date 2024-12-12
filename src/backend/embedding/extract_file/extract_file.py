@@ -9,6 +9,7 @@ import io
 from docx import Document
 from PIL import Image
 from enum import Enum
+import zipfile
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -103,6 +104,10 @@ class FileExtractor:
         try:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
+
+            if file_type=="application/zip":
+                if self.is_docx(file_path):
+                    return FileType.DOCX
             extension = MIME_TO_EXTENSION.get(file_type)
             if not extension:
                 logger.error(f"Unsupported file type detected: {file_type}")
@@ -111,6 +116,13 @@ class FileExtractor:
         except Exception as e:
             logger.error(f"Error detecting file type for {file_path}: {e}")
             raise Exception(f"File type detection failed: {e}")
+
+    def is_docx(self,file_path: str):
+        try:
+            with zipfile.ZipFile(file_path,'r')as zip_ref:
+                return "word/document.xml" in zip_ref.namelist()
+        except zipfile.BadZipfile:
+                return False
 
     def format_table_as_text(self, table):
         try:
@@ -258,21 +270,21 @@ class FileExtractor:
         try:
             results = []
             doc = Document(file_path)
-            max_paragraphs_per_page = 20
 
-            # Collect page elements
+            # Variables for text extraction
             page_elements = []
             left_content = []
             right_content = []
             all_content = []
             simulated_mid_x = 50
 
-            # Process paragraphs for text extraction
-            paragraphs = doc.paragraphs
-            total_paragraphs = len(paragraphs)
+            # Track page number and paragraph count
             current_page_number = 1
             current_paragraph_count = 0
 
+            # Process paragraphs for text extraction
+            paragraphs = doc.paragraphs
+            total_paragraphs = len(paragraphs)
             logger.info(f"Total paragraphs in document: {total_paragraphs}")
 
             if total_paragraphs == 0:
@@ -283,6 +295,7 @@ class FileExtractor:
                 if text:
                     logger.info(f"Processing paragraph {i + 1}: {text}")
 
+
                     x0 = len(text)
                     y0 = i
 
@@ -292,24 +305,18 @@ class FileExtractor:
                         right_content.append({"text": text, "y0": y0})
 
                     all_content.append({"text": text, "y0": y0})
+                    current_paragraph_count += 1  # Increment paragraph count
 
-                    if (current_paragraph_count + 1) % max_paragraphs_per_page == 0 or i == total_paragraphs - 1:
-                        logger.info(f"Adding page {current_page_number} with {len(all_content)} paragraphs.")
+                    if len(all_content) >= 50:
+                        logger.info(
+                            f"Switching to page {current_page_number + 1} after processing {current_paragraph_count} paragraphs.")
 
-                        has_left = len(left_content) > 0
-                        has_right = len(right_content) > 0
+                        # Sort and merge left/right content by y0
+                        left_content = sorted(left_content, key=lambda b: b["y0"])
+                        right_content = sorted(right_content, key=lambda b: b["y0"])
+                        merged_content = " ".join([b["text"] for b in left_content + right_content])
 
-                        if has_left and has_right:
-                            # Separate left/right content, sort, and merge
-                            left_content = sorted(left_content, key=lambda b: b["y0"])
-                            right_content = sorted(right_content, key=lambda b: b["y0"])
-                            merged_content = " ".join([b["text"] for b in left_content + right_content])
-                        else:
-                            # Sort and merge all content
-                            sorted_content = sorted(all_content, key=lambda b: b["y0"])
-                            merged_content = " ".join([b["text"] for b in sorted_content])
-
-                        # Add to page elements with the current page number
+                        # Add the content for the current page to the result
                         page_elements.append({
                             "metadata": {"page_number": current_page_number},
                             "type": "text",
@@ -318,24 +325,46 @@ class FileExtractor:
                             "y0": 0
                         })
 
-                        # Now add the page_text to results
-                        page_text = " ".join([element["content"] for element in page_elements if element["type"] == "text"])
+                        # Add the page's content to results
+                        page_text = " ".join(
+                            [element["content"] for element in page_elements if element["type"] == "text"])
                         results.append({
                             "metadata": {"page_number": current_page_number},
                             "text": page_text
                         })
-
-                        logger.info(f"Page {current_page_number} added with content.")  # Debugging line
 
                         # Reset for the next page
                         left_content = []
                         right_content = []
                         all_content = []
                         page_elements = []  # Reset page elements after each page
-                        current_paragraph_count = 0
-                        current_page_number += 1
-                    else:
-                        current_paragraph_count += 1
+                        current_paragraph_count = 0  # Reset paragraph count for the new page
+                        current_page_number += 1  # Increment page number
+
+            # After the loop, handle the last page (if any content remains)
+            if current_paragraph_count > 0:
+                # Sort and merge left/right content
+                left_content = sorted(left_content, key=lambda b: b["y0"])
+                right_content = sorted(right_content, key=lambda b: b["y0"])
+                merged_content = " ".join([b["text"] for b in left_content + right_content])
+
+                # Add the last page's content to the result
+                page_elements.append({
+                    "metadata": {"page_number": current_page_number},
+                    "type": "text",
+                    "content": merged_content,
+                    "x0": 0,
+                    "y0": 0
+                })
+
+                # Add the page's content to results
+                page_text = " ".join([element["content"] for element in page_elements if element["type"] == "text"])
+                results.append({
+                    "metadata": {"page_number": current_page_number},
+                    "text": page_text
+                })
+
+            logger.info(f"Processed {total_paragraphs} paragraphs and added to results.")
 
             # Extract tables and format them as text
             for table in doc.tables:
@@ -366,10 +395,10 @@ class FileExtractor:
                         "y0": 0
                     })
 
-            # Sort page elements by vertical position and horizontal position
+            # Sort all page elements (text, tables, and images) by vertical (y0) and horizontal (x0) position
             page_elements.sort(key=lambda w: (w["y0"], w["x0"]))
 
-            # Prepare corrected content
+            # Prepare the corrected content (combine text, tables, and OCR from images)
             corrected_content = []
             for element in page_elements:
                 if element["type"] == "table":
@@ -379,10 +408,10 @@ class FileExtractor:
                 else:
                     corrected_content.append(element["content"])  # Text content
 
-            # Combine corrected content into a single text
+            # Combine the corrected content into a single text string
             page_text = " ".join(corrected_content)
 
-            # Append the last page's content to results
+            # Append the final content to results
             results.append({
                 "metadata": {"page_number": current_page_number},
                 "text": page_text
@@ -403,7 +432,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "b2751950-817c-4d2d-a662-16fbf4d3cd7d"
-    filename = "fourcolumn.docx"
+    customer_guid = "04d84e85-6572-44df-b49d-46b76cf91c63"
+    filename = "PrinceBot.docx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
