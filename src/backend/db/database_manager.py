@@ -432,12 +432,16 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
+            try:
+                # Check if the database exists
+                logger.debug(f"Checking if database {customer_db_name} exists")
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                raise e
 
             if not result:
                 raise ValueError(f"Database {customer_db_name} does not exist")
@@ -468,26 +472,40 @@ class DatabaseManager:
 
             # Begin transaction
             with session.begin_nested():
-                # Insert into tickets table using RETURNING to get the inserted row
-                query = '''
-                    INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned)
-                    VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned)
-                    RETURNING ticket_id
-                '''
-                result = session.execute(
+                # Insert into tickets table
+                query = '''INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned)
+                           VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned)'''
+                session.execute(
                     text(query),
                     {
                         "chat_id": chat_id,
                         "title": title,
                         "description": description,
                         "priority": priority,
-                        "reported_by": reported_by,
-                        "assigned": assigned
-                    }
+                        "reported_by":reported_by,
+                        "assigned":assigned
+                    },
+                )
+
+                # Fetch the generated ticket_id
+                result = session.execute(
+                    text("""
+                        SELECT ticket_id 
+                        FROM tickets 
+                        WHERE chat_id = :chat_id 
+                          AND title = :title 
+                          AND created_at = (
+                              SELECT MAX(created_at) 
+                              FROM tickets 
+                              WHERE chat_id = :chat_id
+                          )
+                        LIMIT 1
+                    """),
+                    {"chat_id": chat_id, "title": title}
                 ).fetchone()
 
                 if result:
-                    ticket_id = result['ticket_id']
+                    ticket_id = result[0]
                     logger.debug(f"Created ticket with ID: {ticket_id}")
                 else:
                     raise Exception("Failed to retrieve the newly created ticket ID.")
