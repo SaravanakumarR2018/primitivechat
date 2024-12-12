@@ -1,6 +1,12 @@
 import unittest
 import requests
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'primitivechat', 'src', 'backend', '.env')
+load_dotenv(dotenv_path)
 
 # Set up logging configuration
 logging.basicConfig(
@@ -11,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestChatAPI(unittest.TestCase):
-    BASE_URL = "http://localhost:8000"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Setup function to create valid customer_guid and chat_id"""
