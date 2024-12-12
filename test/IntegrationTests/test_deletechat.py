@@ -1,16 +1,19 @@
 import unittest
 import requests
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'primitivechat', 'src', 'backend', '.env')
+load_dotenv(dotenv_path)
 
 # Set up logging configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class TestDeleteChatAPI(unittest.TestCase):
-    BASE_URL = "http://localhost:8000"  # Update this to your actual API base URL
+class TestAddCustomerAPI(unittest.TestCase):
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"# Update this to your actual API base URL
 
     def setUp(self):
         """Setup function to create valid customer_guid"""
