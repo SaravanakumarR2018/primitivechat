@@ -10,47 +10,33 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    env: # Define environment variables globally
-      CHAT_SERVICE_PORT: ${{ secrets.CHAT_SERVICE_PORT }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
-      MYSQL_PORT: ${{ secrets.MYSQL_PORT }}
-      MINIO_HOST: ${{ secrets.MINIO_HOST }}
-      MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
-      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
-      MINIO_SERVER_PORT: ${{ secrets.MINIO_SERVER_PORT }}
-      MINIO_CONSOLE_PORT: ${{ secrets.MINIO_CONSOLE_PORT }}
-      WEAVIATE_HOST: ${{ secrets.WEAVIATE_HOST }}
-      WEAVIATE_PORT: ${{ secrets.WEAVIATE_PORT }}
-      WEAVIATE_GRPC_PORT: ${{ secrets.WEAVIATE_GRPC_PORT }}
-      OLLAMA_PORT: ${{ secrets.OLLAMA_PORT }}
-      OLLAMA_HOST: ${{ secrets.OLLAMA_HOST }}
-
     steps:
       # Step 1: Check out the pull request code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker Compose
+      # Step 2: Install Docker Compose
       - name: Install Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      # step 3: Load .env file
-      - name: Load .env file
+      # Step 3: Load .env file and export variables
+      - name: Load .env file and export variables
         run: |
           if [ -f "./src/backend/.env" ]; then
-              echo "Loading environment variables from .env file..."
-              export $(grep -v '^#' "./src/backend/.env" | xargs)
+            echo "Loading .env file..."
+            export $(cat ./src/backend/.env | grep -v '^#' | xargs)
           else
-              echo ".env file not found in ./src/backend/. Exiting..."
-              exit 1
+            echo "Error: .env file not found."
+            exit 1
           fi
 
-      # Step 4: Run Docker Compose
+      # Step 4: Debug Environment Variables
+      - name: Debug Environment Variables
+        run: env
+
+      # Step 5: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
         env:
@@ -58,12 +44,12 @@ jobs:
 
         run: docker-compose up -d
 
-      # Step 5: Check if Ollama server is up
+      # Step 6: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:${{ secrets.OLLAMA_PORT }} > /dev/null; then
+            if curl -s http://localhost:${OLLAMA_PORT} > /dev/null; then
               echo "Ollama server is up!"
               exit 0
             else
@@ -79,7 +65,7 @@ jobs:
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:${{ secrets.CHAT_SERVICE_PORT }} > /dev/null; then
+            if curl -s http://localhost:${CHAT_SERVICE_PORT} > /dev/null; then
               echo "Server is up!"
               exit 0
             else
@@ -93,7 +79,7 @@ jobs:
       # Step 7: Pull the Llama model
       - name: Pull Llama model
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ secrets.OLLAMA_PORT }}/api/pull -d '{"name": "llama3.2:3b"}')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}/api/pull -d '{"name": "llama3.2:3b"}')
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
@@ -109,7 +95,7 @@ jobs:
       # Step 8: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ secrets.OLLAMA_PORT }}/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}}/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
             "stream": false
