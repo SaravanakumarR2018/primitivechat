@@ -96,6 +96,8 @@ class DatabaseManager:
                 description TEXT,
                 priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
                 status VARCHAR(50) DEFAULT 'open',
+                reported_by VARCHAR(255),
+                assigned VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (chat_id) REFERENCES chat_messages(chat_id) ON DELETE CASCADE
@@ -425,21 +427,17 @@ class DatabaseManager:
 
 
     # Tickets related function
-    def create_ticket(self, customer_guid, chat_id, title, description, priority, custom_fields):
+    def create_ticket(self, customer_guid, chat_id, title, description, priority, reported_by, assigned, custom_fields):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
 
         try:
-            try:
-                # Check if the database exists
-                logger.debug(f"Checking if database {customer_db_name} exists")
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except OperationalError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                raise e
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
 
             if not result:
                 raise ValueError(f"Database {customer_db_name} does not exist")
@@ -470,38 +468,26 @@ class DatabaseManager:
 
             # Begin transaction
             with session.begin_nested():
-                # Insert into tickets table
-                query = '''INSERT INTO tickets (chat_id, title, description, priority)
-                           VALUES (:chat_id, :title, :description, :priority)'''
-                session.execute(
+                # Insert into tickets table using RETURNING to get the inserted row
+                query = '''
+                    INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned)
+                    VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned)
+                    RETURNING ticket_id
+                '''
+                result = session.execute(
                     text(query),
                     {
                         "chat_id": chat_id,
                         "title": title,
                         "description": description,
                         "priority": priority,
-                    },
-                )
-
-                # Fetch the generated ticket_id
-                result = session.execute(
-                    text("""
-                        SELECT ticket_id 
-                        FROM tickets 
-                        WHERE chat_id = :chat_id 
-                          AND title = :title 
-                          AND created_at = (
-                              SELECT MAX(created_at) 
-                              FROM tickets 
-                              WHERE chat_id = :chat_id
-                          )
-                        LIMIT 1
-                    """),
-                    {"chat_id": chat_id, "title": title}
+                        "reported_by": reported_by,
+                        "assigned": assigned
+                    }
                 ).fetchone()
 
                 if result:
-                    ticket_id = result[0]
+                    ticket_id = result['ticket_id']
                     logger.debug(f"Created ticket with ID: {ticket_id}")
                 else:
                     raise Exception("Failed to retrieve the newly created ticket ID.")
@@ -568,7 +554,7 @@ class DatabaseManager:
 
             # Retrieve ticket base details
             ticket_query = '''
-                SELECT ticket_id, chat_id, title, description, priority, status
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned
                 FROM tickets
                 WHERE ticket_id = :ticket_id
             '''
@@ -585,7 +571,7 @@ class DatabaseManager:
             ticket_data = {
                 column: value
                 for column, value in zip(ticket_result.keys(), ticket_result)
-                if column in ("ticket_id", "chat_id", "title", "description", "priority", "status")
+                if column in ("ticket_id", "chat_id", "title", "description", "priority", "status", "reported_by", "assigned")
             }
             ticket_data["custom_fields"] = {}
 
