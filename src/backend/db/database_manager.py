@@ -98,6 +98,7 @@ class DatabaseManager:
                 status VARCHAR(50) DEFAULT 'open',
                 reported_by VARCHAR(255),
                 assigned VARCHAR(255),
+                ticket_uuid VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 FOREIGN KEY (chat_id) REFERENCES chat_messages(chat_id) ON DELETE CASCADE
@@ -473,8 +474,10 @@ class DatabaseManager:
             # Begin transaction
             with session.begin_nested():
                 # Insert into tickets table
-                query = '''INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned)
-                           VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned)'''
+                ticket_uuid = str(uuid.uuid4())
+
+                query = '''INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned, ticket_uuid)
+                           VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned, :ticket_uuid)'''
                 session.execute(
                     text(query),
                     {
@@ -483,25 +486,19 @@ class DatabaseManager:
                         "description": description,
                         "priority": priority,
                         "reported_by":reported_by,
-                        "assigned":assigned
+                        "assigned":assigned,
+                        "ticket_uuid":ticket_uuid
                     },
                 )
-
+                logger.debug(f"ticket uuid {ticket_uuid}")
                 # Fetch the generated ticket_id
                 result = session.execute(
                     text("""
                         SELECT ticket_id 
                         FROM tickets 
-                        WHERE chat_id = :chat_id 
-                          AND title = :title 
-                          AND created_at = (
-                              SELECT MAX(created_at) 
-                              FROM tickets 
-                              WHERE chat_id = :chat_id
-                          )
-                        LIMIT 1
+                        WHERE ticket_uuid= :ticket_uuid
                     """),
-                    {"chat_id": chat_id, "title": title}
+                    {"ticket_uuid": ticket_uuid}
                 ).fetchone()
 
                 if result:
@@ -572,7 +569,7 @@ class DatabaseManager:
 
             # Retrieve ticket base details
             ticket_query = '''
-                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, ticket_uuid
                 FROM tickets
                 WHERE ticket_id = :ticket_id
             '''
