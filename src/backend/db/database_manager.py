@@ -569,7 +569,7 @@ class DatabaseManager:
 
             # Retrieve ticket base details
             ticket_query = '''
-                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, ticket_uuid
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned
                 FROM tickets
                 WHERE ticket_id = :ticket_id
             '''
