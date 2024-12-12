@@ -8,11 +8,16 @@ import json
 import io
 from docx import Document
 from PIL import Image
+from enum import Enum
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Enum for file types
+class FileType(Enum):
+    PDF = ".pdf"
+    DOCX = ".docx"
 
 class UploadFileForChunks:
     def __init__(self):
@@ -63,9 +68,9 @@ class UploadFileForChunks:
         #Verify file type
         try:
             file_type = self.file_extract.detect_file_type(local_path)
-            if file_type == ".pdf":
+            if file_type == FileType.PDF:
                 logger.info(f"Verified file '{filename}' as a valid PDF.")
-            elif file_type == ".docx":
+            elif file_type == FileType.DOCX:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
@@ -76,11 +81,11 @@ class UploadFileForChunks:
 
         #Extract Files content here
         try:
-            if file_type==".pdf":
+            if file_type==FileType.PDF:
                 output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "PDF extracted and uploaded successfully."}
-            elif file_type==".docx":
+            elif file_type==FileType.DOCX:
                 output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "Docx extracted and uploaded successfully."}
@@ -92,9 +97,8 @@ class FileExtractor:
 
     def detect_file_type(self, file_path: str):
         MIME_TO_EXTENSION = {
-            "application/pdf": ".pdf",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-            "application/zip": ".docx"
+            "application/pdf": FileType.PDF,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX
         }
         try:
             mime = magic.Magic(mime=True)
@@ -252,20 +256,16 @@ class FileExtractor:
 
     def extract_docx_content(self, customer_guid: str, file_path: str, filename: str):
         try:
-            results = []  # This should store the page contents
+            results = []
             doc = Document(file_path)
-
-            # Define maximum number of paragraphs per page for simulation
-            max_paragraphs_per_page = 20  # Adjust this based on your document layout
+            max_paragraphs_per_page = 20
 
             # Collect page elements
             page_elements = []
             left_content = []
             right_content = []
             all_content = []
-
-            # Simulated page width for classifying left/right content
-            simulated_mid_x = 50  # Threshold for left/right classification
+            simulated_mid_x = 50
 
             # Process paragraphs for text extraction
             paragraphs = doc.paragraphs
@@ -273,20 +273,19 @@ class FileExtractor:
             current_page_number = 1
             current_paragraph_count = 0
 
-            logger.info(f"Total paragraphs in document: {total_paragraphs}")  # Debugging line
+            logger.info(f"Total paragraphs in document: {total_paragraphs}")
 
             if total_paragraphs == 0:
-                logger.error("No paragraphs found in the document!")  # Debugging line
+                logger.error("No paragraphs found in the document!")
 
             for i, paragraph in enumerate(paragraphs):
                 text = paragraph.text.strip()
                 if text:
-                    logger.info(f"Processing paragraph {i + 1}: {text}")  # Debugging line
-                    # Simulate coordinates for classification
-                    x0 = len(text)  # Approximation for text positioning
-                    y0 = i  # Use paragraph index as a placeholder for y0
+                    logger.info(f"Processing paragraph {i + 1}: {text}")
 
-                    # Classify into left or right sections
+                    x0 = len(text)
+                    y0 = i
+
                     if x0 < simulated_mid_x:
                         left_content.append({"text": text, "y0": y0})
                     else:
@@ -294,11 +293,9 @@ class FileExtractor:
 
                     all_content.append({"text": text, "y0": y0})
 
-                    # Check if we've reached the maximum number of paragraphs per page
                     if (current_paragraph_count + 1) % max_paragraphs_per_page == 0 or i == total_paragraphs - 1:
-                        logger.info(f"Adding page {current_page_number} with {len(all_content)} paragraphs.")  # Debugging line
+                        logger.info(f"Adding page {current_page_number} with {len(all_content)} paragraphs.")
 
-                        # Process content and assign it to the current page
                         has_left = len(left_content) > 0
                         has_right = len(right_content) > 0
 
@@ -406,7 +403,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "e3ed9d17-3c50-42c7-9bf7-7b10c055edde"
-    filename = "formatedpage.docx"
+    customer_guid = "b2751950-817c-4d2d-a662-16fbf4d3cd7d"
+    filename = "fourcolumn.docx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
