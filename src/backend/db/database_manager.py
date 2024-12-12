@@ -484,9 +484,27 @@ class DatabaseManager:
                 )
 
                 # Fetch the generated ticket_id
-                result = session.execute("SELECT LAST_INSERT_ID()").fetchone()
-                ticket_id = result[0]
-                logger.debug(f"Created ticket with ID: {ticket_id}")
+                result = session.execute(
+                    text("""
+                        SELECT ticket_id 
+                        FROM tickets 
+                        WHERE chat_id = :chat_id 
+                          AND title = :title 
+                          AND created_at = (
+                              SELECT MAX(created_at) 
+                              FROM tickets 
+                              WHERE chat_id = :chat_id
+                          )
+                        LIMIT 1
+                    """),
+                    {"chat_id": chat_id, "title": title}
+                ).fetchone()
+
+                if result:
+                    ticket_id = result[0]
+                    logger.debug(f"Created ticket with ID: {ticket_id}")
+                else:
+                    raise Exception("Failed to retrieve the newly created ticket ID.")
 
                 # Insert into custom_field_values if there are valid custom fields
                 if custom_fields:
@@ -535,7 +553,6 @@ class DatabaseManager:
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
         try:
-
             # Check if the database exists
             logger.debug(f"Checking if database {customer_db_name} exists")
             result = session.execute(
@@ -563,16 +580,14 @@ class DatabaseManager:
             if not ticket_result:
                 return None  # If ticket is not found, return None
 
-            # Process ticket base data
+            # Convert ticket result into a dictionary and filter specific fields
+            logger.info(f"tickets by ticket id {ticket_result}")
             ticket_data = {
-                "ticket_id": ticket_result[0],
-                "chat_id": ticket_result[1],
-                "title": ticket_result[2],
-                "description": ticket_result[3],
-                "priority": ticket_result[4],
-                "status": ticket_result[5],
-                "custom_fields": {}
+                column: value
+                for column, value in zip(ticket_result.keys(), ticket_result)
+                if column in ("ticket_id", "chat_id", "title", "description", "priority", "status")
             }
+            ticket_data["custom_fields"] = {}
 
             # Retrieve custom field values for the ticket
             custom_field_query = '''
@@ -586,10 +601,11 @@ class DatabaseManager:
             ).fetchone()
 
             if custom_field_result:
-                columns = custom_field_result.keys()
-                for column_name, value in zip(columns, custom_field_result):
-                    if column_name != "ticket_id" and value is not None:
-                        ticket_data["custom_fields"][column_name] = value
+                ticket_data["custom_fields"] = {
+                    column: value
+                    for column, value in zip(custom_field_result.keys(), custom_field_result)
+                    if column != "ticket_id" and value is not None
+                }
 
             return ticket_data
 
@@ -638,13 +654,10 @@ class DatabaseManager:
                 text(query),
                 {"chat_id": chat_id},
             ).fetchall()
+            logger.info(f"get by chat_id {results}")
             return [
-                {
-                    "ticket_id": result[0],
-                    "title": result[2],
-                    "status":result[5],
-                }
-                for result in results
+                {column: value for column, value in zip(row.keys(), row) if column in ("ticket_id", "title", "status")}
+                for row in results
             ]
         except (OperationalError, DatabaseError) as e:
             logger.error(f"Database error: {e}")
