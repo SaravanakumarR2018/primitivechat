@@ -12,17 +12,27 @@ logger=logging.getLogger(__name__)
 
 class MinioManager:
     def __init__(self):
+        minio_host = os.getenv('MINIO_HOST')
+        minio_port = os.getenv('MINIO_SERVER_PORT')
+        minio_user = os.getenv('MINIO_ROOT_USER')
+        minio_password = os.getenv('MINIO_ROOT_PASSWORD')
+
+        # Log the retrieved environment variables for debugging
+        logger.debug(f"MinIO Host: {minio_host}, Port: {minio_port}, User: {minio_user}, Password: {minio_password}")
+
+        if not all([minio_host, minio_port, minio_user, minio_password]):
+            raise ValueError("One or more MinIO environmental variables are not set")
 
         try:
-            self.client=Minio(
-                os.getenv('MINIO_HOST','minio:9000'),
-                access_key=os.getenv('MINIO_ROOT_USER','minioadmin'),
-                secret_key=os.getenv('MINIO_ROOT_PASSWORD','minioadmin'),
+            self.client = Minio(
+                f"{minio_host}:{minio_port}",
+                access_key=minio_user,
+                secret_key=minio_password,
                 secure=False
             )
             logger.info("Successfully connected to MinIO.")
         except Exception as e:
-            logger.error(f"Failed to initialize MinIO Connection:{e}")
+            logger.error(f"Failed to initialize MinIO Connection: {e}")
             raise e
 
     def add_storage_bucket(self,bucket_name):
