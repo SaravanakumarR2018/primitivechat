@@ -113,6 +113,8 @@ class Ticket(BaseModel):
     description: str
     priority: str
     status: str
+    reported_by: str
+    assigned: str
     custom_fields: Optional[Dict[str, Union[str, None]]] = None
 
 class TicketRequest(BaseModel):
@@ -121,6 +123,8 @@ class TicketRequest(BaseModel):
     title: str
     description: str
     priority: str
+    reported_by: str
+    assigned: str
     custom_fields: Optional[Dict[str, str]] = None
 
 class TicketResponse(BaseModel):
@@ -132,6 +136,8 @@ class TicketUpdate(BaseModel):
     description: Optional[str]=None
     status: Optional[str] = None
     priority: Optional[str] = None
+    reported_by: Optional[str] = None
+    assigned: Optional[str] = None
     custom_fields: Optional[dict[str, Any]] = None
 
 class TicketByChatId(BaseModel):
@@ -175,6 +181,8 @@ async def create_ticket(ticket: TicketRequest):
             ticket.title,
             ticket.description,
             ticket.priority,
+            ticket.reported_by,
+            ticket.assigned,
             ticket.custom_fields if ticket.custom_fields else {}
         )
 
@@ -262,6 +270,7 @@ async def get_tickets_by_chat_id(customer_guid: UUID, chat_id: str):
             )
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+
 
 @app.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
 async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, customer_guid: str):
