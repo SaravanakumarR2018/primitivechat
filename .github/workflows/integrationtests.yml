@@ -23,30 +23,18 @@ jobs:
 
       # Step 3: Load .env file and print variables
       - name: Load .env file
-        working-directory: src/backend  # Path to the .env file
         run: |
-          echo "Loading .env file..."
           set -o allexport
           source .env
           set +o allexport
-          echo "Loaded environment variables:"
-          env | grep -v '::'
-
-      # Step 3.1: Validate required environment variables
-      - name: Validate environment variables
-        run: |
-          if [ -z "${CHAT_SERVICE_PORT}" ] || [ -z "${OLLAMA_PORT}" ]; then
-            echo "Error: Required environment variables are not set."
-            exit 1
-          fi
+          echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}" >> $GITHUB_ENV
+          echo "OLLAMA_PORT=${OLLAMA_PORT}" >> $GITHUB_ENV     
 
       # Step 4: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-          CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT}
-          OLLAMA_PORT: ${OLLAMA_PORT}
         run: docker-compose up -d
 
       # Step 5: Check if Ollama server is up
