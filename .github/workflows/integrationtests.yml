@@ -15,27 +15,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Load environment variables from .env file
-      - name: Load .env file
-        run: |
-          echo "Loading environment variables from .env"
-          set -o allexport; source src/backend/.env; set +o allexport
-
-      # Step 3: Set up Docker Compose
+      # Step 2: Set up Docker Compose
       - name: Install Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
+      # Step 3: Load .env file and print variables
+      - name: Load .env file
+        working-directory: src/backend  # Path to the .env file
+        run: |
+          echo "Loading .env file..."
+          if [ ! -f .env ]; then
+            echo "Error: .env file not found in $(pwd)"
+            exit 1
+          fi
+          set -o allexport
+          source .env
+          set +o allexport
+          echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}" >> $GITHUB_ENV
+          echo "OLLAMA_PORT=${OLLAMA_PORT}" >> $GITHUB_ENV
+
       # Step 4: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
       # Step 5: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
-          end=$((SECONDS+120))
+          end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${{ env.OLLAMA_PORT }} > /dev/null; then
               echo "Ollama server is up!"
@@ -62,7 +73,7 @@ jobs:
             fi
           done
           echo "Error: Chat service server did not start within 2 minutes."
-          exit 1
+          exit 1       
 
       # Step 7: Pull the Llama model
       - name: Pull Llama model
@@ -72,6 +83,7 @@ jobs:
           body=${response%${http_code}}
           echo "Response Body: $body"
           echo "HTTP Status Code: $http_code"
+
           if [ "$http_code" -eq 200 ]; then
             echo "Model llama3.2:3b pulled successfully."
           else
@@ -91,6 +103,7 @@ jobs:
           body=${response%${http_code}}
           echo "Response Body: $body"
           echo "HTTP Status Code: $http_code"
+
           if [ "$http_code" -eq 200 ]; then
             echo "Model generated a response successfully."
           else
@@ -106,6 +119,6 @@ jobs:
 
       # Step 10: Shut down Docker Compose (clean up)
       - name: Docker-compose down
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here as well
         if: always()
         run: docker-compose down
