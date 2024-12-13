@@ -17,7 +17,7 @@ jobs:
 
       # Step 2: Load environment variables
       - name: Load environment variables
-        uses: .github/actions/dotenv@v1
+        uses: actions/dotenv@v1
         with:
           env-file: ./src/backend/.env
 
