@@ -23,9 +23,7 @@ jobs:
 
       # Step 3: Load .env file and print variables
       - name: Load .env file
-        working-directory: src/backend # Path to the .env file
-        env:
-          PROJECT_ROOT: ${{ github.workspace }}
+        working-directory: src/backend  # Path to the .env file
         run: |
           echo "Loading .env file..."
           set -o allexport
@@ -33,7 +31,7 @@ jobs:
           set +o allexport
           echo "Loaded environment variables:"
           env | grep -v '::'
-
+            
       # Step 3.1: Validate required environment variables
       - name: Validate environment variables
         run: |
