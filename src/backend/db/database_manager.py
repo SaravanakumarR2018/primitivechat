@@ -4,7 +4,7 @@ import uuid
 from enum import Enum
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
 
 # Configure logging
@@ -81,7 +81,8 @@ class DatabaseManager:
                 customer_guid VARCHAR(255) NOT NULL,
                 message MEDIUMTEXT NOT NULL,
                 sender_type ENUM('customer', 'system') NOT NULL,
-                timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6)
+                timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                INDEX (chat_id)
             );
             """
             session.execute(text(create_chat_messages_table_query))
@@ -95,8 +96,12 @@ class DatabaseManager:
                 description TEXT,
                 priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
                 status VARCHAR(50) DEFAULT 'open',
+                reported_by VARCHAR(255),
+                assigned VARCHAR(255),
+                ticket_uuid VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (chat_id) REFERENCES chat_messages(chat_id) ON DELETE CASCADE
             );
             """
             session.execute(text(create_tickets_table_query))
@@ -418,5 +423,432 @@ class DatabaseManager:
             logger.error(f"Error deleting custom field: {e}")
             session.rollback()
             return {"status": "error", "error": str(e)}
+        finally:
+            session.close()
+
+
+    # Tickets related function
+    def create_ticket(self, customer_guid, chat_id, title, description, priority, reported_by, assigned, custom_fields):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
+        try:
+            try:
+                # Check if the database exists
+                logger.debug(f"Checking if database {customer_db_name} exists")
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                raise e
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            # Switch to the customer database
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the chat_id exists in the chat_messages table
+            chat_exists = session.execute(
+                text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+                {"chat_id": chat_id}
+            ).fetchone()
+
+            if not chat_exists:
+                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
+
+            # Validate custom fields against the database columns
+            if custom_fields:
+                # Fetch the valid column names from the custom_field_values table
+                result = session.execute("SHOW COLUMNS FROM custom_field_values").fetchall()
+                valid_columns = {row[0] for row in result}
+
+                # Check for invalid fields
+                invalid_fields = [field for field in custom_fields.keys() if field not in valid_columns]
+                if invalid_fields:
+                    raise ValueError(f"Invalid custom field(s): {', '.join(invalid_fields)}")
+
+            # Begin transaction
+            with session.begin_nested():
+                # Insert into tickets table
+                ticket_uuid = str(uuid.uuid4())
+
+                query = '''INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned, ticket_uuid)
+                           VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned, :ticket_uuid)'''
+                session.execute(
+                    text(query),
+                    {
+                        "chat_id": chat_id,
+                        "title": title,
+                        "description": description,
+                        "priority": priority,
+                        "reported_by":reported_by,
+                        "assigned":assigned,
+                        "ticket_uuid":ticket_uuid
+                    },
+                )
+                logger.debug(f"ticket uuid {ticket_uuid}")
+                # Fetch the generated ticket_id
+                result = session.execute(
+                    text("""
+                        SELECT ticket_id 
+                        FROM tickets 
+                        WHERE ticket_uuid= :ticket_uuid
+                    """),
+                    {"ticket_uuid": ticket_uuid}
+                ).fetchone()
+
+                if result:
+                    ticket_id = result[0]
+                    logger.debug(f"Created ticket with ID: {ticket_id}")
+                else:
+                    raise Exception("Failed to retrieve the newly created ticket ID.")
+
+                # Insert into custom_field_values if there are valid custom fields
+                if custom_fields:
+                    columns = ', '.join([f"`{field}`" for field in custom_fields.keys()])
+                    placeholders = ', '.join([f":{field}" for field in custom_fields.keys()])
+
+                    query_for_insert_custom_fields = f'''
+                        INSERT INTO custom_field_values (ticket_id, {columns}) 
+                        VALUES (:ticket_id, {placeholders})
+                    '''
+                    params = {"ticket_id": ticket_id}
+                    params.update(custom_fields)
+
+                    logger.debug(f"Inserting custom fields: {custom_fields}")
+                    session.execute(text(query_for_insert_custom_fields), params)
+
+            session.commit()
+            logger.debug(f"Ticket ID {ticket_id} created successfully with custom fields")
+
+            return {"ticket_id": ticket_id, "status": "created"}
+
+        except ValueError as e:
+            logger.error(f"Validation error: {e}")
+            session.rollback()
+            raise e  # Propagate the ValueError to the calling function
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error creating ticket for customer {customer_guid}: {e}")
+            session.rollback()
+            raise e  # Propagate the SQLAlchemyError to the calling function
+        except OperationalError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            raise e
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            raise e
+        except Exception as e:
+            logger.error(f"Unexpected error while creating ticket: {e}")
+            session.rollback()
+            raise e  # Propagate the general exception to the calling function
+
+        finally:
+            session.close()
+
+    def get_ticket_by_id(self, ticket_id, customer_guid):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Retrieve ticket base details
+            ticket_query = '''
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned
+                FROM tickets
+                WHERE ticket_id = :ticket_id
+            '''
+            ticket_result = session.execute(
+                text(ticket_query),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            if not ticket_result:
+                return None  # If ticket is not found, return None
+
+            # Convert ticket result into a dictionary and filter specific fields
+            logger.info(f"tickets by ticket id {ticket_result}")
+            ticket_data = {
+                column: value
+                for column, value in zip(ticket_result.keys(), ticket_result)
+                if column in ("ticket_id", "chat_id", "title", "description", "priority", "status", "reported_by", "assigned")
+            }
+            ticket_data["custom_fields"] = {}
+
+            # Retrieve custom field values for the ticket
+            custom_field_query = '''
+                SELECT * 
+                FROM custom_field_values
+                WHERE ticket_id = :ticket_id
+            '''
+            custom_field_result = session.execute(
+                text(custom_field_query),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            if custom_field_result:
+                ticket_data["custom_fields"] = {
+                    column: value
+                    for column, value in zip(custom_field_result.keys(), custom_field_result)
+                    if column != "ticket_id" and value is not None
+                }
+
+            return ticket_data
+
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy error: {e}")
+            raise Exception("Database query error")
+        finally:
+            session.close()
+
+    def get_tickets_by_chat_id(self, customer_guid, chat_id):
+        customer_db_name = self.get_customer_db(customer_guid)
+        try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        try:
+                # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the chat_id exists in the chat_messages table
+            chat_exists = session.execute(
+                    text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+                    {"chat_id": chat_id}
+            ).fetchone()
+
+            if not chat_exists:
+                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
+
+            query = '''SELECT ticket_id, chat_id, title, description, priority, status
+                FROM tickets WHERE chat_id = :chat_id'''
+            results = session.execute(
+                text(query),
+                {"chat_id": chat_id},
+            ).fetchall()
+            logger.info(f"get by chat_id {results}")
+            return [
+                {column: value for column, value in zip(row.keys(), row) if column in ("ticket_id", "title", "status")}
+                for row in results
+            ]
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving tickets: {e}")
+            return []
+        finally:
+            session.close()
+
+    def update_ticket(self, ticket_id, customer_guid, ticket_update):
+        customer_db_name = self.get_customer_db(customer_guid)
+
+        try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+            except DatabaseError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the ticket exists
+            result = session.execute(
+                text("SELECT COUNT(*) FROM tickets WHERE ticket_id = :ticket_id"),
+                {"ticket_id": ticket_id},
+            ).fetchone()
+
+            if result[0] == 0:
+                return {"status": "not_found", "reason": f"Ticket ID {ticket_id} not found."}
+
+            # Validate and update ticket fields
+            ticket_fields = {
+                k: v for k, v in ticket_update.dict().items()
+                if k != "custom_fields" and v is not None
+            }
+            if ticket_fields:
+                try:
+                    set_clauses = [f"{column} = :{column}" for column in ticket_fields.keys()]
+                    query = f"UPDATE tickets SET {', '.join(set_clauses)} WHERE ticket_id = :ticket_id"
+                    ticket_fields["ticket_id"] = ticket_id
+                    session.execute(text(query), ticket_fields)
+                except SQLAlchemyError as e:
+                    logger.error(f"Error updating ticket fields: {e}")
+                    session.rollback()
+                    return {
+                        "status": "bad_request",
+                        "reason": f"Invalid data provided for ticket fields. {str(e)}"
+                    }
+
+            # Validate and update custom fields
+            if ticket_update.custom_fields:
+                try:
+                    custom_fields = ticket_update.custom_fields
+                    column_values = ", ".join([f"`{col}` = :{col}" for col in custom_fields.keys()])
+                    query = f'''
+                        INSERT INTO custom_field_values (ticket_id, {", ".join(custom_fields.keys())})
+                        VALUES (:ticket_id, {", ".join([f":{col}" for col in custom_fields.keys()])})
+                        ON DUPLICATE KEY UPDATE {column_values}
+                    '''
+                    custom_fields["ticket_id"] = ticket_id
+                    session.execute(text(query), custom_fields)
+                except SQLAlchemyError as e:
+                    logger.error(f"Error updating custom fields: {e}")
+                    session.rollback()
+                    return {
+                        "status": "conflict",
+                        "reason": f"Invalid custom fields provided: {str(e)}"
+                    }
+
+            session.commit()
+            return {"status": "updated", "reason": None}
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            return {"status": "failure", "reason": f"Unknown database customer_{customer_guid}"}
+        except OperationalError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            session.rollback()
+            return {"status": "failure", "reason": "Unexpected error occurred during ticket update."}
+
+        finally:
+            session.close()
+
+    def delete_ticket(self, ticket_id, customer_guid):
+        customer_db_name = self.get_customer_db(customer_guid)
+
+        try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            try:
+                session.execute(text(f"USE `{customer_db_name}`"))
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during USE statement: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            # Check if the ticket exists
+            try:
+                result = session.execute(
+                    text("SELECT COUNT(*) FROM tickets WHERE ticket_id = :ticket_id"),
+                    {"ticket_id": ticket_id},
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during ticket existence check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if result[0] == 0:  # Ticket not found
+                return {"status": "not_found"}
+
+            # Attempt to delete custom fields
+            try:
+                delete_custom_fields_query = '''
+                    DELETE FROM custom_field_values WHERE ticket_id = :ticket_id
+                '''
+                session.execute(
+                    text(delete_custom_fields_query),
+                    {"ticket_id": ticket_id},
+                )
+            except SQLAlchemyError as e:
+                logger.error(f"Dependency error while deleting custom fields: {e}")
+                session.rollback()
+                return {"status": "dependency_error", "reason": str(e)}
+
+            # Attempt to delete the ticket
+            try:
+                delete_ticket_query = '''DELETE FROM tickets WHERE ticket_id = :ticket_id'''
+                session.execute(
+                    text(delete_ticket_query),
+                    {"ticket_id": ticket_id},
+                )
+                session.commit()
+                return {"status": "deleted"}
+            except SQLAlchemyError as e:
+                logger.error(f"Error deleting ticket: {e}")
+                session.rollback()
+                return {"status": "failure", "reason": str(e)}
+
+        except OperationalError as e:  # Handle database connectivity issues
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except Exception as e:
+            logger.error(f"Unexpected error during deletion: {e}")
+            session.rollback()
+            return {"status": "failure", "reason": "Unexpected error occurred"}
+
         finally:
             session.close()
