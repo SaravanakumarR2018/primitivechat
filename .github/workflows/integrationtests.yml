@@ -11,39 +11,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Check out the pull request code
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Step 2: Set up Docker Compose
       - name: Install Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      - name: Load .env file and export variables
-        run: |
-          if [ -f "$PROJECT_ROOT/src/backend/.env" ]; then
-            echo "Loading environment variables from .env file..."
-            export $(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs)
-          else
-            echo ".env file not found in $PROJECT_ROOT/src/backend/. Exiting..."
-            exit 1
+      # Step 3: Load .env file and print variables
+      - name: Load .env file
+        working-directory: src/backend  # Path to the .env file
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-
-      - name: Debug Environment Variables
         run: |
-          echo "Listing environment variables..."
-          env
+          echo "Loading .env file..."
+          set -o allexport
+          source .env
+          set +o allexport
+          echo "Loaded environment variables:"
+          env | grep -v '::'
 
+      # Step 4: Run Docker Compose
       - name: Run docker-compose up
-        working-directory: ${{ github.workspace }}/src/backend
+        working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
+      # Step 5: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
-          end=$((SECONDS+120))  # Wait up to 2 minutes for Ollama server
+          end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${OLLAMA_PORT} > /dev/null; then
               echo "Ollama server is up!"
@@ -56,9 +57,10 @@ jobs:
           echo "Error: Ollama server did not start within 2 minutes."
           exit 1
 
+      # Step 6: Test if the server is up
       - name: Test server with curl
         run: |
-          end=$((SECONDS+120))  # Wait up to 2 minutes for main chat service
+          end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${CHAT_SERVICE_PORT} > /dev/null; then
               echo "Server is up!"
@@ -71,6 +73,7 @@ jobs:
           echo "Error: Server did not start within 2 minutes."
           exit 1       
 
+      # Step 7: Pull the Llama model
       - name: Pull Llama model
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}/api/pull -d '{"name": "llama3.2:3b"}')
@@ -86,6 +89,7 @@ jobs:
             exit 1
           fi
 
+      # Step 8: Test model response
       - name: Test model response
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}/api/generate -d '{
@@ -103,13 +107,16 @@ jobs:
           else
             echo "Failed to generate model response. Exiting."
             exit 1
+          fi
 
+      # Step 9: Run integration tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
+      # Step 10: Shut down Docker Compose (clean up)
       - name: Docker-compose down
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here as well
         if: always()
         run: docker-compose down
