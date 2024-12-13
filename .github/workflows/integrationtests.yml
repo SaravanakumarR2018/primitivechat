@@ -20,19 +20,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
-      
-      # Step 3: Load .env file and print variables
+
+      # Step 3: Load .env file and export variables
       - name: Load .env file
         working-directory: src/backend  # Path to the .env file
-        env:
-         PROJECT_ROOT: ${{ github.workspace }}
         run: |
           echo "Loading .env file..."
           set -o allexport
           source .env
           set +o allexport
           echo "Loaded environment variables:"
-          env | grep -v '::'         
+          env | grep -v '::'
 
       # Step 4: Run Docker Compose
       - name: Run docker-compose up
@@ -46,7 +44,7 @@ jobs:
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:11434 > /dev/null; then
+            if curl -s http://localhost:$OLLAMA_PORT > /dev/null; then
               echo "Ollama server is up!"
               exit 0
             else
@@ -58,25 +56,25 @@ jobs:
           exit 1
 
       # Step 6: Test if the server is up
-      - name: Test server with curl
+      - name: Test chat service server with curl
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:8000 > /dev/null; then
-              echo "Server is up!"
+            if curl -s http://localhost:$CHAT_SERVICE_PORT > /dev/null; then
+              echo "Chat service is up!"
               exit 0
             else
-              echo "Waiting for server to be up..."
+              echo "Waiting for chat service to be up..."
               sleep 5
             fi
           done
-          echo "Error: Server did not start within 2 minutes."
-          exit 1       
+          echo "Error: Chat service did not start within 2 minutes."
+          exit 1
 
       # Step 7: Pull the Llama model
       - name: Pull Llama model
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/pull -d '{"name": "llama3.2:3b"}')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:$OLLAMA_PORT/api/pull -d '{"name": "llama3.2:3b"}')
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
@@ -92,7 +90,7 @@ jobs:
       # Step 8: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:$OLLAMA_PORT/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
             "stream": false
@@ -115,8 +113,8 @@ jobs:
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 10: Shut down Docker Compose (clean up)
+      # Step 10: Shut down Docker Compose
       - name: Docker-compose down
-        working-directory: src/backend  # Specify working directory here as well
+        working-directory: src/backend
         if: always()
         run: docker-compose down
