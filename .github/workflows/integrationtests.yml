@@ -30,13 +30,29 @@ jobs:
           source .env
           set +o allexport
           echo "Loaded environment variables:"
-          env | grep -v '::'
+          env | grep -E 'CHAT_SERVICE_PORT|OLLAMA_PORT|DB_USER|DB_PASSWORD|DB_HOST|MYSQL_DATABASE|MYSQL_PORT|MINIO_HOST|MINIO_ROOT_USER|MINIO_ROOT_PASSWORD|MINIO_SERVER_PORT|MINIO_CONSOLE_PORT|WEAVIATE_HOST|WEAVIATE_PORT|WEAVIATE_GRPC_PORT|OLLAMA_HOST'
 
       # Step 4: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
+          DB_USER: ${DB_USER}
+          DB_PASSWORD: ${DB_PASSWORD}
+          DB_HOST: ${DB_HOST}
+          MYSQL_DATABASE: ${MYSQL_DATABASE}
+          MYSQL_PORT: ${MYSQL_PORT}
+          MINIO_HOST: ${MINIO_HOST}
+          MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+          MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+          MINIO_SERVER_PORT: ${MINIO_SERVER_PORT}
+          MINIO_CONSOLE_PORT: ${MINIO_CONSOLE_PORT}
+          WEAVIATE_HOST: ${WEAVIATE_HOST}
+          WEAVIATE_PORT: ${WEAVIATE_PORT}
+          WEAVIATE_GRPC_PORT: ${WEAVIATE_GRPC_PORT}
+          OLLAMA_PORT: ${OLLAMA_PORT}
+          OLLAMA_HOST: ${OLLAMA_HOST}
+          CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT}
         run: docker-compose up -d
 
       # Step 5: Check if Ollama server is up
@@ -56,20 +72,20 @@ jobs:
           exit 1
 
       # Step 6: Test if the server is up
-      - name: Test chat service server with curl
+      - name: Test server with curl
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:$CHAT_SERVICE_PORT > /dev/null; then
-              echo "Chat service is up!"
+              echo "Server is up!"
               exit 0
             else
-              echo "Waiting for chat service to be up..."
+              echo "Waiting for server to be up..."
               sleep 5
             fi
           done
-          echo "Error: Chat service did not start within 2 minutes."
-          exit 1
+          echo "Error: Server did not start within 2 minutes."
+          exit 1       
 
       # Step 7: Pull the Llama model
       - name: Pull Llama model
@@ -81,7 +97,7 @@ jobs:
           echo "HTTP Status Code: $http_code"
 
           if [ "$http_code" -eq 200 ]; then
-            echo "Model llama3.2:3b pulled successfully."
+            echo " Model llama3.2:3b pulled successfully."
           else
             echo "Failed to pull model. Exiting."
             exit 1
@@ -113,8 +129,8 @@ jobs:
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 10: Shut down Docker Compose
+      # Step 10: Shut down Docker Compose (clean up)
       - name: Docker-compose down
-        working-directory: src/backend
+        working-directory: src/backend  # Specify working directory here as well
         if: always()
         run: docker-compose down
