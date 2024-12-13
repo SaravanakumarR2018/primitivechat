@@ -23,14 +23,16 @@ jobs:
       
       # Step 3: Load .env file and print variables
       - name: Load .env file
-        working-directory: primitive-src-backend  # Path to the .env file
+        working-directory: src/backend  # Path to the .env file
+        env:
+         PROJECT_ROOT: ${{ github.workspace }}
         run: |
           echo "Loading .env file..."
           set -o allexport
           source .env
           set +o allexport
           echo "Loaded environment variables:"
-          env | grep -v '::'
+          env | grep -v '::'         
 
       # Step 4: Run Docker Compose
       - name: Run docker-compose up
