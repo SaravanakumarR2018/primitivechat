@@ -15,52 +15,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker Compose
+      # Step 2: Load environment variables
+      - name: Load environment variables
+        uses: .github/actions/dotenv@v1
+        with:
+          env-file: ./src/backend/.env
+
+      # Step 3: Set up Docker Compose
       - name: Install Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      # Step 3: Load .env file and export variables
-      - name: Load .env file
-        working-directory: src/backend  # Path to the .env file
-        run: |
-          echo "Loading .env file..."
-          set -o allexport
-          source .env
-          set +o allexport
-          echo "Loaded environment variables:"
-          env | grep -E 'CHAT_SERVICE_PORT|OLLAMA_PORT|DB_USER|DB_PASSWORD|DB_HOST|MYSQL_DATABASE|MYSQL_PORT|MINIO_HOST|MINIO_ROOT_USER|MINIO_ROOT_PASSWORD|MINIO_SERVER_PORT|MINIO_CONSOLE_PORT|WEAVIATE_HOST|WEAVIATE_PORT|WEAVIATE_GRPC_PORT|OLLAMA_HOST'
-
       # Step 4: Run Docker Compose
       - name: Run docker-compose up
-        working-directory: src/backend  # Specify working directory here
+        working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-          DB_USER: ${DB_USER}
-          DB_PASSWORD: ${DB_PASSWORD}
-          DB_HOST: ${DB_HOST}
-          MYSQL_DATABASE: ${MYSQL_DATABASE}
-          MYSQL_PORT: ${MYSQL_PORT}
-          MINIO_HOST: ${MINIO_HOST}
-          MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-          MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-          MINIO_SERVER_PORT: ${MINIO_SERVER_PORT}
-          MINIO_CONSOLE_PORT: ${MINIO_CONSOLE_PORT}
-          WEAVIATE_HOST: ${WEAVIATE_HOST}
-          WEAVIATE_PORT: ${WEAVIATE_PORT}
-          WEAVIATE_GRPC_PORT: ${WEAVIATE_GRPC_PORT}
-          OLLAMA_PORT: ${OLLAMA_PORT}
-          OLLAMA_HOST: ${OLLAMA_HOST}
-          CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT}
-        run: docker-compose up -d
+        run: docker-compose up
 
-      # Step 5: Check if Ollama server is up
+      # Step 4: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:$OLLAMA_PORT > /dev/null; then
+            if curl -s http://localhost:11434 > /dev/null; then
               echo "Ollama server is up!"
               exit 0
             else
@@ -71,12 +50,12 @@ jobs:
           echo "Error: Ollama server did not start within 2 minutes."
           exit 1
 
-      # Step 6: Test if the server is up
+      # Step 5: Test if the server is up
       - name: Test server with curl
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:$CHAT_SERVICE_PORT > /dev/null; then
+            if curl -s http://localhost:8000 > /dev/null; then
               echo "Server is up!"
               exit 0
             else
@@ -87,26 +66,26 @@ jobs:
           echo "Error: Server did not start within 2 minutes."
           exit 1       
 
-      # Step 7: Pull the Llama model
+      # Step 6: Pull the Llama model
       - name: Pull Llama model
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:$OLLAMA_PORT/api/pull -d '{"name": "llama3.2:3b"}')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/pull -d '{"name": "llama3.2:3b"}')
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
           echo "HTTP Status Code: $http_code"
 
           if [ "$http_code" -eq 200 ]; then
-            echo " Model llama3.2:3b pulled successfully."
+            echo "Model llama3.2:3b pulled successfully."
           else
             echo "Failed to pull model. Exiting."
             exit 1
           fi
 
-      # Step 8: Test model response
+      # Step 7: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:$OLLAMA_PORT/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
             "stream": false
@@ -123,13 +102,13 @@ jobs:
             exit 1
           fi
 
-      # Step 9: Run integration tests
+      # Step 8: Run integration tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 10: Shut down Docker Compose (clean up)
+      # Step 9: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
