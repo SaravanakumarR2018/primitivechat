@@ -986,7 +986,7 @@ class DatabaseManager:
 
             # Retrieve comment details
             comment_query = '''
-            SELECT comment_id, ticket_id, posted_by, comment, created_at
+            SELECT comment_id, ticket_id, posted_by, comment, created_at, is_edited
                 FROM ticket_comments
                 WHERE comment_id = :comment_id
             '''
