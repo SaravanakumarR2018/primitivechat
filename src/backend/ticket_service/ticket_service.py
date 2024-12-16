@@ -1,11 +1,13 @@
 import logging
 import re
+from datetime import datetime
 from http import HTTPStatus
 from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import Boolean
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
@@ -376,4 +378,252 @@ async def delete_ticket(ticket_id: str, customer_guid: str):
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while deleting the ticket."
+        )
+
+
+
+#Comments APIS
+
+class Comment(BaseModel):
+    comment_id:str
+    ticket_id:str
+    posted_by:str
+    comment:str
+    created_at:datetime
+
+class CommentRequest(BaseModel):
+    customer_guid:str
+    ticket_id:str
+    posted_by:str
+    comment:str
+
+class CommentResponse(BaseModel):
+    comment_id: str
+    status: str
+
+class CommentByTicketId(BaseModel):
+    comment_id: str
+    comment: str
+    created_at: datetime
+
+class CommentUpdate(BaseModel):
+    comment: str
+
+class CommentUpdateResponse(BaseModel):
+    comment_id: str
+    comment: str
+    is_edited: bool
+    updated_at: datetime
+
+@app.post("/comments", response_model=CommentResponse, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
+async def create_comment(comment: CommentRequest):
+    """Create a new comment for a ticket"""
+    logger.debug(f"Received comment data: {comment}")
+
+    try:
+        # Call the database method to create the comment
+        logger.debug("Calling DBManager.create_comment")
+        db_response = db_manager.create_comment(
+            comment.customer_guid,
+            comment.ticket_id,
+            comment.posted_by,
+            comment.comment
+        )
+
+        logger.debug(f"Database response: {db_response}")
+        return CommentResponse(comment_id=db_response["comment_id"], status="created")
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+
+    except OperationalError as e:
+        logger.error(f"Operational error: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            detail="The database is currently unreachable. Please try again later."
+        )
+    except DatabaseError as e:
+        logger.error(f"Database error: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            detail="The database is currently unreachable. Please try again later."
+        )
+    except SQLAlchemyError as e:
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
+
+    except Exception as e:
+        logger.error(f"Unexpected error in creating comment: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
+        )
+
+
+@app.get("/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
+async def get_comment(comment_id: str, customer_guid: UUID):
+    """Retrieve a comment by ID"""
+    try:
+        comment = db_manager.get_comment_by_id(comment_id, str(customer_guid))
+
+        if comment is None:
+            logger.info(f"Comment with comment_id {comment_id} not found for customer {customer_guid}")
+            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Comment with comment_id {comment_id} not found for customer {customer_guid}")
+        else:
+            return comment
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except HTTPException as e:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                            detail=f"Comment with comment_id {comment_id} not found for customer {customer_guid}")
+    except Exception as e:
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+
+
+@app.get("/tickets/{ticket_id}/comments", response_model=List[CommentByTicketId], tags=["Comment Management"])
+async def get_comments_by_ticket_id(customer_guid: UUID, ticket_id: str):
+    """Retrieve all comments for a specific ticket_id"""
+    try:
+        comments = db_manager.get_comments_by_ticket_id(str(customer_guid), ticket_id)
+
+        if not comments:
+            logger.info(f"No comments found for ticket_id {ticket_id} and customer {customer_guid}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"No comments found for ticket_id {ticket_id}"
+            )
+        return comments
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except HTTPException as e:
+        logger.info(f"No comments found for ticket_id {ticket_id} and customer {customer_guid}")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"No comments found for ticket_id {ticket_id}"
+        )
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while retrieving comments: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error")
+    except Exception as e:
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+
+
+@app.put("/tickets/{ticket_id}/comments/{comment_id}", response_model=CommentUpdateResponse, tags=["Comment Management"])
+async def update_comment(ticket_id: str, comment_id: str, comment_update: CommentUpdate, customer_guid: str):
+    """Update an existing comment"""
+    try:
+        update_status = db_manager.update_comment(ticket_id, comment_id, customer_guid, comment_update)
+
+        if update_status["status"] == "updated":
+            return CommentUpdateResponse(comment_id=comment_id, comment=comment_update.comment, is_edited=update_status["is_edited"], updated_at=update_status["updated_at"])
+        elif update_status["status"] == "not_found":
+            logger.error(update_status["reason"])
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=update_status["reason"]
+            )
+        elif update_status["status"] == "conflict":
+            original_error = update_status["reason"]
+            formatted_error = extract_core_error_details(original_error)
+            logger.error(f"Conflict error occurred:\n{formatted_error}")
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=formatted_error
+            )
+        elif update_status["status"] == "unknown_db":
+            logger.error("Unknown Database error occurred: " + update_status["reason"])
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=update_status["reason"]
+            )
+        elif update_status["status"] == "bad_request":
+            original_error = update_status["reason"]
+            formatted_error = extract_core_error_details(original_error)
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=formatted_error
+            )
+        elif update_status["status"] == "db_unreachable":
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+        else:
+            logger.error(update_status["reason"])
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Unexpected error: {update_status['reason'] or 'Unknown cause.'}"
+            )
+
+    except HTTPException as e:
+        raise e
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="An unexpected server error occurred."
+        )
+
+
+@app.delete("/tickets/{ticket_id}/comments/{comment_id}", response_model=CommentResponse, tags=["Comment Management"])
+async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
+    """Delete a comment for a specific ticket."""
+    try:
+        result = db_manager.delete_comment(ticket_id, comment_id, customer_guid)
+
+        if result["status"] == "deleted":
+            return CommentResponse(comment_id=comment_id, status="deleted")
+
+        elif result["status"] == "not_found":
+            return CommentResponse(comment_id=comment_id, status="not_found")
+
+        elif result["status"] == "unknown_db":
+            logger.error("Unknown Database error occurred: " + result["reason"])
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=result["reason"]
+            )
+
+        elif result["status"] == "db_unreachable":
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+
+        else:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete Comment ID {comment_id}: {result['reason']}"
+            )
+
+    except HTTPException as e:
+        raise e
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error during comment deletion: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting the comment."
         )
