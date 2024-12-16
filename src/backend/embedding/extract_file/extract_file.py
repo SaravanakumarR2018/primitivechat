@@ -505,7 +505,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid  = "09006685-474c-4c40-81af-d65d3df4e135"
+    customer_guid = "09006685-474c-4c40-81af-d65d3df4e135"
     filename = "cloud_computing_books.pptx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
