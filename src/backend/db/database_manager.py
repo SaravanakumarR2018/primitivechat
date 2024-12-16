@@ -870,6 +870,8 @@ class DatabaseManager:
             session.close()
 
 
+
+
     #Comments related methods
     def create_comment(self, customer_guid, ticket_id, posted_by, comment):
         logger.debug("Starting create_comment method")
