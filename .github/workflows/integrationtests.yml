@@ -35,15 +35,31 @@ jobs:
           set +o allexport
           echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}" >> $GITHUB_ENV
           echo "OLLAMA_PORT=${OLLAMA_PORT}" >> $GITHUB_ENV
+          echo "DB_USER=${DB_USER}" >> $GITHUB_ENV
+          echo "DB_PASSWORD=${DB_PASSWORD}" >> $GITHUB_ENV
+          echo "DB_HOST=${DB_HOST}" >> $GITHUB_ENV
+          echo "MYSQL_DATABASE=${MYSQL_DATABASE}" >> $GITHUB_ENV
+          echo "MYSQL_PORT=${MYSQL_PORT}" >> $GITHUB_ENV
+          echo "MINIO_HOST=${MINIO_HOST}" >> $GITHUB_ENV
+          echo "MINIO_ROOT_USER=${MINIO_ROOT_USER}" >> $GITHUB_ENV
+          echo "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}" >> $GITHUB_ENV
+          echo "MINIO_HOST_PORT=${MINIO_HOST_PORT}" >> $GITHUB_ENV
+          echo "MINIO_SERVER_PORT=${MINIO_SERVER_PORT}" >> $GITHUB_ENV
+          echo "MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}" >> $GITHUB_ENV
+          echo "WEAVIATE_HOST=${WEAVIATE_HOST}" >> $GITHUB_ENV
+          echo "WEAVIATE_HOST_PORT=${WEAVIATE_HOST_PORT}" >> $GITHUB_ENV
+          echo "WEAVIATE_PORT=${WEAVIATE_PORT}" >> $GITHUB_ENV
+          echo "WEAVIATE_GRPC_PORT=${WEAVIATE_GRPC_PORT}" >> $GITHUB_ENV
+          echo "OLLAMA_HOST=${OLLAMA_HOST}" >> $GITHUB_ENV
 
-      # Step 4: Run Docker Compose
+      # Step 3: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      # Step 5: Check if Ollama server is up
+      # Step 4: Check if Ollama server is up
       - name: Check Ollama server status
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
@@ -59,23 +75,23 @@ jobs:
           echo "Error: Ollama server did not start within 2 minutes."
           exit 1
 
-      # Step 6: Test if the chat service server is up
-      - name: Test chat service server with curl
+      # Step 5: Test if the server is up
+      - name: Test server with curl
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${{ env.CHAT_SERVICE_PORT }} > /dev/null; then
-              echo "Chat service server is up!"
+              echo "Server is up!"
               exit 0
             else
-              echo "Waiting for chat service server to be up..."
+              echo "Waiting for server to be up..."
               sleep 5
             fi
           done
-          echo "Error: Chat service server did not start within 2 minutes."
+          echo "Error: Server did not start within 2 minutes."
           exit 1       
 
-      # Step 7: Pull the Llama model
+      # Step 6: Pull the Llama model
       - name: Pull Llama model
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/pull -d '{"name": "llama3.2:3b"}')
@@ -91,7 +107,7 @@ jobs:
             exit 1
           fi
 
-      # Step 8: Test model response
+      # Step 7: Test model response
       - name: Test model response
         run: |
           response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/generate -d '{
@@ -111,13 +127,13 @@ jobs:
             exit 1
           fi
 
-      # Step 9: Run integration tests (adjust path if needed)
+      # Step 8: Run integration tests
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 10: Shut down Docker Compose (clean up)
+      # Step 9: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
