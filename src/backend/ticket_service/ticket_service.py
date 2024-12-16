@@ -388,6 +388,7 @@ class Comment(BaseModel):
     ticket_id:str
     posted_by:str
     comment:str
+    is_edited: bool
     created_at:datetime
 
 class CommentRequest(BaseModel):
