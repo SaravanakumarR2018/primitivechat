@@ -7,7 +7,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import Boolean
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
