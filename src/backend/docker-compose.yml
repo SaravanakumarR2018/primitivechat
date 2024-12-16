@@ -11,9 +11,10 @@ services:
       MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_SERVER_PORT: ${MINIO_SERVER_PORT}
+      MINIO_SERVER_PORT: ${MINIO_SERVER_PORT} # Pass container port to MinIO
       WEAVIATE_HOST: ${WEAVIATE_HOST}
       WEAVIATE_PORT: ${WEAVIATE_PORT}
+      CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT}
     volumes:
       - "${PROJECT_ROOT}/src:/app/src"  # Always mount the source code
     command: >
@@ -64,12 +65,13 @@ services:
       MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_SERVER_PORT: ${MINIO_SERVER_PORT}  # Keep it for clarity or compatibility
     volumes:
       - minio-data:/data  # Persistent storage for MinIO
-    command: server /data
+    command: server --address ":${MINIO_SERVER_PORT}" --console-address ":${MINIO_CONSOLE_PORT}" /data
     ports:
-      - "${MINIO_SERVER_PORT}:${MINIO_SERVER_PORT}"        # MinIO access port
-      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"        # MinIO console port
+      - "${MINIO_HOST_PORT}:${MINIO_SERVER_PORT}"     # Map MinIO server port
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}" # Map MinIO console port
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${MINIO_SERVER_PORT}/minio/health/live"]
       interval: 10s
@@ -88,7 +90,7 @@ services:
     - http
     image: cr.weaviate.io/semitechnologies/weaviate:1.27.2
     ports:
-    - "${WEAVIATE_PORT}:${WEAVIATE_PORT}"
+    - "${WEAVIATE_HOST_PORT}:${WEAVIATE_PORT}"
     - "${WEAVIATE_GRPC_PORT}:${WEAVIATE_GRPC_PORT}"
     restart: on-failure:0
     volumes:
