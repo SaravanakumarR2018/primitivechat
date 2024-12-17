@@ -399,7 +399,7 @@ class CommentRequest(BaseModel):
 
 class CommentResponse(BaseModel):
     comment_id: str
-    status: str
+    comment: str
 
 class CommentByTicketId(BaseModel):
     comment_id: str
@@ -412,10 +412,13 @@ class CommentUpdate(BaseModel):
 class CommentUpdateResponse(BaseModel):
     comment_id: str
     comment: str
-    is_edited: bool
-    updated_at: datetime
+    ticket_id:str
 
-@app.post("/comments", response_model=CommentResponse, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
+class CommentDeleteResponse(BaseModel):
+    comment_id:str
+    status:str
+
+@app.post("/add_comment", response_model=CommentResponse, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
 async def create_comment(comment: CommentRequest):
     """Create a new comment for a ticket"""
     logger.debug(f"Received comment data: {comment}")
@@ -431,7 +434,7 @@ async def create_comment(comment: CommentRequest):
         )
 
         logger.debug(f"Database response: {db_response}")
-        return CommentResponse(comment_id=db_response["comment_id"], status="created")
+        return CommentResponse(comment_id=db_response["comment_id"], comment=db_response["comment"])
 
     except ValueError as e:
         logger.error(f"Validation error: {e}")
@@ -461,11 +464,11 @@ async def create_comment(comment: CommentRequest):
         )
 
 
-@app.get("/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
-async def get_comment(comment_id: str, customer_guid: UUID):
+@app.get("/tickets/{tickets_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
+async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
     """Retrieve a comment by ID"""
     try:
-        comment = db_manager.get_comment_by_id(comment_id, str(customer_guid))
+        comment = db_manager.get_comment_by_id(comment_id, str(customer_guid), ticket_id)
 
         if comment is None:
             logger.info(f"Comment with comment_id {comment_id} not found for customer {customer_guid}")
@@ -490,10 +493,15 @@ async def get_comment(comment_id: str, customer_guid: UUID):
 
 
 @app.get("/tickets/{ticket_id}/comments", response_model=List[CommentByTicketId], tags=["Comment Management"])
-async def get_comments_by_ticket_id(customer_guid: UUID, ticket_id: str):
+async def get_comments_by_ticket_id(
+        customer_guid: UUID,
+        ticket_id: str,
+        page: int = 1,
+        page_size: int = 10
+):
     """Retrieve all comments for a specific ticket_id"""
     try:
-        comments = db_manager.get_comments_by_ticket_id(str(customer_guid), ticket_id)
+        comments = db_manager.get_paginated_comments_by_ticket_id(str(customer_guid), ticket_id, page, page_size)
 
         if not comments:
             logger.info(f"No comments found for ticket_id {ticket_id} and customer {customer_guid}")
@@ -525,14 +533,15 @@ async def get_comments_by_ticket_id(customer_guid: UUID, ticket_id: str):
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 
-@app.put("/tickets/{ticket_id}/comments/{comment_id}", response_model=CommentUpdateResponse, tags=["Comment Management"])
+@app.put("/update_comment", response_model=CommentUpdateResponse, tags=["Comment Management"])
 async def update_comment(ticket_id: str, comment_id: str, comment_update: CommentUpdate, customer_guid: str):
     """Update an existing comment"""
     try:
+        logger.debug(f"Updating comment - Ticket ID: {ticket_id}, Comment ID: {comment_id}, Update: {comment_update}, Customer GUID: {customer_guid}")
         update_status = db_manager.update_comment(ticket_id, comment_id, customer_guid, comment_update)
 
         if update_status["status"] == "updated":
-            return CommentUpdateResponse(comment_id=comment_id, comment=comment_update.comment, is_edited=update_status["is_edited"], updated_at=update_status["updated_at"])
+            return CommentUpdateResponse(comment=update_status["comment"], ticket_id=update_status["ticket_id"], comment_id=comment_id)
         elif update_status["status"] == "not_found":
             logger.error(update_status["reason"])
             raise HTTPException(
@@ -585,17 +594,17 @@ async def update_comment(ticket_id: str, comment_id: str, comment_update: Commen
         )
 
 
-@app.delete("/tickets/{ticket_id}/comments/{comment_id}", response_model=CommentResponse, tags=["Comment Management"])
+@app.delete("/delete_comment", response_model=CommentDeleteResponse, tags=["Comment Management"])
 async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
     """Delete a comment for a specific ticket."""
     try:
         result = db_manager.delete_comment(ticket_id, comment_id, customer_guid)
 
         if result["status"] == "deleted":
-            return CommentResponse(comment_id=comment_id, status="deleted")
+            return CommentDeleteResponse(comment_id=comment_id, status="deleted")
 
         elif result["status"] == "not_found":
-            return CommentResponse(comment_id=comment_id, status="not_found")
+            return CommentDeleteResponse(comment_id=comment_id, status="not_found")
 
         elif result["status"] == "unknown_db":
             logger.error("Unknown Database error occurred: " + result["reason"])
