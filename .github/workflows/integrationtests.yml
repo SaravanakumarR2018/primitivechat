@@ -36,34 +36,36 @@ jobs:
           source .env
           set +o allexport
 
-          # Verify all variables
-          echo "Environment Variables Loaded:"
-          echo "DB_USER=${DB_USER}"
-          echo "DB_PASSWORD=${DB_PASSWORD}"
-          echo "DB_HOST=${DB_HOST}"
-          echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}"
+          # Export variables to GitHub environment
+          echo "DB_USER=${DB_USER}" >> $GITHUB_ENV
+          echo "DB_PASSWORD=${DB_PASSWORD}" >> $GITHUB_ENV
+          echo "DB_HOST=${DB_HOST}" >> $GITHUB_ENV
+          echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}" >> $GITHUB_ENV
 
-          echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}"
-          echo "MYSQL_DATABASE=${MYSQL_DATABASE}"
-          echo "MYSQL_USER=${MYSQL_USER}"
-          echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}"
-          echo "MYSQL_PORT=${MYSQL_PORT}"
+          echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}" >> $GITHUB_ENV
+          echo "MYSQL_DATABASE=${MYSQL_DATABASE}" >> $GITHUB_ENV
+          echo "MYSQL_USER=${MYSQL_USER}" >> $GITHUB_ENV
+          echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}" >> $GITHUB_ENV
+          echo "MYSQL_PORT=${MYSQL_PORT}" >> $GITHUB_ENV
 
-          echo "MINIO_HOST=${MINIO_HOST}"
-          echo "MINIO_ROOT_USER=${MINIO_ROOT_USER}"
-          echo "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}"
-          echo "MINIO_HOST_PORT=${MINIO_HOST_PORT}"
-          echo "MINIO_SERVER_PORT=${MINIO_SERVER_PORT}"
-          echo "MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}"
+          echo "MINIO_HOST=${MINIO_HOST}" >> $GITHUB_ENV
+          echo "MINIO_ROOT_USER=${MINIO_ROOT_USER}" >> $GITHUB_ENV
+          echo "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}" >> $GITHUB_ENV
+          echo "MINIO_HOST_PORT=${MINIO_HOST_PORT}" >> $GITHUB_ENV
+          echo "MINIO_SERVER_PORT=${MINIO_SERVER_PORT}" >> $GITHUB_ENV
+          echo "MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}" >> $GITHUB_ENV
 
-          echo "WEAVIATE_HOST=${WEAVIATE_HOST}"
-          echo "WEAVIATE_HOST_PORT=${WEAVIATE_HOST_PORT}"
-          echo "WEAVIATE_PORT=${WEAVIATE_PORT}"
-          echo "WEAVIATE_GRPC_PORT=${WEAVIATE_GRPC_PORT}"
+          echo "WEAVIATE_HOST=${WEAVIATE_HOST}" >> $GITHUB_ENV
+          echo "WEAVIATE_HOST_PORT=${WEAVIATE_HOST_PORT}" >> $GITHUB_ENV
+          echo "WEAVIATE_PORT=${WEAVIATE_PORT}" >> $GITHUB_ENV
+          echo "WEAVIATE_GRPC_PORT=${WEAVIATE_GRPC_PORT}" >> $GITHUB_ENV
 
-          echo "OLLAMA_PORT=${OLLAMA_PORT}"
-          echo "OLLAMA_HOST=${OLLAMA_HOST}"          
+          echo "OLLAMA_PORT=${OLLAMA_PORT}" >> $GITHUB_ENV
+          echo "OLLAMA_HOST=${OLLAMA_HOST}" >> $GITHUB_ENV
+
+          echo "Environment variables loaded and exported to GitHub environment."
       
+
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
@@ -76,7 +78,7 @@ jobs:
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:${OLLAMA_PORT} > /dev/null; then
+            if curl -s http://localhost:${{ env.OLLAMA_PORT }} > /dev/null; then
               echo "Ollama server is up!"
               exit 0
             else
@@ -92,7 +94,7 @@ jobs:
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:${CHAT_SERVICE_PORT} > /dev/null; then
+            if curl -s http://localhost:${{ env.CHAT_SERVICE_PORT }} > /dev/null; then
               echo "Server is up!"
               exit 0
             else
@@ -106,7 +108,7 @@ jobs:
       # Step 6: Pull the Llama model
       - name: Pull Llama model
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}}/api/pull -d '{"name": "llama3.2:3b"}')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/pull -d '{"name": "llama3.2:3b"}')
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
@@ -122,7 +124,7 @@ jobs:
       # Step 7: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
             "stream": false
