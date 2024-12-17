@@ -44,7 +44,7 @@ jobs:
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:${{ env.OLLAMA_PORT }} > /dev/null; then
+            if curl -s http://localhost:${OLLAMA_PORT} > /dev/null; then
               echo "Ollama server is up!"
               exit 0
             else
@@ -60,7 +60,7 @@ jobs:
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:${{ env.CHAT_SERVICE_PORT }} > /dev/null; then
+            if curl -s http://localhost:${CHAT_SERVICE_PORT} > /dev/null; then
               echo "Server is up!"
               exit 0
             else
@@ -74,7 +74,7 @@ jobs:
       # Step 6: Pull the Llama model
       - name: Pull Llama model
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/pull -d '{"name": "llama3.2:3b"}')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}}/api/pull -d '{"name": "llama3.2:3b"}')
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
@@ -90,7 +90,7 @@ jobs:
       # Step 7: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${OLLAMA_PORT}/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
             "stream": false
