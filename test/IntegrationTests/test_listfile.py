@@ -1,6 +1,12 @@
 import unittest
 import requests
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'primitivechat', 'src', 'backend', '.env')
+load_dotenv(dotenv_path)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -9,7 +15,7 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestListFileAPI(unittest.TestCase):
-    BASE_URL="http://localhost:8000"
+    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_list_files_no_files_uploaded(self):
         logger.info("Testing file listing with no files uploaded")
