@@ -11,6 +11,7 @@ from PIL import Image
 from enum import Enum
 import zipfile
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
