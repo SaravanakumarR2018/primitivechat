@@ -946,7 +946,7 @@ class DatabaseManager:
             session.commit()
             logger.debug(f"Transaction committed successfully for comment ID {comment_id}")
 
-            return {"comment_id": comment_id, "status": "created"}
+            return {"comment_id": comment_id, "comment": comment}
 
         except ValueError as e:
             logger.error(f"Validation error: {e}")
@@ -967,7 +967,7 @@ class DatabaseManager:
             logger.debug("Closing database session")
             session.close()
 
-    def get_comment_by_id(self, comment_id, customer_guid):
+    def get_comment_by_id(self, comment_id, customer_guid, ticket_id):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
         try:
@@ -988,11 +988,11 @@ class DatabaseManager:
             comment_query = '''
             SELECT comment_id, ticket_id, posted_by, comment, created_at, is_edited
                 FROM ticket_comments
-                WHERE comment_id = :comment_id
+                WHERE comment_id = :comment_id AND ticket_id = :ticket_id
             '''
             comment_result = session.execute(
                 text(comment_query),
-                {"comment_id": comment_id},
+                {"comment_id": comment_id, "ticket_id": ticket_id},
             ).fetchone()
 
             if not comment_result:
@@ -1016,50 +1016,48 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_comments_by_ticket_id(self, customer_guid, ticket_id):
+    def get_paginated_comments_by_ticket_id(self, customer_guid, ticket_id, page=1, page_size=10):
+        logger.debug("Entering get_paginated_comments_by_ticket_id method")
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
-
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            # Check if the ticket_id exists in the tickets table
+            # Check if the ticket exists
             ticket_exists = session.execute(
                 text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
                 {"ticket_id": ticket_id}
             ).fetchone()
 
             if not ticket_exists:
-                raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
+                logger.error(f"Invalid ticket_id: {ticket_id}")
+                return []
 
-            # Retrieve comments for the given ticket_id
-            query = '''
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(f"Fetching comments with pagination: page={page}, page_size={page_size}, offset={offset}")
+
+            query = """
                 SELECT comment_id, comment, created_at
                 FROM ticket_comments
                 WHERE ticket_id = :ticket_id
                 ORDER BY created_at ASC
-            '''
+                LIMIT :page_size OFFSET :offset
+            """
             results = session.execute(
                 text(query),
-                {"ticket_id": ticket_id},
+                {"ticket_id": ticket_id, "page_size": page_size, "offset": offset},
             ).fetchall()
 
-            logger.info(f"Comments retrieved for ticket_id {ticket_id}: {results}")
-
-            return [
-                {column: value for column, value in zip(row.keys(), row)}
+            comments_list = [
+                {"comment_id": row.comment_id, "comment": row.comment, "created_at": row.created_at}
                 for row in results
             ]
+
+            logger.info(f"Retrieved {len(comments_list)} comments for ticket_id: {ticket_id}")
+            return comments_list
         except (OperationalError, DatabaseError) as e:
             logger.error(f"Database error: {e}")
             raise Exception("Database connectivity issue")
@@ -1132,7 +1130,7 @@ class DatabaseManager:
                 updated_at = updated_at_result[0] if updated_at_result else None
                 is_edited = updated_at_result[1] if updated_at_result else False
 
-                return {"status": "updated", "reason": None, "is_edited":is_edited, "updated_at": updated_at}
+                return {"status": "updated", "reason": None, "comment": comment_update.comment, "ticket_id": ticket_id, "comment_id":comment_id}
             except SQLAlchemyError as e:
                 logger.error(f"Error updating comment: {e}")
                 session.rollback()
