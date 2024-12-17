@@ -8,13 +8,6 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: ${DB_HOST}
-      MINIO_HOST: ${MINIO_HOST}
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_SERVER_PORT: ${MINIO_SERVER_PORT} # Pass container port to MinIO
-      WEAVIATE_HOST: ${WEAVIATE_HOST}
-      WEAVIATE_PORT: ${WEAVIATE_PORT}
-      CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT}
     volumes:
       - "${PROJECT_ROOT}/src:/app/src"  # Always mount the source code
     command: >
@@ -25,7 +18,7 @@ services:
       uvicorn src.backend.main.main:main_app --host 0.0.0.0 --port ${CHAT_SERVICE_PORT}
       "
     ports:
-      - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"
+      - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"  # Expose FastAPI on port 8000
     depends_on:
       mysql_db:
         condition: service_healthy
@@ -39,6 +32,8 @@ services:
       timeout: 5s
       retries: 24
       start_period: 300s
+    env_file:
+      - .env
 
   mysql_db:
     image: mysql:8.0
@@ -62,16 +57,14 @@ services:
     image: minio/minio:RELEASE.2024-11-07T00-52-20Z
     container_name: minio
     environment:
-      MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_SERVER_PORT: ${MINIO_SERVER_PORT}  # Keep it for clarity or compatibility
     volumes:
       - minio-data:/data  # Persistent storage for MinIO
     command: server --address ":${MINIO_SERVER_PORT}" --console-address ":${MINIO_CONSOLE_PORT}" /data
     ports:
-      - "${MINIO_HOST_PORT}:${MINIO_SERVER_PORT}"     # Map MinIO server port
-      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}" # Map MinIO console port
+      - "${MINIO_HOST_PORT}:${MINIO_SERVER_PORT}"          # MinIO access port
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"         # MinIO console port
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${MINIO_SERVER_PORT}/minio/health/live"]
       interval: 10s
@@ -80,7 +73,6 @@ services:
       start_period: 30s
 
   weaviate:
-    container_name: weaviate
     command:
     - --host
     - 0.0.0.0
@@ -115,11 +107,9 @@ services:
     volumes:
       - ollama_model_data:/root/.ollama  # Persist model data to avoid repeated downloads
     ports:
-      - "${OLLAMA_PORT}:${OLLAMA_PORT}"
+      - "${OLLAMA_PORT}:${OLLAMA_PORT}" # Expose Ollama on port 11434
     restart: unless-stopped
-    environment:
-      - OLLAMA_PORT=${OLLAMA_PORT}
-      - OLLAMA_HOST=http://0.0.0.0:${OLLAMA_PORT}
+
 
 # Define the named volumes for MySQL and Weaviate
 volumes:
@@ -131,4 +121,3 @@ volumes:
 # Define the absolute path for PROJECT_ROOT
 x-environment:
   PROJECT_ROOT: ${PROJECT_ROOT}
-
