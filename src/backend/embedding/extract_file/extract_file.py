@@ -11,6 +11,7 @@ from PIL import Image
 from enum import Enum
 import zipfile
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -483,8 +484,35 @@ class FileExtractor:
                             "content": ocr_text
                         })
 
-                # Combine slide elements
-                slide_text = "\n".join(element["content"] for element in slide_elements)
+                    if shape.shape_type == MSO_SHAPE_TYPE.CHART:
+                        chart = shape.chart
+                        table_data = []
+                        x_axis_labels = [category for category in chart.plots[0].categories]
+                        first_column_name = chart.series[0].name if chart.series and chart.series[0].name else None
+                        series_names = []
+
+                        for series in chart.series:
+                            series_name = series.name if series.name else "Unnamed Series"
+                            series_names.append(series_name)
+                        table_data.append([first_column_name] + series_names)
+                        for idx, category in enumerate(x_axis_labels):
+                            row = [category]
+                            for series in chart.series:
+                                value = series.values[idx] if idx < len(series.values) else None
+                                row.append(value)
+                            table_data.append(row)
+
+                        # Append the reconstructed table data
+                        slide_elements.append({
+                            "type": "chart_table",
+                            "content": table_data
+                        })
+
+                # Safely combine slide elements
+                slide_text = "\n".join(
+                    json.dumps(element["content"], indent=2) if isinstance(element["content"],(list, dict)) else element["content"]
+                    for element in slide_elements
+                )
                 results.append({
                     "metadata": {"slide_number": slide_number},
                     "text": slide_text
@@ -505,7 +533,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid  = "09006685-474c-4c40-81af-d65d3df4e135"
-    filename = "cloud_computing_books.pptx"
+    customer_guid = "d395afb0-2c6f-4ca5-84f8-61b2b96260b2"
+    filename = "Full_Pitch.pptx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
