@@ -30,8 +30,12 @@ jobs:
             echo "Error: .env file not found in $(pwd)"
             exit 1
           fi
-          cat .env
-
+          set -o allexport
+          source .env
+          set +o allexport
+          echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}"
+      
+      
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
