@@ -11,6 +11,15 @@ PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
 export PROJECT_ROOT
 echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
 
+# Load environment variables from .env file
+if [ -f "$PROJECT_ROOT/src/backend/.env" ]; then
+    echo "Loading environment variables from .env file..."
+    export $(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs)
+else
+    echo ".env file not found in $PROJECT_ROOT/src/backend/. Exiting..."
+    exit 1
+fi
+
 # Move to the backend directory
 cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Changed directory to src/backend"
@@ -40,7 +49,7 @@ LOG_PID=$!
 trap 'kill $LOG_PID 2>/dev/null' EXIT
 
 # Check if the Ollama server is up by hitting the health endpoint
-URL="http://localhost:11434/"
+URL="http://localhost:${OLLAMA_PORT}/"
 MAX_WAIT_TIME=1200  # 20 minutes
 CHECK_INTERVAL=5    # 5 seconds
 elapsed_time=0
@@ -79,7 +88,7 @@ fi
 
 # Pull the model (llama3.2:3b) once the server is up
 echo "Pulling the llama3.2:3b model..."
-PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:11434/api/pull -d '{
+PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/pull -d '{
   "name": "llama3.2:3b"
 }')
 
@@ -99,7 +108,7 @@ fi
 
 # Check if the model was successfully pulled by generating a response
 echo "Checking if model is working by generating a response..."
-GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:11434/api/generate -d '{
+GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/generate -d '{
   "model": "llama3.2:3b",
   "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
   "stream": false
@@ -118,8 +127,8 @@ else
   echo "Ollama server failed to generate a response. Response code: $GEN_HTTP_CODE"
   exit 1
 fi
-# Check if the server is up (replace http://localhost:8000 with the actual URL if needed)
-URL="http://localhost:8000"  # Updated URL to localhost
+# Check if the server is up (replace http://localhost:${CHAT_SERVICE_PORT} with the actual URL if needed)
+URL="http://localhost:${CHAT_SERVICE_PORT}"  # Updated URL to localhost
 EXPECTED_OUTPUT='{"message":"The server is up and running!"}'
 MAX_WAIT_TIME=1200  # 20 minutes
 CHECK_INTERVAL=5    # 5 seconds
