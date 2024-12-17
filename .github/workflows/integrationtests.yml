@@ -21,19 +21,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      # Step 3: Load .env file and print variables
-      - name: Load .env file
-        working-directory: src/backend  # Path to the .env file
+      # Step 3: Load and verify .env variables
+      - name: Load .env and verify
+        working-directory: src/backend
         run: |
           echo "Loading .env file..."
           if [ ! -f .env ]; then
             echo "Error: .env file not found in $(pwd)"
             exit 1
           fi
-          set -o allexport
-          source .env
-          set +o 
-          echo "Environmental variables fully loaded."
+          cat .env
 
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
