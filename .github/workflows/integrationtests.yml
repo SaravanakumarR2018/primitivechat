@@ -30,11 +30,39 @@ jobs:
             echo "Error: .env file not found in $(pwd)"
             exit 1
           fi
+
+          # Export all environment variables from .env
           set -o allexport
           source .env
           set +o allexport
+
+          # Verify all variables
+          echo "Environment Variables Loaded:"
+          echo "DB_USER=${DB_USER}"
+          echo "DB_PASSWORD=${DB_PASSWORD}"
+          echo "DB_HOST=${DB_HOST}"
           echo "CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT}"
-      
+
+          echo "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}"
+          echo "MYSQL_DATABASE=${MYSQL_DATABASE}"
+          echo "MYSQL_USER=${MYSQL_USER}"
+          echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}"
+          echo "MYSQL_PORT=${MYSQL_PORT}"
+
+          echo "MINIO_HOST=${MINIO_HOST}"
+          echo "MINIO_ROOT_USER=${MINIO_ROOT_USER}"
+          echo "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}"
+          echo "MINIO_HOST_PORT=${MINIO_HOST_PORT}"
+          echo "MINIO_SERVER_PORT=${MINIO_SERVER_PORT}"
+          echo "MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}"
+
+          echo "WEAVIATE_HOST=${WEAVIATE_HOST}"
+          echo "WEAVIATE_HOST_PORT=${WEAVIATE_HOST_PORT}"
+          echo "WEAVIATE_PORT=${WEAVIATE_PORT}"
+          echo "WEAVIATE_GRPC_PORT=${WEAVIATE_GRPC_PORT}"
+
+          echo "OLLAMA_PORT=${OLLAMA_PORT}"
+          echo "OLLAMA_HOST=${OLLAMA_HOST}"          
       
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
