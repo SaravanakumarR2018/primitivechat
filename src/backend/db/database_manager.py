@@ -928,7 +928,7 @@ class DatabaseManager:
                 # Fetch the generated comment_id
                 result = session.execute(
                     text("""
-                        SELECT comment_id 
+                        SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at 
                         FROM ticket_comments 
                         WHERE ticket_id = :ticket_id AND comment_uuid = :comment_uuid AND posted_by = :posted_by
                     """),
@@ -938,15 +938,16 @@ class DatabaseManager:
                 logger.debug(f"Fetch newly created comment_id result: {result}")
 
                 if result:
-                    comment_id = result[0]
-                    logger.debug(f"Created comment with ID: {comment_id}")
+                    comment_data = {
+                        column: value
+                        for column, value in zip(result.keys(), result)
+                    }
                 else:
                     raise Exception("Failed to retrieve the newly created comment ID.")
 
             session.commit()
-            logger.debug(f"Transaction committed successfully for comment ID {comment_id}")
 
-            return {"comment_id": comment_id, "comment": comment}
+            return comment_data
 
         except ValueError as e:
             logger.error(f"Validation error: {e}")
@@ -986,7 +987,7 @@ class DatabaseManager:
 
             # Retrieve comment details
             comment_query = '''
-            SELECT comment_id, ticket_id, posted_by, comment, created_at, is_edited
+            SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at
                 FROM ticket_comments
                 WHERE comment_id = :comment_id AND ticket_id = :ticket_id
             '''
@@ -1022,6 +1023,16 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
 
         try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
@@ -1040,7 +1051,7 @@ class DatabaseManager:
             logger.debug(f"Fetching comments with pagination: page={page}, page_size={page_size}, offset={offset}")
 
             query = """
-                SELECT comment_id, comment, created_at
+                SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at
                 FROM ticket_comments
                 WHERE ticket_id = :ticket_id
                 ORDER BY created_at ASC
@@ -1052,11 +1063,12 @@ class DatabaseManager:
             ).fetchall()
 
             comments_list = [
-                {"comment_id": row.comment_id, "comment": row.comment, "created_at": row.created_at}
+                {"comment_id": row.comment_id, "ticket_id": row.ticket_id, "posted_by": row.posted_by, "comment": row.comment, "created_at": row.created_at, "is_edited": row.is_edited, "updated_at":row.updated_at}
                 for row in results
             ]
 
             logger.info(f"Retrieved {len(comments_list)} comments for ticket_id: {ticket_id}")
+
             return comments_list
         except (OperationalError, DatabaseError) as e:
             logger.error(f"Database error: {e}")
@@ -1072,13 +1084,11 @@ class DatabaseManager:
 
         try:
             session = DatabaseManager._session_factory()
-            # Add retry logic here for connection
         except OperationalError as e:
             logger.error(f"Database connection failed: {e}")
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            # Check if the database exists
             logger.debug(f"Checking if database {customer_db_name} exists")
             try:
                 result = session.execute(
@@ -1095,22 +1105,38 @@ class DatabaseManager:
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            # Check if the comment exists
+            # Check if the comment exists and fetch posted_by field
             result = session.execute(
-                text("SELECT COUNT(*) FROM ticket_comments WHERE ticket_id = :ticket_id AND comment_id = :comment_id"),
+                text("""
+                    SELECT posted_by 
+                    FROM ticket_comments 
+                    WHERE ticket_id = :ticket_id AND comment_id = :comment_id
+                """),
                 {"ticket_id": ticket_id, "comment_id": comment_id},
             ).fetchone()
 
-            if result[0] == 0:
+            if not result:
                 return {"status": "not_found",
                         "reason": f"Comment ID {comment_id} not found for Ticket ID {ticket_id}."}
+
+            previous_posted_by = result[0]
+            logger.debug(f"previous_posted_by: {previous_posted_by}")
+            logger.debug(f"current posted_by: {comment_update.posted_by}")
+            logger.debug(previous_posted_by != comment_update.posted_by)
+            # Compare posted_by fields
+            if previous_posted_by != comment_update.posted_by:
+                return {
+                    "status": "bad_request",
+                    "reason": "You are not authorized to update this comment."
+                }
 
             # Update the comment and set is_edited to true
             try:
                 query = """
                     UPDATE ticket_comments
                     SET comment = :comment,
-                        is_edited = true
+                        is_edited = true,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE ticket_id = :ticket_id AND comment_id = :comment_id
                 """
                 session.execute(
@@ -1118,19 +1144,25 @@ class DatabaseManager:
                     {"ticket_id": ticket_id, "comment_id": comment_id, "comment": comment_update.comment}
                 )
 
-                # Fetch updated_at column after update
-                updated_at_result = session.execute(
-                    text(
-                        "SELECT updated_at, is_edited FROM ticket_comments WHERE ticket_id = :ticket_id AND comment_id = :comment_id"),
+                # Fetch all updated fields after the update
+                comment_result = session.execute(
+                    text("""
+                        SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at 
+                        FROM ticket_comments 
+                        WHERE ticket_id = :ticket_id AND comment_id = :comment_id
+                    """),
                     {"ticket_id": ticket_id, "comment_id": comment_id}
                 ).fetchone()
 
                 session.commit()
 
-                updated_at = updated_at_result[0] if updated_at_result else None
-                is_edited = updated_at_result[1] if updated_at_result else False
+                if comment_result:
+                    # Create dictionary from the fetched result
+                    comment_data = {key: value for key, value in zip(comment_result.keys(), comment_result)}
+                    return {"status": "updated", "comment_data": comment_data}
+                else:
+                    return {"status": "failure", "reason": "Comment update failed. No data returned."}
 
-                return {"status": "updated", "reason": None, "comment": comment_update.comment, "ticket_id": ticket_id, "comment_id":comment_id}
             except SQLAlchemyError as e:
                 logger.error(f"Error updating comment: {e}")
                 session.rollback()
