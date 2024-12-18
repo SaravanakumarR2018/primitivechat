@@ -10,6 +10,8 @@ from docx import Document
 from PIL import Image
 from enum import Enum
 import zipfile
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -19,7 +21,11 @@ logger = logging.getLogger(__name__)
 class FileType(Enum):
     PDF = ".pdf"
     DOCX = ".docx"
+    PPTX = ".pptx"
 
+class CustomShapeType(Enum):
+    PICTURE = 13
+    
 class UploadFileForChunks:
     def __init__(self):
         self.minio_manager = MinioManager()
@@ -73,6 +79,8 @@ class UploadFileForChunks:
                 logger.info(f"Verified file '{filename}' as a valid PDF.")
             elif file_type == FileType.DOCX:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
+            elif file_type==FileType.PPTX:
+                logger.info(f"Verified file '{filename}' as a valid PPTX.")
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
@@ -90,8 +98,12 @@ class UploadFileForChunks:
                 output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "Docx extracted and uploaded successfully."}
+            elif file_type==FileType.PPTX:
+                output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "PPTX extracted and uploaded successfully."}
         except Exception as e:
-            logger.error(f"PDF extraction error: {e}")
+            logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
 
 class FileExtractor:
@@ -99,7 +111,8 @@ class FileExtractor:
     def detect_file_type(self, file_path: str):
         MIME_TO_EXTENSION = {
             "application/pdf": FileType.PDF,
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX,
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX
         }
         try:
             mime = magic.Magic(mime=True)
@@ -430,9 +443,97 @@ class FileExtractor:
             logger.error(f"Error extracting content from DOCX file '{filename}': {e}")
             raise Exception(f"DOCX content extraction failed: {e}")
 
+    def extract_ppt_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+
+            results = []
+            presentation = Presentation(file_path)
+
+            for slide_number, slide in enumerate(presentation.slides, start=1):
+                slide_elements = []
+
+                # Extract slide text
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        for paragraph in shape.text_frame.paragraphs:
+                            text = paragraph.text.strip()
+                            if text:
+                                slide_elements.append({
+                                    "type": "text",
+                                    "content": text
+                                })
+
+                    # Extract table data
+                    if shape.has_table:
+                        table = shape.table
+                        table_data = [
+                            [cell.text.strip() for cell in row.cells]
+                            for row in table.rows
+                        ]
+                        table_text = self.format_table_as_text(table_data)
+                        slide_elements.append({
+                            "type": "table",
+                            "content": table_text
+                        })
+
+                    # Extract images
+                    if shape.shape_type == CustomShapeType.PICTURE.value:  # 13 indicates a picture
+                        image = shape.image
+                        image_data = image.blob
+                        image_obj = Image.open(io.BytesIO(image_data))
+                        ocr_text = pytesseract.image_to_string(image_obj).strip()
+                        slide_elements.append({
+                            "type": "image",
+                            "content": ocr_text
+                        })
+                        
+                    if shape.shape_type == MSO_SHAPE_TYPE.CHART:
+                        chart = shape.chart
+                        table_data = []
+                        x_axis_labels = [category for category in chart.plots[0].categories]
+                        first_column_name = chart.series[0].name if chart.series and chart.series[0].name else None
+                        series_names = []
+
+                        for series in chart.series:
+                            series_name = series.name if series.name else "Unnamed Series"
+                            series_names.append(series_name)
+                        table_data.append([first_column_name] + series_names)
+                        for idx, category in enumerate(x_axis_labels):
+                            row = [category]
+                            for series in chart.series:
+                                value = series.values[idx] if idx < len(series.values) else None
+                                row.append(value)
+                            table_data.append(row)
+
+                        # Append the reconstructed table data
+                        slide_elements.append({
+                            "type": "chart_table",
+                            "content": table_data
+                        })   
+
+                # Combine slide elements
+                slide_text = "\n".join(element["content"] for element in slide_elements)
+                results.append({
+                    "metadata": {"page_number": slide_number},
+                    "text": slide_text
+                })
+
+            # Save results to a file
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted content saved to '{output_file_path}'")
+            return output_file_path
+
+        except Exception as e:
+            logger.error(f"Error extracting content from PPT file '{filename}': {e}")
+            raise Exception(f"PPTX content extraction failed: {e}")
+
 
 if __name__ == "__main__":
-    customer_guid = "04d84e85-6572-44df-b49d-46b76cf91c63"
-    filename = "PrinceBot.docx"
+    customer_guid = "2395afb1-23fc-3ax6-84f8-61b2b96260b2"
+    filename = "Bar_Charts.pptx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
