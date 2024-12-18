@@ -22,8 +22,7 @@ app = APIRouter()
 db_manager = DatabaseManager()
 
 
-# Custom Fields Management APIs
-
+#Custom Field Pydantic Model
 class CustomField(BaseModel):
     customer_guid: UUID
     field_name: str
@@ -35,78 +34,7 @@ class CustomFieldResponse(BaseModel):
     field_type: str
     required: bool
 
-@app.post("/custom_fields", response_model=CustomField)
-async def add_custom_field(custom_field: CustomField):
-    """Add a new custom field to a customer's tickets"""
-    try:
-        success = db_manager.add_custom_field(
-            str(custom_field.customer_guid),
-            custom_field.field_name,
-            custom_field.field_type,
-            custom_field.required,
-        )
-        if success:
-            return custom_field
-        else:
-            raise HTTPException(status_code=400, detail="Failed to add custom field")
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/custom_fields", response_model=List[CustomFieldResponse])
-async def list_custom_fields(customer_guid: UUID):
-    """List all custom fields for a customer"""
-    try:
-        # Fetch custom fields for the customer
-        fields = db_manager.list_custom_fields(str(customer_guid))
-
-        # Check if fields are empty and raise a 404 if so
-        if not fields:
-            raise HTTPException(status_code=404, detail=f"No custom fields found for customer {customer_guid}")
-
-        # If fields are found, return them as structured response
-        return [
-            CustomFieldResponse(
-                field_name=field["field_name"],
-                field_type=field["field_type"],
-                required=field["required"],
-            )
-            for field in fields
-        ]
-
-    except SQLAlchemyError as e:
-        # Log database specific errors and raise HTTPException with 500 error
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error occurred.")
-
-    except HTTPException as e:
-        raise HTTPException(status_code=404, detail="There is No custom_fields to show")
-
-    except Exception as e:
-        # Catch other unexpected errors
-        logger.error(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error.")
-
-
-@app.delete("/custom_fields/{field_name}")
-async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
-    """Delete a custom field"""
-    try:
-        result = db_manager.delete_custom_field(str(customer_guid), field_name)
-        if result["status"] == "deleted":
-            return {"field_name": field_name, "status": "deleted"}
-        elif result["status"] == "not_found":
-            return {
-                "message": f"Custom field '{field_name}' was not found, no action needed",
-            }
-        else:
-            raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+#Tickets Pydantic Model
 class Ticket(BaseModel):
     ticket_id: str
     chat_id: str
@@ -146,29 +74,102 @@ class TicketByChatId(BaseModel):
     title: str
     status: str
 
-def extract_core_error_details(message):
-    """Extract and format the core error details for readability."""
-    patterns = [
-        r"Unknown column '(.+?)' in 'field list'",  # Matches "Unknown column" errors
-        r"Data truncated for column '(.+?)'",       # Matches "Data truncated" errors
-        r"Incorrect integer value: '(.*?)' for column '(.+?)'",  # Matches "Incorrect integer value" errors
-    ]
+#Comments Pydantic Model
+class Comment(BaseModel):
+    comment_id:str
+    ticket_id:str
+    posted_by:str
+    comment:str
+    is_edited: bool
+    created_at:datetime
+    updated_at:datetime
 
-    for pattern in patterns:
-        match = re.search(pattern, message)
-        if match:
-            # Format the error details based on the matched pattern
-            if "Unknown column" in pattern:
-                return f"Unknown custom field column: '{match.group(1)}'."
-            elif "Data truncated" in pattern:
-                return f"Value Not allowed for column: '{match.group(1)}'. use [Low, Medium, High]"
-            elif "Incorrect integer value" in pattern:
-                return f"Incorrect value: '{match.group(1)}' for column: '{match.group(2)}'."
+class CommentRequest(BaseModel):
+    customer_guid:str
+    ticket_id:str
+    posted_by:str
+    comment:str
 
-    # Default message if no pattern matches
-    return "An unknown conflict occurred. Please check the error details."
+class CommentUpdate(BaseModel):
+    comment: str
+    posted_by:str
+
+class CommentDeleteResponse(BaseModel):
+    comment_id:str
+    status:str
+
+# Custom Fields Management APIs
+@app.post("/custom_fields", response_model=CustomField)
+async def add_custom_field(custom_field: CustomField):
+    """Add a new custom field to a customer's tickets"""
+    try:
+        success = db_manager.add_custom_field(
+            str(custom_field.customer_guid),
+            custom_field.field_name,
+            custom_field.field_type,
+            custom_field.required,
+        )
+        if success:
+            return custom_field
+        else:
+            raise HTTPException(status_code=400, detail="Failed to add custom field")
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/custom_fields", response_model=List[CustomFieldResponse])
+async def list_custom_fields(customer_guid: UUID):
+    """List all custom fields for a customer"""
+    try:
+        # Fetch custom fields for the customer
+        fields = db_manager.list_custom_fields(str(customer_guid))
+
+        # Check if fields are empty and raise a 404 if so
+        if not fields:
+            raise HTTPException(status_code=404, detail=f"No custom fields found for customer {customer_guid}")
+
+        # If fields are found, return them as structured response
+        return [
+            CustomFieldResponse(
+                field_name=field["field_name"],
+                field_type=field["field_type"],
+                required=field["required"],
+            )
+            for field in fields
+        ]
+
+    except SQLAlchemyError as e:
+        # Log database specific errors and raise HTTPException with 500 error
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=500, detail="Database error occurred.")
+
+    except HTTPException as e:
+        raise HTTPException(status_code=404, detail="There is No custom_fields to show")
+
+    except Exception as e:
+        # Catch other unexpected errors
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.")
+
+@app.delete("/custom_fields/{field_name}")
+async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
+    """Delete a custom field"""
+    try:
+        result = db_manager.delete_custom_field(str(customer_guid), field_name)
+        if result["status"] == "deleted":
+            return {"field_name": field_name, "status": "deleted"}
+        elif result["status"] == "not_found":
+            return {
+                "message": f"Custom field '{field_name}' was not found, no action needed",
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
+#Tickets APIS
 @app.post("/tickets", response_model=TicketResponse, status_code=HTTPStatus.CREATED, tags=["Ticket Management"])
 async def create_ticket(ticket: TicketRequest):
     """Create a new ticket"""
@@ -215,7 +216,6 @@ async def create_ticket(ticket: TicketRequest):
             detail="An unexpected error occurred"
         )
 
-
 @app.get("/tickets/{ticket_id}", response_model=Ticket, tags=["Ticket Management"])
 async def get_ticket(ticket_id: str, customer_guid: UUID):
     """Retrieve a ticket by ID"""
@@ -241,7 +241,6 @@ async def get_ticket(ticket_id: str, customer_guid: UUID):
             )
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
-
 
 @app.get("/tickets", response_model=List[TicketByChatId], tags=["Ticket Management"])
 async def get_tickets_by_chat_id(customer_guid: UUID, chat_id: str):
@@ -271,7 +270,6 @@ async def get_tickets_by_chat_id(customer_guid: UUID, chat_id: str):
             )
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
-
 
 @app.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
 async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, customer_guid: str):
@@ -332,7 +330,6 @@ async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, customer_gu
             detail="An unexpected server error occurred."
         )
 
-
 @app.delete("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
 async def delete_ticket(ticket_id: str, customer_guid: str):
     """Delete a ticket and corresponding custom fields"""
@@ -380,45 +377,31 @@ async def delete_ticket(ticket_id: str, customer_guid: str):
         )
 
 
+def extract_core_error_details(message):
+    """Extract and format the core error details for readability."""
+    patterns = [
+        r"Unknown column '(.+?)' in 'field list'",  # Matches "Unknown column" errors
+        r"Data truncated for column '(.+?)'",       # Matches "Data truncated" errors
+        r"Incorrect integer value: '(.*?)' for column '(.+?)'",  # Matches "Incorrect integer value" errors
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, message)
+        if match:
+            # Format the error details based on the matched pattern
+            if "Unknown column" in pattern:
+                return f"Unknown custom field column: '{match.group(1)}'."
+            elif "Data truncated" in pattern:
+                return f"Value Not allowed for column: '{match.group(1)}'. use [Low, Medium, High]"
+            elif "Incorrect integer value" in pattern:
+                return f"Incorrect value: '{match.group(1)}' for column: '{match.group(2)}'."
+
+    # Default message if no pattern matches
+    return "An unknown conflict occurred. Please check the error details."
+
 
 #Comments APIS
-
-class Comment(BaseModel):
-    comment_id:str
-    ticket_id:str
-    posted_by:str
-    comment:str
-    is_edited: bool
-    created_at:datetime
-
-class CommentRequest(BaseModel):
-    customer_guid:str
-    ticket_id:str
-    posted_by:str
-    comment:str
-
-class CommentResponse(BaseModel):
-    comment_id: str
-    comment: str
-
-class CommentByTicketId(BaseModel):
-    comment_id: str
-    comment: str
-    created_at: datetime
-
-class CommentUpdate(BaseModel):
-    comment: str
-
-class CommentUpdateResponse(BaseModel):
-    comment_id: str
-    comment: str
-    ticket_id:str
-
-class CommentDeleteResponse(BaseModel):
-    comment_id:str
-    status:str
-
-@app.post("/add_comment", response_model=CommentResponse, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
+@app.post("/add_comment", response_model=Comment, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
 async def create_comment(comment: CommentRequest):
     """Create a new comment for a ticket"""
     logger.debug(f"Received comment data: {comment}")
@@ -434,7 +417,7 @@ async def create_comment(comment: CommentRequest):
         )
 
         logger.debug(f"Database response: {db_response}")
-        return CommentResponse(comment_id=db_response["comment_id"], comment=db_response["comment"])
+        return Comment(comment_id=db_response["comment_id"], ticket_id=db_response["ticket_id"], posted_by=db_response["posted_by"], comment=db_response["comment"], is_edited=db_response["is_edited"], created_at=db_response["created_at"], updated_at=db_response["updated_at"])
 
     except ValueError as e:
         logger.error(f"Validation error: {e}")
@@ -463,7 +446,6 @@ async def create_comment(comment: CommentRequest):
             detail="An unexpected error occurred"
         )
 
-
 @app.get("/tickets/{tickets_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
 async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
     """Retrieve a comment by ID"""
@@ -491,8 +473,7 @@ async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-
-@app.get("/tickets/{ticket_id}/comments", response_model=List[CommentByTicketId], tags=["Comment Management"])
+@app.get("/tickets/{ticket_id}/comments", response_model=List[Comment], tags=["Comment Management"])
 async def get_comments_by_ticket_id(
         customer_guid: UUID,
         ticket_id: str,
@@ -532,8 +513,7 @@ async def get_comments_by_ticket_id(
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-
-@app.put("/update_comment", response_model=CommentUpdateResponse, tags=["Comment Management"])
+@app.put("/update_comment", response_model=Comment, tags=["Comment Management"])
 async def update_comment(ticket_id: str, comment_id: str, comment_update: CommentUpdate, customer_guid: str):
     """Update an existing comment"""
     try:
@@ -541,7 +521,8 @@ async def update_comment(ticket_id: str, comment_id: str, comment_update: Commen
         update_status = db_manager.update_comment(ticket_id, comment_id, customer_guid, comment_update)
 
         if update_status["status"] == "updated":
-            return CommentUpdateResponse(comment=update_status["comment"], ticket_id=update_status["ticket_id"], comment_id=comment_id)
+            comment_data = update_status.get("comment_data", {})
+            return Comment(**comment_data)
         elif update_status["status"] == "not_found":
             logger.error(update_status["reason"])
             raise HTTPException(
@@ -564,10 +545,15 @@ async def update_comment(ticket_id: str, comment_id: str, comment_update: Commen
             )
         elif update_status["status"] == "bad_request":
             original_error = update_status["reason"]
-            formatted_error = extract_core_error_details(original_error)
+            if "You are not authorized to update this comment" not in update_status["reason"]:
+                formatted_error = extract_core_error_details(original_error)
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail=formatted_error
+                )
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail=formatted_error
+                detail=update_status["reason"]
             )
         elif update_status["status"] == "db_unreachable":
             raise HTTPException(
@@ -593,7 +579,6 @@ async def update_comment(ticket_id: str, comment_id: str, comment_update: Commen
             detail="An unexpected server error occurred."
         )
 
-
 @app.delete("/delete_comment", response_model=CommentDeleteResponse, tags=["Comment Management"])
 async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
     """Delete a comment for a specific ticket."""
@@ -609,7 +594,7 @@ async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
         elif result["status"] == "unknown_db":
             logger.error("Unknown Database error occurred: " + result["reason"])
             raise HTTPException(
-                status_code=HTTPStatus.CONFLICT,
+                status_code=HTTPStatus.BAD_REQUEST,
                 detail=result["reason"]
             )
 
