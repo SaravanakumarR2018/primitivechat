@@ -23,6 +23,9 @@ class FileType(Enum):
     DOCX = ".docx"
     PPTX = ".pptx"
 
+class CustomShapeType(Enum):
+    PICTURE = 13
+    
 class UploadFileForChunks:
     def __init__(self):
         self.minio_manager = MinioManager()
@@ -474,7 +477,7 @@ class FileExtractor:
                         })
 
                     # Extract images
-                    if shape.shape_type == 13:  # 13 indicates a picture
+                    if shape.shape_type == CustomShapeType.PICTURE.value:  # 13 indicates a picture
                         image = shape.image
                         image_data = image.blob
                         image_obj = Image.open(io.BytesIO(image_data))
@@ -511,7 +514,7 @@ class FileExtractor:
                 # Combine slide elements
                 slide_text = "\n".join(element["content"] for element in slide_elements)
                 results.append({
-                    "metadata": {"slide_number": slide_number},
+                    "metadata": {"page_number": slide_number},
                     "text": slide_text
                 })
 
@@ -530,7 +533,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "d395afb0-2c6f-4ca5-84f8-61b2b96260b2"
-    filename = "OPERATING.pptx"
+    customer_guid = "2395afb1-23fc-3ax6-84f8-61b2b96260b2"
+    filename = "Bar_Charts.pptx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
