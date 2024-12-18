@@ -126,6 +126,22 @@ class DatabaseManager:
             """
             session.execute(text(create_custom_field_values_table_query))
 
+            # Creating ticket_comments table if not exists
+            create_ticket_comments_table_query = """
+            CREATE TABLE IF NOT EXISTS ticket_comments (
+                comment_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                ticket_id BIGINT NOT NULL,
+                posted_by VARCHAR(255) NOT NULL,
+                comment TEXT NOT NULL,
+                is_edited BOOLEAN DEFAULT FALSE,
+                comment_uuid VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+            );
+            """
+            session.execute(text(create_ticket_comments_table_query))
+
             session.commit()
 
             logger.info(f"Customer added with GUID: {customer_guid}")
@@ -836,6 +852,396 @@ class DatabaseManager:
                 return {"status": "deleted"}
             except SQLAlchemyError as e:
                 logger.error(f"Error deleting ticket: {e}")
+                session.rollback()
+                return {"status": "failure", "reason": str(e)}
+
+        except OperationalError as e:  # Handle database connectivity issues
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except Exception as e:
+            logger.error(f"Unexpected error during deletion: {e}")
+            session.rollback()
+            return {"status": "failure", "reason": "Unexpected error occurred"}
+
+        finally:
+            session.close()
+
+
+
+
+    #Comments related methods
+    def create_comment(self, customer_guid, ticket_id, posted_by, comment):
+        logger.debug("Starting create_comment method")
+        customer_db_name = self.get_customer_db(customer_guid)
+        logger.debug(f"Resolved customer_db_name: {customer_db_name}")
+        session = DatabaseManager._session_factory()
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            logger.debug(f"Database existence check result: {result}")
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            # Switch to the customer database
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the ticket_id exists in the tickets table
+            logger.debug(f"Checking existence of ticket_id: {ticket_id}")
+            ticket_exists = session.execute(
+                text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
+                {"ticket_id": ticket_id}
+            ).fetchone()
+
+            logger.debug(f"Ticket existence check result: {ticket_exists}")
+            if not ticket_exists:
+                raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
+
+            # Begin transaction
+            logger.debug("Starting transaction for comment creation")
+            with session.begin_nested():
+                comment_uuid=str(uuid.uuid4())
+                # Insert into ticket_comments table
+                query = '''INSERT INTO ticket_comments (ticket_id, posted_by, comment, comment_uuid)
+                           VALUES (:ticket_id, :posted_by, :comment, :comment_uuid)'''
+                session.execute(
+                    text(query),
+                    {
+                        "ticket_id": ticket_id,
+                        "posted_by": posted_by,
+                        "comment": comment,
+                        "comment_uuid":comment_uuid
+                    },
+                )
+
+                logger.debug("Insert into ticket_comments executed")
+
+                # Fetch the generated comment_id
+                result = session.execute(
+                    text("""
+                        SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at 
+                        FROM ticket_comments 
+                        WHERE ticket_id = :ticket_id AND comment_uuid = :comment_uuid AND posted_by = :posted_by
+                    """),
+                    {"ticket_id": ticket_id, "comment_uuid": comment_uuid, "posted_by": posted_by}
+                ).fetchone()
+
+                logger.debug(f"Fetch newly created comment_id result: {result}")
+
+                if result:
+                    comment_data = {
+                        column: value
+                        for column, value in zip(result.keys(), result)
+                    }
+                else:
+                    raise Exception("Failed to retrieve the newly created comment ID.")
+
+            session.commit()
+
+            return comment_data
+
+        except ValueError as e:
+            logger.error(f"Validation error: {e}")
+            session.rollback()
+            raise e
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error creating comment for customer {customer_guid}: {e}")
+            session.rollback()
+            raise e
+
+        except Exception as e:
+            logger.error(f"Unexpected error while creating comment: {e}")
+            session.rollback()
+            raise e
+
+        finally:
+            logger.debug("Closing database session")
+            session.close()
+
+    def get_comment_by_id(self, comment_id, customer_guid, ticket_id):
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Retrieve comment details
+            comment_query = '''
+            SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at
+                FROM ticket_comments
+                WHERE comment_id = :comment_id AND ticket_id = :ticket_id
+            '''
+            comment_result = session.execute(
+                text(comment_query),
+                {"comment_id": comment_id, "ticket_id": ticket_id},
+            ).fetchone()
+
+            if not comment_result:
+                return None  # If comment is not found, return None
+
+            # Convert comment result into a dictionary
+            logger.info(f"Comment details by comment_id {comment_result}")
+            comment_data = {
+                column: value
+                for column, value in zip(comment_result.keys(), comment_result)
+            }
+
+            return comment_data
+
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except SQLAlchemyError as e:
+            logger.error(f"SQLAlchemy error: {e}")
+            raise Exception("Database query error")
+        finally:
+            session.close()
+
+    def get_paginated_comments_by_ticket_id(self, customer_guid, ticket_id, page=1, page_size=10):
+        logger.debug("Entering get_paginated_comments_by_ticket_id method")
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the ticket exists
+            ticket_exists = session.execute(
+                text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
+                {"ticket_id": ticket_id}
+            ).fetchone()
+
+            if not ticket_exists:
+                logger.error(f"Invalid ticket_id: {ticket_id}")
+                return []
+
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(f"Fetching comments with pagination: page={page}, page_size={page_size}, offset={offset}")
+
+            query = """
+                SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at
+                FROM ticket_comments
+                WHERE ticket_id = :ticket_id
+                ORDER BY created_at ASC
+                LIMIT :page_size OFFSET :offset
+            """
+            results = session.execute(
+                text(query),
+                {"ticket_id": ticket_id, "page_size": page_size, "offset": offset},
+            ).fetchall()
+
+            comments_list = [
+                {"comment_id": row.comment_id, "ticket_id": row.ticket_id, "posted_by": row.posted_by, "comment": row.comment, "created_at": row.created_at, "is_edited": row.is_edited, "updated_at":row.updated_at}
+                for row in results
+            ]
+
+            logger.info(f"Retrieved {len(comments_list)} comments for ticket_id: {ticket_id}")
+
+            return comments_list
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving comments: {e}")
+            return []
+        finally:
+            session.close()
+
+    def update_comment(self, ticket_id, comment_id, customer_guid, comment_update):
+        customer_db_name = self.get_customer_db(customer_guid)
+
+        try:
+            session = DatabaseManager._session_factory()
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except (OperationalError, DatabaseError) as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Check if the comment exists and fetch posted_by field
+            result = session.execute(
+                text("""
+                    SELECT posted_by 
+                    FROM ticket_comments 
+                    WHERE ticket_id = :ticket_id AND comment_id = :comment_id
+                """),
+                {"ticket_id": ticket_id, "comment_id": comment_id},
+            ).fetchone()
+
+            if not result:
+                return {"status": "not_found",
+                        "reason": f"Comment ID {comment_id} not found for Ticket ID {ticket_id}."}
+
+            previous_posted_by = result[0]
+            logger.debug(f"previous_posted_by: {previous_posted_by}")
+            logger.debug(f"current posted_by: {comment_update.posted_by}")
+            logger.debug(previous_posted_by != comment_update.posted_by)
+            # Compare posted_by fields
+            if previous_posted_by != comment_update.posted_by:
+                return {
+                    "status": "bad_request",
+                    "reason": "You are not authorized to update this comment."
+                }
+
+            # Update the comment and set is_edited to true
+            try:
+                query = """
+                    UPDATE ticket_comments
+                    SET comment = :comment,
+                        is_edited = true,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE ticket_id = :ticket_id AND comment_id = :comment_id
+                """
+                session.execute(
+                    text(query),
+                    {"ticket_id": ticket_id, "comment_id": comment_id, "comment": comment_update.comment}
+                )
+
+                # Fetch all updated fields after the update
+                comment_result = session.execute(
+                    text("""
+                        SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at 
+                        FROM ticket_comments 
+                        WHERE ticket_id = :ticket_id AND comment_id = :comment_id
+                    """),
+                    {"ticket_id": ticket_id, "comment_id": comment_id}
+                ).fetchone()
+
+                session.commit()
+
+                if comment_result:
+                    # Create dictionary from the fetched result
+                    comment_data = {key: value for key, value in zip(comment_result.keys(), comment_result)}
+                    return {"status": "updated", "comment_data": comment_data}
+                else:
+                    return {"status": "failure", "reason": "Comment update failed. No data returned."}
+
+            except SQLAlchemyError as e:
+                logger.error(f"Error updating comment: {e}")
+                session.rollback()
+                return {
+                    "status": "conflict",
+                    "reason": f"Invalid data provided for comment. {str(e)}"
+                }
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            return {"status": "failure", "reason": "Unexpected database error."}
+        except OperationalError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            session.rollback()
+            return {"status": "failure", "reason": "Unexpected error occurred during comment update."}
+
+        finally:
+            session.close()
+
+    def delete_comment(self, ticket_id, comment_id, customer_guid):
+        customer_db_name = self.get_customer_db(customer_guid)
+
+        try:
+            session = DatabaseManager._session_factory()
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            try:
+                session.execute(text(f"USE `{customer_db_name}`"))
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during USE statement: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            # Check if the comment exists
+            try:
+                result = session.execute(
+                    text(
+                        "SELECT COUNT(*) FROM ticket_comments WHERE ticket_id = :ticket_id AND comment_id = :comment_id"),
+                    {"ticket_id": ticket_id, "comment_id": comment_id},
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during comment existence check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if result[0] == 0:  # Comment not found
+                return {"status": "deleted"}
+
+            # Attempt to delete the comment
+            try:
+                delete_comment_query = '''DELETE FROM ticket_comments WHERE ticket_id = :ticket_id AND comment_id = :comment_id'''
+                session.execute(
+                    text(delete_comment_query),
+                    {"ticket_id": ticket_id, "comment_id": comment_id},
+                )
+                session.commit()
+                return {"status": "deleted"}
+            except SQLAlchemyError as e:
+                logger.error(f"Error deleting comment: {e}")
                 session.rollback()
                 return {"status": "failure", "reason": str(e)}
 
