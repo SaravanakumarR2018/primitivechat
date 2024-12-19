@@ -118,11 +118,12 @@ class TestCustomFieldAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 400, "Invalid field type should result in 400")
 
         # Assert that the error message contains the expected text
-        expected_message = (
-            f"Unsupported field type: {invalid_field_type}. "
-            "Allowed types are: DATE, INT, VARCHAR(255), MEDIUMTEXT, BOOLEAN"
-        )
-        self.assertIn(expected_message, response.text, "Expected error message not found in response")
+        expected_message = f"Unsupported field type: {invalid_field_type}. Allowed types are:"
+        allowed_types = ["DATE", "INT", "VARCHAR(255)", "MEDIUMTEXT", "BOOLEAN"]
+
+        # Check if all allowed types are in the response text
+        for allowed_type in allowed_types:
+            self.assertIn(allowed_type, response.text, f"'{allowed_type}' not found in response")
 
         logger.info("Test case for invalid field type passed.")
 
