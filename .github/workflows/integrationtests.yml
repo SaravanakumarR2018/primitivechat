@@ -102,7 +102,13 @@ jobs:
         run: |
           python -m unittest discover -s ./test/IntegrationTests
 
-      # Step 9: Shut down Docker Compose (clean up)
+      # Step 9: Run Python integration tests for TicketService
+      - name: Run Python Integration Tests for TicketService
+        working-directory: ${{ github.workspace }}
+        run: |
+          python -m unittest discover -s ./test/IntegrationTests/TicketService
+
+      # Step 10: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
         if: always()
