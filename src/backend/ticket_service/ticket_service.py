@@ -116,7 +116,14 @@ async def add_custom_field(custom_field: CustomField):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.get("/custom_fields", response_model=List[CustomFieldResponse])
 async def list_custom_fields(customer_guid: UUID):
