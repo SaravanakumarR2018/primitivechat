@@ -8,3 +8,4 @@ minio==7.2.10
 weaviate==0.1.2
 weaviate-client==2.5.0
 python-multipart==0.0.17
+python-dotenv==1.0.1
