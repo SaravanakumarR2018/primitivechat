@@ -51,5 +51,5 @@ if __name__ == "__main__":
     import uvicorn
     import os
 
-    port = int(os.environ.get("CHAT_SERVICE_PORT"))
-    uvicorn.run(main_app, host="0.0.0.0", port=port, reload=True)
+    CHAT_SERVICE_PORT = int(os.environ.get("CHAT_SERVICE_PORT"))
+    uvicorn.run(main_app, host="0.0.0.0", port=CHAT_SERVICE_PORT, reload=True)
