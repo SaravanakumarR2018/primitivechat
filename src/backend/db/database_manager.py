@@ -329,8 +329,21 @@ class DatabaseManager:
             raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
 
         try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
+
+            if not field_name or not field_type:
+                raise ValueError("Field name and type must be provided and valid.")
 
             # Add metadata to custom_fields table
             query = '''INSERT INTO custom_fields (field_name, field_type, required)
@@ -369,11 +382,13 @@ class DatabaseManager:
         except IntegrityError as e:
             logger.error(f"Duplicate field name error: {e}")
             session.rollback()
-            raise ValueError("A custom field with this name already exists.")
-        except SQLAlchemyError as e:
-            logger.error(f"Error adding custom field: {e}")
-            session.rollback()
-            return False
+            raise ValueError(f"A custom field with this name {field_name} already exists.")
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except Exception as e:
+            logger.error(f"Internal Server error: {e}")
+            raise e
         finally:
             session.close()
 
