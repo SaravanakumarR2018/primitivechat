@@ -2,12 +2,6 @@ import unittest
 import requests
 import logging
 import os
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'backend', '.env')
-load_dotenv(dotenv_path)
-
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
