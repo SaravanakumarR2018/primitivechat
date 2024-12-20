@@ -7,7 +7,7 @@ from requests import request
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'primitivechat', 'src', 'backend', '.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'backend', '.env')
 load_dotenv(dotenv_path)
 
 logging.basicConfig(
