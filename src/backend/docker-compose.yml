@@ -18,7 +18,7 @@ services:
       uvicorn src.backend.main.main:main_app --host 0.0.0.0 --port ${CHAT_SERVICE_PORT}
       "
     ports:
-      - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"  # Expose FastAPI on port 8000
+      - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"  # Expose FastAPI on port ${CHAT_SERVICE_PORT}
     depends_on:
       mysql_db:
         condition: service_healthy
@@ -107,7 +107,7 @@ services:
     volumes:
       - ollama_model_data:/root/.ollama  # Persist model data to avoid repeated downloads
     ports:
-      - "${OLLAMA_PORT}:${OLLAMA_PORT}" # Expose Ollama on port 11434
+      - "${OLLAMA_PORT}:${OLLAMA_PORT}" # Expose Ollama on port ${OLLAMA_PORT}
     restart: unless-stopped
 
 
