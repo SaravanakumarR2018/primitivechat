@@ -1,6 +1,7 @@
 import unittest
 import requests
 import logging
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -9,7 +10,7 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestDownloadFileAPI(unittest.TestCase):
-    BASE_URL="http://localhost:8000"
+    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_download_file_valid_customer(self):
         logger.info("Testing valid file download")

@@ -1,13 +1,14 @@
 import unittest
 import requests
 import logging
+import os
 
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TestAddCustomerAPI(unittest.TestCase):
-    BASE_URL = "http://localhost:8000"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_add_customer(self):
         """Test that a customer can be added successfully."""

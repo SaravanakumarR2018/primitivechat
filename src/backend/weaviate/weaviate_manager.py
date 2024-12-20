@@ -11,9 +11,13 @@ class WeaviateManager:
     def __init__(self):
 
         try:
-            self.client = Client(
-                os.getenv('WEAVIATE_HOST', 'http://weaviate:8080')
-            )
+            weaviate_host = os.getenv('WEAVIATE_HOST')  # Get the Weaviate host from environment variable
+            weaviate_port = os.getenv('WEAVIATE_PORT')  # Get the Weaviate port from environment variable
+
+            if not weaviate_host or not weaviate_port:
+                raise ValueError("WEAVIATE_HOST and WEAVIATE_PORT must be set")
+
+            self.client = Client(f"http://{weaviate_host}:{weaviate_port}")
             logger.info("Successfully connected to Weaviate")
         except Exception as e:
             logger.error(f"Failed to initialize Weaviate connection: {e}")

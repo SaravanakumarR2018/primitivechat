@@ -1,7 +1,7 @@
 import unittest
 import requests
 import logging
-
+import os
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ class TestAPI(unittest.TestCase):
     def setUp(self):
         """Set up reusable test configurations."""
         logger.info("=== Setting up test case ===")
-        self.BASE_URL = "http://localhost:11434"  # Example URL, adjust as needed
+        self.BASE_URL = f"http://localhost:{os.getenv('OLLAMA_PORT')}"  # Example URL, adjust as needed
         self.generate_endpoint = "/api/generate"
         self.valid_model = "llama3.2:3b"
         self.valid_prompt = "What is the capital of France?"

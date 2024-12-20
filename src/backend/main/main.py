@@ -49,4 +49,7 @@ async def check_server_status(request: Request):
 # Run this file to start the server
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(main_app, host="0.0.0.0", port=8000, reload=True)
+    import os
+
+    chat_service_port = int(os.environ.get("CHAT_SERVICE_PORT"))
+    uvicorn.run(main_app, host="0.0.0.0", port=chat_service_port, reload=True)

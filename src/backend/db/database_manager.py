@@ -30,9 +30,9 @@ class DatabaseManager:
     def _initialize_session_factory(self):
         logger.debug("Initializing session factory")
         db_config = {
-            'user': os.getenv('DB_USER', 'root'),
-            'password': os.getenv('DB_PASSWORD', 'admin123'),
-            'host': os.getenv('DB_HOST', '127.0.0.1'),
+            'user': os.getenv('MYSQL_ROOT_USER'),
+            'password': os.getenv('MYSQL_ROOT_PASSWORD'),
+            'host': os.getenv('MYSQL_HOST'),
             'pool_size': int(os.getenv('DB_POOL_SIZE', 200)),
             'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', 100)),
             'pool_timeout': int(os.getenv('DB_POOL_TIMEOUT', 10)),

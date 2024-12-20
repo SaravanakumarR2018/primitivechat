@@ -21,6 +21,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
+      # Step 3: Load environment variables from .env file
+      - name: Load .env and verify
+        working-directory: src/backend
+        run: |
+          echo "Loading .env file..."
+          if [ ! -f .env ]; then
+            echo "Error: .env file not found in $(pwd)"
+            exit 1
+          fi
+          # Export all variables from .env to GitHub Actions environment and print them
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue  # Skip comments and empty lines
+            key=$(echo "$line" | cut -d'=' -f1)
+            value=$(echo "$line" | cut -d'=' -f2-)
+            echo "$key=$value" >> $GITHUB_ENV
+            echo "Exported: $key=$value"
+          done < .env
+          echo "All environment variables have been loaded and exported."
+
       # Step 3: Run Docker Compose
       - name: Run docker-compose up
         working-directory: src/backend  # Specify working directory here
@@ -33,7 +52,7 @@ jobs:
         run: |
           end=$((SECONDS+120))  # Wait up to 2 minutes
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:11434 > /dev/null; then
+            if curl -s http://localhost:${{ env.OLLAMA_PORT }} > /dev/null; then
               echo "Ollama server is up!"
               exit 0
             else
@@ -49,7 +68,7 @@ jobs:
         run: |
           end=$((SECONDS+120))
           while [ $SECONDS -lt $end ]; do
-            if curl -s http://localhost:8000 > /dev/null; then
+            if curl -s http://localhost:${{ env.CHAT_SERVICE_PORT }} > /dev/null; then
               echo "Server is up!"
               exit 0
             else
@@ -63,7 +82,7 @@ jobs:
       # Step 6: Pull the Llama model
       - name: Pull Llama model
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/pull -d '{"name": "llama3.2:3b"}')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/pull -d '{"name": "llama3.2:3b"}')
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
@@ -79,7 +98,7 @@ jobs:
       # Step 7: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:11434/api/generate -d '{
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/generate -d '{
             "model": "llama3.2:3b",
             "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
             "stream": false
