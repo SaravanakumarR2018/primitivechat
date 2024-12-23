@@ -99,7 +99,7 @@ class CommentDeleteResponse(BaseModel):
     status:str
 
 # Custom Fields Management APIs
-@app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED)
+@app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
 async def add_custom_field(custom_field: CustomField):
     """Add a new custom field to a customer's tickets"""
     try:
@@ -175,7 +175,7 @@ async def list_custom_fields(customer_guid: UUID):
         logger.error(f"Unexpected error while listing custom fields: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
-@app.delete("/custom_fields/{field_name}")
+@app.delete("/custom_fields/{field_name}", tags=["Custom Field Management"])
 async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
     """Delete a custom field"""
     try:
