@@ -133,7 +133,7 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Expected error response
         expected_message = {
-            "detail": f"Unsupported field type: {invalid_field_type}. Allowed types are: VARCHAR(255), MEDIUMTEXT, BOOLEAN, INT, DATE"
+            "detail": f"Unsupported field type: {invalid_field_type}. Allowed types are: VARCHAR(255), INT, BOOLEAN, DATE, MEDIUMTEXT"
         }
 
         # Convert the response to JSON for comparison
@@ -143,6 +143,36 @@ class TestCustomFieldAPI(unittest.TestCase):
         self.assertEqual(actual_response, expected_message, "Response does not match the expected structure")
 
         logger.info("Test case for invalid field type passed.")
+
+    def test_add_custom_field_empty_field_name(self):
+        """Test adding a custom field with an empty field name."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "customer_guid": self.valid_customer_guid,
+            "field_name": "",  # Empty field name
+            "field_type": "VARCHAR(255)",  # Valid field type
+            "required": True
+        }
+
+        # Attempt to add a custom field with an empty field name
+        logger.info(f"Testing empty field name with data: {data}")
+        response = requests.post(url, json=data)
+
+        # Assert that the API returns a 400 status code
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Empty field name should result in 400")
+
+        # Expected error response
+        expected_message = {
+            "detail": "Field name and type must be provided and valid."
+        }
+
+        # Convert the response to JSON for comparison
+        actual_response = response.json()
+
+        # Assert the entire response matches the expected structure
+        self.assertEqual(actual_response, expected_message, "Response does not match the expected structure")
+
+        logger.info("Test case for empty field name passed.")
 
     def tearDown(self):
         """Clean up resources if necessary."""
