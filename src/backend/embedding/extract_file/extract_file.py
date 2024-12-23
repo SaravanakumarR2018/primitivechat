@@ -656,7 +656,6 @@ class FileExtractor:
             return str(obj)
 
 
-
 if __name__ == "__main__":
     customer_guid = "8e90b584-eacf-4b0f-b628-6a4fd6c677af"
     filename = "images.xlsx"
