@@ -326,7 +326,8 @@ class DatabaseManager:
 
         # Validate the field type
         if field_type not in self.allowed_custom_field_sql_types:
-            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
+            raise ValueError(
+                f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
 
         try:
             # Check if the database exists
@@ -344,6 +345,23 @@ class DatabaseManager:
 
             if not field_name or not field_type:
                 raise ValueError("Field name and type must be provided and valid.")
+
+            # Check if the field already exists with the same name and type
+            check_query = '''
+            SELECT field_name, field_type, required FROM custom_fields WHERE field_name = :field_name
+            '''
+            existing_field = session.execute(
+                text(check_query),
+                {"field_name": field_name}
+            ).fetchone()
+
+            if existing_field:
+                # If the field exists but has the same type and required flag, return success (200)
+                if existing_field['field_type'] == field_type and existing_field['required'] == required:
+                    return True
+                # If the field name exists but the type or required flag differs, raise an error (400)
+                raise ValueError(
+                    f"A custom field with this name {field_name} already exists, but the field type or required flag differs.")
 
             # Add metadata to custom_fields table
             query = '''INSERT INTO custom_fields (field_name, field_type, required)
