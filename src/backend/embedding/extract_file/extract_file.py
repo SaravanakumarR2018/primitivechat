@@ -25,7 +25,7 @@ class FileType(Enum):
 
 class CustomShapeType(Enum):
     PICTURE = 13
-
+    
 class UploadFileForChunks:
     def __init__(self):
         self.minio_manager = MinioManager()
@@ -112,7 +112,7 @@ class FileExtractor:
         MIME_TO_EXTENSION = {
             "application/pdf": FileType.PDF,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX,
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX,
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX
         }
         try:
             mime = magic.Magic(mime=True)
@@ -486,7 +486,7 @@ class FileExtractor:
                             "type": "image",
                             "content": ocr_text
                         })
-
+                        
                     if shape.shape_type == MSO_SHAPE_TYPE.CHART:
                         chart = shape.chart
                         table_data = []
@@ -509,14 +509,10 @@ class FileExtractor:
                         slide_elements.append({
                             "type": "chart_table",
                             "content": table_data
-                        })
+                        })   
 
-
-                        # Safely combine slide elements
-                slide_text = "\n".join(
-                    json.dumps(element["content"], indent=2) if isinstance(element["content"],(list, dict)) else element["content"]
-                    for element in slide_elements
-                )
+                # Combine slide elements
+                slide_text = "\n".join(element["content"] for element in slide_elements)
                 results.append({
                     "metadata": {"page_number": slide_number},
                     "text": slide_text
@@ -537,7 +533,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "8e90b584-eacf-4b0f-b628-6a4fd6c677af"
-    filename = "images.xlsx"
+    customer_guid = "2395afb1-23fc-3ax6-84f8-61b2b96260b2"
+    filename = "Bar_Charts.pptx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
