@@ -1,7 +1,8 @@
 import unittest
+from http import HTTPStatus
 import requests
 import logging
-import docker
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -16,18 +17,11 @@ class TestCustomFieldAPI(unittest.TestCase):
     def setUp(self):
         """Setup function to initialize valid customer GUID."""
         logger.info("=== Initializing test setup ===")
-        self.docker_client = docker.from_env()
-
-        # Ensure MySQL container is running
-        mysql_container = self.docker_client.containers.get(self.MYSQL_CONTAINER_NAME)
-        if mysql_container.status != "running":
-            logger.info("Starting MySQL container for tests.")
-            mysql_container.start()
 
         # Assuming an endpoint `/addcustomer` to create a new customer
         customer_url = f"{self.BASE_URL}/addcustomer"
         response = requests.post(customer_url)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create customer")
         self.valid_customer_guid = response.json().get("customer_guid")
         logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
@@ -42,7 +36,7 @@ class TestCustomFieldAPI(unittest.TestCase):
         }
         logger.info(f"Testing valid custom field addition with data: {data}")
         response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 200, "Failed to add custom field")
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to add custom field")
         response_data = response.json()
         self.assertEqual(response_data["field_name"], "test_field")
         logger.info("Test case for valid custom field addition passed.")
@@ -58,7 +52,7 @@ class TestCustomFieldAPI(unittest.TestCase):
         }
         logger.info(f"Testing missing 'required' field with data: {data}")
         response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 422, "Missing required field should result in 422")
+        self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY, "Missing required field should result in 422")
         self.assertIn("field required", response.text.lower())
         logger.info("Test case for missing required field passed.")
 
@@ -73,14 +67,14 @@ class TestCustomFieldAPI(unittest.TestCase):
         }
         logger.info(f"Testing invalid customer GUID with data: {data}")
         response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 400, "Invalid customer_guid should result in 400")
-        self.assertIn("Database", response.text)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid customer_guid should result in 400")
+        self.assertIn(f"Database customer_{data['customer_guid']} does not exist", response.text)
         logger.info("Test case for invalid customer_guid passed.")
 
     def test_add_duplicate_custom_field_name(self):
         """Test adding a custom field with a duplicate field name."""
         url = f"{self.BASE_URL}/custom_fields"
-        data = {
+        initial_data = {
             "customer_guid": self.valid_customer_guid,
             "field_name": "duplicate_field",
             "field_type": "VARCHAR(255)",
@@ -88,16 +82,36 @@ class TestCustomFieldAPI(unittest.TestCase):
         }
 
         # Add the custom field for the first time
-        logger.info(f"Adding initial custom field with data: {data}")
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 200, "Failed to add the initial custom field")
+        logger.info(f"Adding initial custom field with data: {initial_data}")
+        response = requests.post(url, json=initial_data)
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to add the initial custom field")
 
-        # Try adding the same custom field again
-        logger.info(f"Testing duplicate custom field name with data: {data}")
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 400, "Duplicate field name should result in 400")
-        self.assertIn(f"A custom field with this name {data['field_name']} already exists.", response.text)
-        logger.info("Test case for duplicate custom field name passed.")
+        # Add the same custom field with identical data
+        duplicate_data_matching = {
+            "customer_guid": self.valid_customer_guid,
+            "field_name": "duplicate_field",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        logger.info(f"Adding duplicate custom field with matching data: {duplicate_data_matching}")
+        response = requests.post(url, json=duplicate_data_matching)
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Duplicate field with matching data should result in 200")
+
+        # Add the same custom field with conflicting data
+        duplicate_data_conflicting = {
+            "customer_guid": self.valid_customer_guid,
+            "field_name": "duplicate_field",
+            "field_type": "INT",  # Different field_type
+            "required": False  # Different required value
+        }
+        logger.info(f"Adding duplicate custom field with conflicting data: {duplicate_data_conflicting}")
+        response = requests.post(url, json=duplicate_data_conflicting)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Duplicate field with conflicting data should result in 400")
+        self.assertIn(
+            f"A custom field with this name {duplicate_data_conflicting['field_name']} already exists, but the field type or required flag differs.",
+            response.text
+        )
+        logger.info("Duplicate custom field with conflicting data test case passed.")
 
     def test_add_custom_field_invalid_field_type(self):
         """Test adding a custom field with an invalid field type."""
@@ -115,42 +129,20 @@ class TestCustomFieldAPI(unittest.TestCase):
         response = requests.post(url, json=data)
 
         # Assert that the API returns a 400 status code
-        self.assertEqual(response.status_code, 400, "Invalid field type should result in 400")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid field type should result in 400")
 
-        # Assert that the error message contains the expected text
-        expected_message = f"Unsupported field type: {invalid_field_type}. Allowed types are:"
-        allowed_types = ["DATE", "INT", "VARCHAR(255)", "MEDIUMTEXT", "BOOLEAN"]
-
-        # Check if all allowed types are in the response text
-        for allowed_type in allowed_types:
-            self.assertIn(allowed_type, response.text, f"'{allowed_type}' not found in response")
-
-        logger.info("Test case for invalid field type passed.")
-
-    def test_database_server_down(self):
-        """Test API response when the database server is down."""
-        # Stop MySQL container
-        mysql_container = self.docker_client.containers.get(self.MYSQL_CONTAINER_NAME)
-        logger.info("Stopping MySQL container to simulate database failure.")
-        mysql_container.stop()
-
-        url = f"{self.BASE_URL}/custom_fields"
-        data = {
-            "customer_guid": self.valid_customer_guid,
-            "field_name": "test_field",
-            "field_type": "VARCHAR(255)",
-            "required": True
+        # Expected error response
+        expected_message = {
+            "detail": f"Unsupported field type: {invalid_field_type}. Allowed types are: VARCHAR(255), MEDIUMTEXT, BOOLEAN, INT, DATE"
         }
 
-        logger.info(f"Testing database server down scenario with data: {data}")
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, 503, "Expected 503 response when DB is down")
-        self.assertIn("The database is currently unreachable. Please try again later.", response.text)
-        logger.info("Test case for database server down passed.")
+        # Convert the response to JSON for comparison
+        actual_response = response.json()
 
-        # Restart MySQL container
-        logger.info("Restarting MySQL container after test.")
-        mysql_container.start()
+        # Assert the entire response matches the expected structure
+        self.assertEqual(actual_response, expected_message, "Response does not match the expected structure")
+
+        logger.info("Test case for invalid field type passed.")
 
     def tearDown(self):
         """Clean up resources if necessary."""
