@@ -125,19 +125,21 @@ async def add_custom_field(custom_field: CustomField):
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-
-@app.get("/custom_fields", response_model=List[CustomFieldResponse])
+@app.get("/custom_fields", response_model=List[CustomFieldResponse], tags=["Custom Field Management"])
 async def list_custom_fields(customer_guid: UUID):
-    """List all custom fields for a customer"""
+    """List all custom fields for a customer."""
     try:
-        # Fetch custom fields for the customer
         fields = db_manager.list_custom_fields(str(customer_guid))
 
-        # Check if fields are empty and raise a 404 if so
+        # If no fields are found, raise a 404 error
         if not fields:
-            raise HTTPException(status_code=404, detail=f"No custom fields found for customer {customer_guid}")
+            logger.info(f"No custom fields found for customer {customer_guid}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"No custom fields found for customer {customer_guid}",
+            )
 
-        # If fields are found, return them as structured response
+        # Construct and return the structured response
         return [
             CustomFieldResponse(
                 field_name=field["field_name"],
@@ -147,18 +149,31 @@ async def list_custom_fields(customer_guid: UUID):
             for field in fields
         ]
 
+    except ValueError as e:
+        # Log and raise a 400 error for invalid input
+        logger.error(f"Validation error while listing custom fields: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+
     except SQLAlchemyError as e:
-        # Log database specific errors and raise HTTPException with 500 error
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error occurred.")
+        # Log and raise a 500 error for database issues
+        logger.error(f"Database error while listing custom fields: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred.")
 
     except HTTPException as e:
-        raise HTTPException(status_code=404, detail="There is No custom_fields to show")
+        # Propagate HTTP exceptions directly
+        raise e
 
     except Exception as e:
-        # Catch other unexpected errors
-        logger.error(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error.")
+        # Log and raise a 500 error for unexpected issues
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database connectivity error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later.",
+            )
+
+        logger.error(f"Unexpected error while listing custom fields: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
 @app.delete("/custom_fields/{field_name}")
 async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
