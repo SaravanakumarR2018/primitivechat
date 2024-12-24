@@ -12,6 +12,12 @@ from enum import Enum
 import zipfile
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
+import openpyxl
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.chart import (
+    BarChart, PieChart, LineChart, AreaChart, RadarChart, ScatterChart, BubbleChart, DoughnutChart, StockChart,
+    SurfaceChart
+)
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -22,6 +28,7 @@ class FileType(Enum):
     PDF = ".pdf"
     DOCX = ".docx"
     PPTX = ".pptx"
+    XLSX = ".xlsx"
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -81,6 +88,8 @@ class UploadFileForChunks:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
             elif file_type==FileType.PPTX:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
+            elif file_type == FileType.XLSX:
+                logger.info(f"Verified file '{filename}' as a valid XLSX.")    
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
@@ -102,6 +111,10 @@ class UploadFileForChunks:
                 output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "PPTX extracted and uploaded successfully."}
+            elif file_type == FileType.XLSX:
+                output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "XLSX extracted and uploaded successfully."}     
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
@@ -112,7 +125,8 @@ class FileExtractor:
         MIME_TO_EXTENSION = {
             "application/pdf": FileType.PDF,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX,
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileType.XLSX
         }
         try:
             mime = magic.Magic(mime=True)
@@ -530,10 +544,117 @@ class FileExtractor:
         except Exception as e:
             logger.error(f"Error extracting content from PPT file '{filename}': {e}")
             raise Exception(f"PPTX content extraction failed: {e}")
+            
+    def extract_excel_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+            workbook = openpyxl.load_workbook(file_path, data_only=True)
+            chart_types = (
+                BarChart, PieChart, LineChart, AreaChart, RadarChart, ScatterChart,
+                BubbleChart, DoughnutChart, StockChart, SurfaceChart
+            )
+
+            for sheet_index, sheet_name in enumerate(workbook.sheetnames, start=1):
+                sheet = workbook[sheet_name]
+                sheet_elements = []
+
+                table_data = []
+                for row in sheet.iter_rows():
+                    row_data = [cell.value if cell.value is not None else "" for cell in row]
+                    table_data.append(row_data)
+
+                if table_data:
+                    formatted_table = self.format_table_as_text(table_data)
+                    sheet_elements.append({
+                        "type": "table",
+                        "content": formatted_table
+                    })
+
+                if hasattr(sheet, '_images') and sheet._images:
+                    for image in sheet._images:
+                        if isinstance(image, OpenpyxlImage):
+                            image_stream = image.ref
+                            image_obj = Image.open(image_stream)
+                            ocr_text = pytesseract.image_to_string(image_obj).strip()
+                            sheet_elements.append({
+                                "type": "image",
+                                "content": ocr_text
+                            })
+
+                if hasattr(sheet, '_charts'):
+                    for drawing in sheet._charts:
+                        if isinstance(drawing, chart_types):
+                            chart_info = {
+                                'type': drawing.__class__.__name__,
+                                'title': self.get_text(drawing.title) if drawing.title else None,
+                                'data': []
+                            }
+
+                            for index, series in enumerate(drawing.series):
+                                series_data = {
+                                    'name': self.get_series_name(index),
+                                    'values': self.get_values_from_series(series)
+                                }
+                                chart_info['data'].append(series_data)
+
+                            sheet_elements.append({
+                                "type": "chart",
+                                "content": chart_info
+                            })
+
+                # Combine sheet content
+                combined_text = "\n".join(
+                    json.dumps(element["content"], indent=2) if isinstance(element["content"], (list, dict)) else
+                    element["content"]
+                    for element in sheet_elements
+                )
+
+                results.append({
+                    "metadata": {"page_number": sheet_index},
+                    "text": combined_text
+                })
+
+            # Save results to a file
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted content saved to '{output_file_path}'")
+            return output_file_path
+
+        except Exception as e:
+            logger.error(f"Error extracting content from Excel file '{filename}': {e}")
+            raise Exception(f"Excel content extraction failed: {e}")
+
+    def get_series_name(self, index):
+        return f"Series {index + 1}"
+
+    def get_values_from_series(self, series):
+        try:
+            if hasattr(series, 'values') and isinstance(series.values, openpyxl.chart.Reference):
+                return [cell.value for cell in series.values.cells]
+            else:
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to extract values from series: {e}")
+            return None
+
+    def get_text(self, obj):
+        if obj is None:
+            return None
+        elif isinstance(obj, str):
+            return obj
+        elif isinstance(obj, openpyxl.chart.text.Text):
+            return self.extract_text_from_text_object(obj)
+        elif isinstance(obj, openpyxl.chart.text.RichText):
+            return self.extract_text_from_richtext_object(obj)
+        else:
+            return str(obj)         
 
 
 if __name__ == "__main__":
-    customer_guid = "2395afb1-23fc-3ax6-84f8-61b2b96260b2"
-    filename = "Bar_Charts.pptx"
+    customer_guid = "5eb7b2a3-83aa-4b97-b7c3-007459ef376a"
+    filename = "charts.xlsx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
