@@ -23,6 +23,7 @@ from openpyxl.chart import (
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
 # Enum for file types
 class FileType(Enum):
     PDF = ".pdf"
@@ -30,8 +31,10 @@ class FileType(Enum):
     PPTX = ".pptx"
     XLSX = ".xlsx"
 
+
 class CustomShapeType(Enum):
     PICTURE = 13
+
 
 class UploadFileForChunks:
     def __init__(self):
@@ -76,17 +79,17 @@ class UploadFileForChunks:
     def extract_file(self, customer_guid: str, filename: str):
         logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
 
-        #Download and save file locally
+        # Download and save file locally
         local_path = self.download_and_save_file(customer_guid, filename)
 
-        #Verify file type
+        # Verify file type
         try:
             file_type = self.file_extract.detect_file_type(local_path)
             if file_type == FileType.PDF:
                 logger.info(f"Verified file '{filename}' as a valid PDF.")
             elif file_type == FileType.DOCX:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
-            elif file_type==FileType.PPTX:
+            elif file_type == FileType.PPTX:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
             elif file_type == FileType.XLSX:
                 logger.info(f"Verified file '{filename}' as a valid XLSX.")
@@ -97,17 +100,17 @@ class UploadFileForChunks:
             logger.error(f"Error detecting file type for '{filename}': {e}")
             raise Exception("File type detection failed.")
 
-        #Extract Files content here
+        # Extract Files content here
         try:
-            if file_type==FileType.PDF:
+            if file_type == FileType.PDF:
                 output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "PDF extracted and uploaded successfully."}
-            elif file_type==FileType.DOCX:
+            elif file_type == FileType.DOCX:
                 output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "Docx extracted and uploaded successfully."}
-            elif file_type==FileType.PPTX:
+            elif file_type == FileType.PPTX:
                 output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "PPTX extracted and uploaded successfully."}
@@ -118,6 +121,7 @@ class UploadFileForChunks:
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
+
 
 class FileExtractor:
 
@@ -132,7 +136,7 @@ class FileExtractor:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
 
-            if file_type=="application/zip":
+            if file_type == "application/zip":
                 if self.is_docx(file_path):
                     return FileType.DOCX
             extension = MIME_TO_EXTENSION.get(file_type)
@@ -144,12 +148,12 @@ class FileExtractor:
             logger.error(f"Error detecting file type for {file_path}: {e}")
             raise Exception(f"File type detection failed: {e}")
 
-    def is_docx(self,file_path: str):
+    def is_docx(self, file_path: str):
         try:
-            with zipfile.ZipFile(file_path,'r')as zip_ref:
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 return "word/document.xml" in zip_ref.namelist()
         except zipfile.BadZipfile:
-                return False
+            return False
 
     def format_table_as_text(self, table):
         try:
@@ -321,7 +325,6 @@ class FileExtractor:
                 text = paragraph.text.strip()
                 if text:
                     logger.info(f"Processing paragraph {i + 1}: {text}")
-
 
                     x0 = len(text)
                     y0 = i
@@ -525,12 +528,8 @@ class FileExtractor:
                             "content": table_data
                         })
 
-
-                        # Safely combine slide elements
-                slide_text = "\n".join(
-                    json.dumps(element["content"], indent=2) if isinstance(element["content"],(list, dict)) else element["content"]
-                    for element in slide_elements
-                )
+                        # Combine slide elements
+                slide_text = "\n".join(element["content"] for element in slide_elements)
                 results.append({
                     "metadata": {"page_number": slide_number},
                     "text": slide_text
@@ -608,7 +607,8 @@ class FileExtractor:
 
                 # Combine sheet content
                 combined_text = "\n".join(
-                    json.dumps(element["content"], indent=2) if isinstance(element["content"], (list, dict)) else element["content"]
+                    json.dumps(element["content"], indent=2) if isinstance(element["content"], (list, dict)) else
+                    element["content"]
                     for element in sheet_elements
                 )
 
@@ -656,9 +656,8 @@ class FileExtractor:
             return str(obj)
 
 
-
 if __name__ == "__main__":
-    customer_guid = "8e90b584-eacf-4b0f-b628-6a4fd6c677af"
-    filename = "images.xlsx"
+    customer_guid = "5eb7b2a3-83aa-4b97-b7c3-007459ef376a"
+    filename = "charts.xlsx"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
