@@ -802,7 +802,7 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "5eb7b2a3-83aa-4b97-b7c3-007459ef376a"
-    filename = "charts.xlsx"
+    customer_guid = "777609ff-689b-4bf7-8f1f-878faee9825d"
+    filename = "images.html"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
