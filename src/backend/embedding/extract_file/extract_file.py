@@ -18,11 +18,13 @@ from openpyxl.chart import (
     BarChart, PieChart, LineChart, AreaChart, RadarChart, ScatterChart, BubbleChart, DoughnutChart, StockChart,
     SurfaceChart
 )
+from bs4 import BeautifulSoup
+import requests
+from io import BytesIO
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 # Enum for file types
 class FileType(Enum):
@@ -30,11 +32,10 @@ class FileType(Enum):
     DOCX = ".docx"
     PPTX = ".pptx"
     XLSX = ".xlsx"
-
+    HTML = ".html"
 
 class CustomShapeType(Enum):
     PICTURE = 13
-
 
 class UploadFileForChunks:
     def __init__(self):
@@ -93,6 +94,8 @@ class UploadFileForChunks:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
             elif file_type == FileType.XLSX:
                 logger.info(f"Verified file '{filename}' as a valid XLSX.")
+            elif file_type == FileType.HTML:
+                logger.info(f"Verified file '{filename}' as a valid HTML")
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
@@ -118,6 +121,10 @@ class UploadFileForChunks:
                 output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "XLSX extracted and uploaded successfully."}
+            elif file_type == FileType.HTML:
+                output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "HTML extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
@@ -130,7 +137,9 @@ class FileExtractor:
             "application/pdf": FileType.PDF,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX,
             "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX,
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileType.XLSX,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileType.XLSX
+            "text/html": FileType.HTML,
+            "application/xhtml+xml": FileType.HTML
         }
         try:
             mime = magic.Magic(mime=True)
@@ -654,6 +663,142 @@ class FileExtractor:
             return self.extract_text_from_richtext_object(obj)
         else:
             return str(obj)
+
+    def extract_html_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+
+            # Read the HTML file
+            with open(file_path, "r", encoding="utf-8") as html_file:
+                soup = BeautifulSoup(html_file, "html.parser")
+
+            # Identify pages or fallback to treat the entire HTML as one page
+            pages = soup.find_all("div", class_="page")
+            if not pages:
+                pages = [soup]
+
+            page_number = 0
+            for page in pages:
+                page_number += 1
+                logger.debug(f"Processing page {page_number}")
+                text_content = []
+                page_elements = []
+
+                # Extract text content from the current page
+                for text_element in page.find_all(string=True):
+                    if text_element.parent.name not in ["script", "style", "meta", "[document]"]:
+                        clean_text = text_element.strip()
+                        if clean_text:
+                            text_content.append({"text": clean_text, "y0": 0})
+
+                # Combine all text blocks into a single content element
+                if text_content:
+                    logger.debug(f"Extracted {len(text_content)} text elements from page {page_number}")
+                    sorted_content = sorted(text_content, key=lambda t: t["y0"])
+                    merged_text = " ".join([t["text"] for t in sorted_content])
+                    page_elements.append({
+                        "type": "text",
+                        "content": merged_text,
+                        "x0": 0,
+                        "y0": 0
+                    })
+
+                # Extract tables from the current page
+                tables = page.find_all("table")
+                if tables:
+                    logger.debug(f"Found {len(tables)} tables on page {page_number}")
+                    for table in tables:
+                        headers = []
+                        rows = []
+
+                        # Extract table headers
+                        header_row = table.find("tr")
+                        if header_row:
+                            headers = [header.get_text(strip=True) for header in header_row.find_all("th")]
+
+                        # Extract table rows
+                        for row in table.find_all("tr")[1:]:  # Skip the header row
+                            row_data = [cell.get_text(strip=True) for cell in row.find_all("td")]
+                            if row_data:
+                                rows.append(row_data)
+
+                        # Format the table as text
+                        if headers or rows:
+                            formatted_table = self.format_table_as_text([headers] + rows)
+                            page_elements.append({
+                                "type": "table",
+                                "content": formatted_table,
+                                "x0": 0,
+                                "y0": 0
+                            })
+
+                # Extract images
+                images = page.find_all("img")
+                for img in images:
+                    img_src = img.get("src")
+                    if img_src:
+                        try:
+                            # Resolve the image path (local or remote)
+                            image_path = os.path.join(os.path.dirname(file_path), img_src) if not img_src.startswith(
+                                "http") else img_src
+                            image_data = None
+
+                            if img_src.startswith("http"):
+                                response = requests.get(image_path)
+                                response.raise_for_status()
+                                image_data = Image.open(BytesIO(response.content))
+                            else:
+                                if os.path.exists(image_path):
+                                    image_data = Image.open(image_path)
+                                else:
+                                    logger.error(f"Image file not found: {image_path}")
+                                    continue
+
+                            # OCR to extract text from image
+                            ocr_text = pytesseract.image_to_string(image_data).strip()
+                            if ocr_text:
+                                page_elements.append({
+                                    "type": "image",
+                                    "content": ocr_text,
+                                    "src": img_src,
+                                    "x0": 0,
+                                    "y0": 0
+                                })
+                        except Exception as e:
+                            logger.error(f"Failed to process image {img_src}: {e}")
+
+                # Sort page elements by vertical position (y0)
+                page_elements.sort(key=lambda w: (w["y0"], w["x0"]))
+
+                # Handle corrections for reversed vertical text
+                corrected_content = []
+                for element in page_elements:
+                    if element["type"] == "text" and self.is_vertical_text(element):
+                        corrected_content.append(self.reverse_vertical_text(element["content"]))
+                    else:
+                        corrected_content.append(element["content"])
+
+                # Join the corrected content for the current page
+                full_text = " ".join(corrected_content)
+
+                # Append the result for the current page
+                results.append({
+                    "metadata": {"page_number": page_number},
+                    "text": full_text
+                })
+
+            # Save extracted content
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted HTML content saved to '{output_file_path}'")
+            return output_file_path
+
+        except Exception as e:
+            logger.error(f"Error extracting content from HTML file '{filename}': {e}")
+            raise Exception(f"HTML content extraction failed: {e}")
 
 
 if __name__ == "__main__":
