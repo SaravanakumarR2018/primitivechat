@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import uuid
 from enum import Enum
 
@@ -20,7 +21,7 @@ class SenderType(Enum):
 class DatabaseManager:
     _session_factory = None
 
-    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT"]
+    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def __init__(self):
         logger.debug("Initializing DatabaseManager")
@@ -342,9 +343,21 @@ class DatabaseManager:
             if field_type not in self.allowed_custom_field_sql_types:
                 raise ValueError(
                     f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
+            # Validate the 'required' field
+            if not isinstance(required, bool):
+                raise ValueError(
+                    f"Invalid value for 'required'. Expected a boolean value (True/False), but got {type(required)}.")
+            # Validate field name to only allow alphanumeric characters and underscores
+            if not re.match("^[A-Za-z0-9_]+$", field_name):
+                raise ValueError(
+                    f"Invalid field name '{field_name}'. Field names can only contain letters, numbers, and underscores.")
 
-            if not field_name or not field_type:
-                raise ValueError("Field name and type must be provided and valid.")
+            # Validate the length of the field name
+            max_field_name_length = 64
+            if len(field_name) > max_field_name_length:
+                raise ValueError(
+                    f"Field name '{field_name[:20]}...' is too long. The maximum length allowed is {max_field_name_length} characters."
+                )
 
             # Check if the field already exists with the same name and type
             check_query = '''
@@ -410,9 +423,10 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def list_custom_fields(self, customer_guid):
+    def list_paginated_custom_fields(self, customer_guid, page=1, page_size=10):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
+
         try:
             # Check if the database exists
             logger.debug(f"Checking if database {customer_db_name} exists")
@@ -427,12 +441,27 @@ class DatabaseManager:
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            # Fetch all custom fields
-            query = '''SELECT field_name, field_type, required FROM custom_fields'''
-            results = session.execute(text(query)).fetchall()
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(
+                f"Fetching custom fields with improved sorting: page={page}, page_size={page_size}, offset={offset}")
+
+            # Improved SQL query to sort by numeric part of field_name
+            query = """
+                SELECT field_name, field_type, required
+                FROM custom_fields
+                ORDER BY
+                    CAST(REGEXP_SUBSTR(field_name, '[0-9]+') AS UNSIGNED),
+                    field_name
+                LIMIT :page_size OFFSET :offset
+            """
+            results = session.execute(
+                text(query),
+                {"page_size": page_size, "offset": offset}
+            ).fetchall()
 
             if results:
-                # Construct list of dictionaries using dictionary comprehension
+                # Return paginated results
                 return [
                     {
                         column: (value if column != "required" else value if value is not None else False)
@@ -915,8 +944,6 @@ class DatabaseManager:
 
         finally:
             session.close()
-
-
 
 
     #Comments related methods
