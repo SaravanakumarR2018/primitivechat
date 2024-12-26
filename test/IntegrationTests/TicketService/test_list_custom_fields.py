@@ -151,13 +151,23 @@ class TestListCustomFieldsAPI(unittest.TestCase):
             logger.info(f"Total custom fields count: {len(total_fields_data)}")
             self.assertEqual(len(total_fields_data), 50, "Total number of custom fields should be 50")
 
+            # Verify page_number=1 and page_size=60 returns only 50 records
+            if per_page == 50:
+                oversized_page_url = f"{self.BASE_URL}/custom_fields?customer_guid={self.valid_customer_guid}&page=1&page_size=60"
+                oversized_page_response = requests.get(oversized_page_url)
+                self.assertEqual(oversized_page_response.status_code, HTTPStatus.OK,
+                                 "Failed to fetch data for oversized page_size=60")
+                oversized_page_data = oversized_page_response.json()
+                logger.info(f"Records returned for page_size=60: {len(oversized_page_data)}")
+                self.assertEqual(len(oversized_page_data), 50,
+                                 "Expected only 50 records even when page_size=60 was requested")
+
             # Initialize a list to store all fields across pages
             all_fields = []
 
             # Fetch multiple pages based on per_page size
             page_num = 1
             while True:
-
                 page_url = f"{self.BASE_URL}/custom_fields?customer_guid={self.valid_customer_guid}&page={page_num}&per_page={per_page}"
                 page_response = requests.get(page_url)
 
