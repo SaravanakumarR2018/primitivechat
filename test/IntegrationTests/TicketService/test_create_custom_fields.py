@@ -201,6 +201,12 @@ class TestCustomFieldAPI(unittest.TestCase):
     def test_add_custom_field_mediumtext(self):
         self._test_add_custom_field("MEDIUMTEXT")
 
+    def test_add_custom_field_float(self):
+        self._test_add_custom_field("FLOAT")
+
+    def test_add_custom_field_text(self):
+        self._test_add_custom_field("TEXT")
+
     def _test_add_custom_field(self, field_type):
         """Helper method to test adding a custom field with a specific type."""
         url = f"{self.BASE_URL}/custom_fields"
