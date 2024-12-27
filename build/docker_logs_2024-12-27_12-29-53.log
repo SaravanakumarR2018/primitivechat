@@ -1,0 +1,323 @@
+chat_service  | /app
+chat_service  | Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+chat_service  | Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+chat_service  | Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
+mysql_db      | 2024-12-27 06:59:47+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.40-1.el9 started.
+mysql_db      | 2024-12-27 06:59:47+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+mysql_db      | 2024-12-27 06:59:47+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.40-1.el9 started.
+mysql_db      | '/var/lib/mysql/mysql.sock' -> '/var/run/mysqld/mysqld.sock'
+mysql_db      | 2024-12-27T06:59:49.704751Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+mysql_db      | 2024-12-27T06:59:49.735946Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.40) starting as process 1
+mysql_db      | 2024-12-27T06:59:49.804726Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+minio         | INFO: 
+minio         |  You are running an older version of MinIO released 1 month before the latest release 
+minio         |  Update: Run `mc admin update ALIAS` 
+minio         | 
+minio         | 
+minio         | MinIO Object Storage Server
+minio         | Copyright: 2015-2024 MinIO, Inc.
+minio         | License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+minio         | Version: RELEASE.2024-11-07T00-52-20Z (go1.23.3 linux/amd64)
+minio         | 
+minio         | API: http://172.18.0.5:9000  http://127.0.0.1:9000 
+minio         | WebUI: http://172.18.0.5:34345 http://127.0.0.1:34345  
+mysql_db      | 2024-12-27T06:59:51.985106Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+mysql_db      | 2024-12-27T06:59:52.888296Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+mysql_db      | 2024-12-27T06:59:52.888359Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+minio         | 
+minio         | Docs: https://docs.min.io
+mysql_db      | 2024-12-27T06:59:52.892822Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+mysql_db      | 2024-12-27T06:59:52.938667Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+mysql_db      | 2024-12-27T06:59:52.938777Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.40'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+minio         | WARN: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+ollama        | 2024/12/27 06:59:47 routes.go:1189: INFO server config env="map[CUDA_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG:false OLLAMA_FLASH_ATTENTION:false OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://0.0.0.0:11434 OLLAMA_INTEL_GPU:false OLLAMA_KEEP_ALIVE:5m0s OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/root/.ollama/models OLLAMA_MULTIUSER_CACHE:false OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:false OLLAMA_NUM_PARALLEL:0 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://*] OLLAMA_SCHED_SPREAD:false OLLAMA_TMPDIR: ROCR_VISIBLE_DEVICES: http_proxy: https_proxy: no_proxy:]"
+ollama        | time=2024-12-27T06:59:47.190Z level=INFO source=images.go:755 msg="total blobs: 6"
+ollama        | time=2024-12-27T06:59:47.190Z level=INFO source=images.go:762 msg="total unused blobs removed: 0"
+ollama        | time=2024-12-27T06:59:47.193Z level=INFO source=routes.go:1240 msg="Listening on [::]:11434 (version 0.4.1)"
+ollama        | time=2024-12-27T06:59:47.195Z level=INFO source=common.go:49 msg="Dynamic LLM libraries" runners="[cpu cpu_avx cpu_avx2 cuda_v11 cuda_v12]"
+ollama        | time=2024-12-27T06:59:47.195Z level=INFO source=gpu.go:221 msg="looking for compatible GPUs"
+ollama        | time=2024-12-27T06:59:47.210Z level=INFO source=gpu.go:386 msg="no compatible GPUs were discovered"
+ollama        | time=2024-12-27T06:59:47.210Z level=INFO source=types.go:123 msg="inference compute" id=0 library=cpu variant=avx2 compute="" driver=0.0 name="" total="3.8 GiB" available="2.7 GiB"
+weaviate-1    | {"action":"startup","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","default_vectorizer_module":"none","level":"info","msg":"the default vectorizer modules is set to \"none\", as a result all new schema classes without an explicit vectorizer setting, will use this vectorizer","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"action":"startup","auto_schema_enabled":true,"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"auto schema enabled setting is set to \"true\"","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"No resource limits set, weaviate will use all available memory and CPU. To limit resources, set LIMIT_RESOURCES=true","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"module offload-s3 is enabled","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"open cluster service","servers":{"node1":8300},"time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"address":"172.18.0.3:8301","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting cloud rpc server ...","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting raft sub-system ...","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"address":"172.18.0.3:8300","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"tcp transport","tcpMaxPool":3,"tcpTimeout":10000000000,"time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"loading local db","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"local DB successfully loaded","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"schema manager loaded","n":0,"time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","metadata_only_voters":false,"msg":"construct a new raft node","name":"node1","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":1,"level":"info","msg":"initial configuration","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":1,"leader-address":"","leader-id":"","level":"info","msg":"entering follower state","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","last_snapshot_index":0,"last_store_applied_index_on_start":0,"level":"info","msg":"raft node constructed","raft_applied_index":0,"raft_last_index":2,"time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","hasState":true,"level":"info","msg":"raft init","time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.3:8300"],"time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempted to join and failed","remoteNode":"172.18.0.3:8300","status":8,"time":"2024-12-27T06:59:47Z"}
+weaviate-1    | {"action":"read_disk_use","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"warning","msg":"disk usage currently at 80.94%, threshold set to 80.00%","path":"/var/lib/weaviate","time":"2024-12-27T06:59:48Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.3:8300"],"time":"2024-12-27T06:59:48Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempted to join and failed","remoteNode":"172.18.0.3:8300","status":8,"time":"2024-12-27T06:59:48Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":1,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"warning","msg":"heartbeat timeout reached, starting election","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":1,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"entering candidate state","node":{},"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","term":3,"time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":1,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"pre-vote successful, starting election","needed":1,"node":{},"refused":0,"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","tally":1,"term":3,"time":"2024-12-27T06:59:49Z","votesNeeded":1}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":1,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"election won","needed":1,"node":{},"refused":0,"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","tally":1,"term":3,"time":"2024-12-27T06:59:49Z","votesNeeded":1}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":1,"last-leader-addr":"","last-leader-id":"","leader":{},"leader-address":"","leader-id":"","level":"info","msg":"entering leader state","needed":1,"node":{},"refused":0,"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","tally":1,"term":3,"time":"2024-12-27T06:59:49Z","votesNeeded":1}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"configured versions","server_version":"1.27.2","time":"2024-12-27T06:59:49Z","version":"1.27.2"}
+weaviate-1    | {"action":"grpc_startup","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"grpc server listening at [::]:50051","time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"address":"172.18.0.3:8300","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"current Leader","time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting migration from old schema","time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Serving weaviate at http://[::]:8080","time":"2024-12-27T06:59:49Z","version":"1.27.2"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"legacy schema is empty, nothing to migrate","time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"migration from the old schema has been successfully completed","time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.3:8300"],"time":"2024-12-27T06:59:49Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","command":0,"follower":{},"from":"node1","id":"node1","index":1,"last-leader-addr":"","last-leader-id":"","leader":{},"leader-address":"","leader-id":"","level":"info","msg":"updating configuration","needed":1,"node":{},"refused":0,"server-addr":"172.18.0.3:8300","server-id":"node1","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.3:8300}]]","tally":1,"term":3,"time":"2024-12-27T06:59:49Z","votesNeeded":1}
+weaviate-1    | {"action":"telemetry_push","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"telemetry started","payload":"\u0026{MachineID:5bac3f8a-7f10-4b69-ab38-52f328b75b4e Type:INIT Version:1.27.2 NumObjects:0 OS:linux Arch:amd64 UsedModules:[]}","time":"2024-12-27T06:59:51Z"}
+chat_service  | Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [8856 B]
+chat_service  | Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [240 kB]
+chat_service  | Fetched 9292 kB in 6s (1600 kB/s)
+chat_service  | Reading package lists...
+chat_service  | Reading package lists...
+chat_service  | Building dependency tree...
+chat_service  | Reading state information...
+chat_service  | The following additional packages will be installed:
+chat_service  |   libbrotli1 libcurl4 libldap-2.5-0 libldap-common libnghttp2-14 libpsl5
+chat_service  |   librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db libssh2-1
+chat_service  |   publicsuffix
+chat_service  | Suggested packages:
+chat_service  |   libsasl2-modules-gssapi-mit | libsasl2-modules-gssapi-heimdal
+chat_service  |   libsasl2-modules-ldap libsasl2-modules-otp libsasl2-modules-sql
+chat_service  | The following NEW packages will be installed:
+chat_service  |   curl libbrotli1 libcurl4 libldap-2.5-0 libldap-common libnghttp2-14 libpsl5
+chat_service  |   librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db libssh2-1
+chat_service  |   publicsuffix
+chat_service  | 0 upgraded, 13 newly installed, 0 to remove and 0 not upgraded.
+chat_service  | Need to get 1837 kB of archives.
+chat_service  | After this operation, 4548 kB of additional disk space will be used.
+chat_service  | Get:1 http://deb.debian.org/debian bookworm/main amd64 libbrotli1 amd64 1.0.9-2+b6 [275 kB]
+chat_service  | Get:2 http://deb.debian.org/debian bookworm/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg-10 [20.3 kB]
+chat_service  | Get:3 http://deb.debian.org/debian bookworm/main amd64 libsasl2-2 amd64 2.1.28+dfsg-10 [59.7 kB]
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 libldap-2.5-0 amd64 2.5.13+dfsg-5 [183 kB]
+chat_service  | Get:5 http://deb.debian.org/debian bookworm/main amd64 libnghttp2-14 amd64 1.52.0-1+deb12u2 [73.0 kB]
+chat_service  | Get:6 http://deb.debian.org/debian bookworm/main amd64 libpsl5 amd64 0.21.2-1 [58.7 kB]
+chat_service  | Get:7 http://deb.debian.org/debian bookworm/main amd64 librtmp1 amd64 2.4+20151223.gitfa8646d.1-2+b2 [60.8 kB]
+chat_service  | Get:8 http://deb.debian.org/debian bookworm/main amd64 libssh2-1 amd64 1.10.0-3+b1 [179 kB]
+chat_service  | Get:9 http://deb.debian.org/debian bookworm/main amd64 libcurl4 amd64 7.88.1-10+deb12u8 [390 kB]
+chat_service  | Get:10 http://deb.debian.org/debian bookworm/main amd64 curl amd64 7.88.1-10+deb12u8 [315 kB]
+chat_service  | Get:11 http://deb.debian.org/debian bookworm/main amd64 libldap-common all 2.5.13+dfsg-5 [29.3 kB]
+chat_service  | Get:12 http://deb.debian.org/debian bookworm/main amd64 libsasl2-modules amd64 2.1.28+dfsg-10 [66.6 kB]
+chat_service  | Get:13 http://deb.debian.org/debian bookworm/main amd64 publicsuffix all 20230209.2326-1 [126 kB]
+chat_service  | debconf: delaying package configuration, since apt-utils is not installed
+chat_service  | Fetched 1837 kB in 1s (1474 kB/s)
+chat_service  | Selecting previously unselected package libbrotli1:amd64.
+chat_service  | (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6686 files and directories currently installed.)
+chat_service  | Preparing to unpack .../00-libbrotli1_1.0.9-2+b6_amd64.deb ...
+chat_service  | Unpacking libbrotli1:amd64 (1.0.9-2+b6) ...
+chat_service  | Selecting previously unselected package libsasl2-modules-db:amd64.
+chat_service  | Preparing to unpack .../01-libsasl2-modules-db_2.1.28+dfsg-10_amd64.deb ...
+chat_service  | Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Selecting previously unselected package libsasl2-2:amd64.
+chat_service  | Preparing to unpack .../02-libsasl2-2_2.1.28+dfsg-10_amd64.deb ...
+chat_service  | Unpacking libsasl2-2:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Selecting previously unselected package libldap-2.5-0:amd64.
+chat_service  | Preparing to unpack .../03-libldap-2.5-0_2.5.13+dfsg-5_amd64.deb ...
+chat_service  | Unpacking libldap-2.5-0:amd64 (2.5.13+dfsg-5) ...
+chat_service  | Selecting previously unselected package libnghttp2-14:amd64.
+chat_service  | Preparing to unpack .../04-libnghttp2-14_1.52.0-1+deb12u2_amd64.deb ...
+chat_service  | Unpacking libnghttp2-14:amd64 (1.52.0-1+deb12u2) ...
+chat_service  | Selecting previously unselected package libpsl5:amd64.
+chat_service  | Preparing to unpack .../05-libpsl5_0.21.2-1_amd64.deb ...
+chat_service  | Unpacking libpsl5:amd64 (0.21.2-1) ...
+chat_service  | Selecting previously unselected package librtmp1:amd64.
+chat_service  | Preparing to unpack .../06-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_amd64.deb ...
+chat_service  | Unpacking librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+chat_service  | Selecting previously unselected package libssh2-1:amd64.
+chat_service  | Preparing to unpack .../07-libssh2-1_1.10.0-3+b1_amd64.deb ...
+chat_service  | Unpacking libssh2-1:amd64 (1.10.0-3+b1) ...
+chat_service  | Selecting previously unselected package libcurl4:amd64.
+chat_service  | Preparing to unpack .../08-libcurl4_7.88.1-10+deb12u8_amd64.deb ...
+chat_service  | Unpacking libcurl4:amd64 (7.88.1-10+deb12u8) ...
+chat_service  | Selecting previously unselected package curl.
+chat_service  | Preparing to unpack .../09-curl_7.88.1-10+deb12u8_amd64.deb ...
+chat_service  | Unpacking curl (7.88.1-10+deb12u8) ...
+chat_service  | Selecting previously unselected package libldap-common.
+chat_service  | Preparing to unpack .../10-libldap-common_2.5.13+dfsg-5_all.deb ...
+chat_service  | Unpacking libldap-common (2.5.13+dfsg-5) ...
+chat_service  | Selecting previously unselected package libsasl2-modules:amd64.
+chat_service  | Preparing to unpack .../11-libsasl2-modules_2.1.28+dfsg-10_amd64.deb ...
+chat_service  | Unpacking libsasl2-modules:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Selecting previously unselected package publicsuffix.
+chat_service  | Preparing to unpack .../12-publicsuffix_20230209.2326-1_all.deb ...
+chat_service  | Unpacking publicsuffix (20230209.2326-1) ...
+chat_service  | Setting up libpsl5:amd64 (0.21.2-1) ...
+chat_service  | Setting up libbrotli1:amd64 (1.0.9-2+b6) ...
+chat_service  | Setting up libsasl2-modules:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Setting up libnghttp2-14:amd64 (1.52.0-1+deb12u2) ...
+chat_service  | Setting up libldap-common (2.5.13+dfsg-5) ...
+chat_service  | Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Setting up librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+chat_service  | Setting up libsasl2-2:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Setting up libssh2-1:amd64 (1.10.0-3+b1) ...
+chat_service  | Setting up publicsuffix (20230209.2326-1) ...
+chat_service  | Setting up libldap-2.5-0:amd64 (2.5.13+dfsg-5) ...
+chat_service  | Setting up libcurl4:amd64 (7.88.1-10+deb12u8) ...
+chat_service  | Setting up curl (7.88.1-10+deb12u8) ...
+chat_service  | Processing triggers for libc-bin (2.36-9+deb12u9) ...
+chat_service  | Collecting fastapi==0.95.2
+chat_service  |   Downloading fastapi-0.95.2-py3-none-any.whl (56 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.0/57.0 kB 699.6 kB/s eta 0:00:00
+chat_service  | Collecting pydantic==1.10.8
+chat_service  |   Downloading pydantic-1.10.8-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.1 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.1/3.1 MB 2.6 MB/s eta 0:00:00
+chat_service  | Collecting uvicorn==0.23.2
+chat_service  |   Downloading uvicorn-0.23.2-py3-none-any.whl (59 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 kB 1.9 MB/s eta 0:00:00
+chat_service  | Collecting requests==2.31.0
+chat_service  |   Downloading requests-2.31.0-py3-none-any.whl (62 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.6/62.6 kB 2.6 MB/s eta 0:00:00
+chat_service  | Collecting SQLAlchemy==1.4.48
+chat_service  |   Downloading SQLAlchemy-1.4.48-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.6 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 2.2 MB/s eta 0:00:00
+chat_service  | Collecting mysql-connector-python==8.0.32
+chat_service  |   Downloading mysql_connector_python-8.0.32-cp310-cp310-manylinux1_x86_64.whl (23.5 MB)
+weaviate-1    | {"action":"read_disk_use","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"warning","msg":"disk usage currently at 80.94%, threshold set to 80.00%","path":"/var/lib/weaviate","time":"2024-12-27T07:00:18Z"}
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.5/23.5 MB 2.9 MB/s eta 0:00:00
+chat_service  | Collecting minio==7.2.10
+chat_service  |   Downloading minio-7.2.10-py3-none-any.whl (93 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 93.9/93.9 kB 4.0 MB/s eta 0:00:00
+chat_service  | Collecting weaviate==0.1.2
+chat_service  |   Downloading weaviate-0.1.2-py3-none-any.whl (2.6 kB)
+chat_service  | Collecting weaviate-client==2.5.0
+chat_service  |   Downloading weaviate_client-2.5.0-py3-none-any.whl (56 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.8/56.8 kB 2.4 MB/s eta 0:00:00
+chat_service  | Collecting python-multipart==0.0.17
+chat_service  |   Downloading python_multipart-0.0.17-py3-none-any.whl (24 kB)
+chat_service  | Collecting python-dotenv==1.0.1
+chat_service  |   Downloading python_dotenv-1.0.1-py3-none-any.whl (19 kB)
+chat_service  | Collecting starlette<0.28.0,>=0.27.0
+chat_service  |   Downloading starlette-0.27.0-py3-none-any.whl (66 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.0/67.0 kB 1.6 MB/s eta 0:00:00
+chat_service  | Collecting typing-extensions>=4.2.0
+chat_service  |   Downloading typing_extensions-4.12.2-py3-none-any.whl (37 kB)
+chat_service  | Collecting click>=7.0
+chat_service  |   Downloading click-8.1.8-py3-none-any.whl (98 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 98.2/98.2 kB 2.2 MB/s eta 0:00:00
+chat_service  | Collecting h11>=0.8
+chat_service  |   Downloading h11-0.14.0-py3-none-any.whl (58 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.3/58.3 kB 2.5 MB/s eta 0:00:00
+chat_service  | Collecting charset-normalizer<4,>=2
+chat_service  |   Downloading charset_normalizer-3.4.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (146 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 146.1/146.1 kB 2.0 MB/s eta 0:00:00
+chat_service  | Collecting idna<4,>=2.5
+chat_service  |   Downloading idna-3.10-py3-none-any.whl (70 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.4/70.4 kB 1.2 MB/s eta 0:00:00
+chat_service  | Collecting certifi>=2017.4.17
+chat_service  |   Downloading certifi-2024.12.14-py3-none-any.whl (164 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 164.9/164.9 kB 2.3 MB/s eta 0:00:00
+chat_service  | Collecting urllib3<3,>=1.21.1
+chat_service  |   Downloading urllib3-2.3.0-py3-none-any.whl (128 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 128.4/128.4 kB 2.3 MB/s eta 0:00:00
+chat_service  | Collecting greenlet!=0.4.17
+chat_service  |   Downloading greenlet-3.1.1-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (599 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 599.5/599.5 kB 3.0 MB/s eta 0:00:00
+chat_service  | Collecting protobuf<=3.20.3,>=3.11.0
+chat_service  |   Downloading protobuf-3.20.3-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.1 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 4.0 MB/s eta 0:00:00
+chat_service  | Collecting argon2-cffi
+chat_service  |   Downloading argon2_cffi-23.1.0-py3-none-any.whl (15 kB)
+chat_service  | Collecting pycryptodome
+chat_service  |   Downloading pycryptodome-3.21.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.3 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 3.6 MB/s eta 0:00:00
+chat_service  | Collecting validators>=0.18.2
+chat_service  |   Downloading validators-0.34.0-py3-none-any.whl (43 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.5/43.5 kB 2.4 MB/s eta 0:00:00
+chat_service  | Collecting tqdm>=4.59.0
+chat_service  |   Downloading tqdm-4.67.1-py3-none-any.whl (78 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.5/78.5 kB 557.8 kB/s eta 0:00:00
+chat_service  | Collecting anyio<5,>=3.4.0
+chat_service  |   Downloading anyio-4.7.0-py3-none-any.whl (93 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 93.1/93.1 kB 2.8 MB/s eta 0:00:00
+chat_service  | Collecting argon2-cffi-bindings
+chat_service  |   Downloading argon2_cffi_bindings-21.2.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (86 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.2/86.2 kB 2.7 MB/s eta 0:00:00
+chat_service  | Collecting sniffio>=1.1
+chat_service  |   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+chat_service  | Collecting exceptiongroup>=1.0.2
+chat_service  |   Downloading exceptiongroup-1.2.2-py3-none-any.whl (16 kB)
+chat_service  | Collecting cffi>=1.0.1
+chat_service  |   Downloading cffi-1.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (446 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 446.2/446.2 kB 1.6 MB/s eta 0:00:00
+chat_service  | Collecting pycparser
+chat_service  |   Downloading pycparser-2.22-py3-none-any.whl (117 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.6/117.6 kB 709.5 kB/s eta 0:00:00
+chat_service  | Installing collected packages: weaviate, validators, urllib3, typing-extensions, tqdm, sniffio, python-multipart, python-dotenv, pycryptodome, pycparser, protobuf, idna, h11, greenlet, exceptiongroup, click, charset-normalizer, certifi, uvicorn, SQLAlchemy, requests, pydantic, mysql-connector-python, cffi, anyio, weaviate-client, starlette, argon2-cffi-bindings, fastapi, argon2-cffi, minio
+chat_service  | Successfully installed SQLAlchemy-1.4.48 anyio-4.7.0 argon2-cffi-23.1.0 argon2-cffi-bindings-21.2.0 certifi-2024.12.14 cffi-1.17.1 charset-normalizer-3.4.1 click-8.1.8 exceptiongroup-1.2.2 fastapi-0.95.2 greenlet-3.1.1 h11-0.14.0 idna-3.10 minio-7.2.10 mysql-connector-python-8.0.32 protobuf-3.20.3 pycparser-2.22 pycryptodome-3.21.0 pydantic-1.10.8 python-dotenv-1.0.1 python-multipart-0.0.17 requests-2.31.0 sniffio-1.3.1 starlette-0.27.0 tqdm-4.67.1 typing-extensions-4.12.2 urllib3-2.3.0 uvicorn-0.23.2 validators-0.34.0 weaviate-0.1.2 weaviate-client-2.5.0
+chat_service  | WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+chat_service  | 
+chat_service  | [notice] A new release of pip is available: 23.0.1 -> 24.3.1
+chat_service  | [notice] To update, run: pip install --upgrade pip
+chat_service  | 2024-12-27 07:00:41,257 - DEBUG - Initializing DatabaseManager
+chat_service  | 2024-12-27 07:00:41,257 - DEBUG - Initializing session factory
+chat_service  | 2024-12-27 07:00:41,257 - INFO - Connecting to database as user: root on host: mysql_db
+chat_service  | 2024-12-27 07:00:41,298 - INFO - Session factory initialized
+chat_service  | 2024-12-27 07:00:41,298 - DEBUG - MinIO Host: minio, Port: 9000, User: minioadmin, Password: minioadmin
+chat_service  | 2024-12-27 07:00:41,299 - INFO - Successfully connected to MinIO.
+chat_service  | 2024-12-27 07:00:41,301 - DEBUG - Starting new HTTP connection (1): weaviate:8080
+chat_service  | 2024-12-27 07:00:41,307 - DEBUG - http://weaviate:8080 "GET /v1/.well-known/openid-configuration HTTP/1.1" 404 0
+chat_service  | 2024-12-27 07:00:41,308 - INFO - Successfully connected to Weaviate
+chat_service  | 2024-12-27 07:00:41,361 - DEBUG - Initializing DatabaseManager
+chat_service  | INFO:     Started server process [365]
+chat_service  | INFO:     Waiting for application startup.
+chat_service  | INFO:     Application startup complete.
+chat_service  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+chat_service  | 2024-12-27 07:00:43,891 - INFO - Request received with Correlation ID: fdc7b2ea-a0d7-457d-a33b-4d17d20deadb
+chat_service  | 2024-12-27 07:00:43,892 - DEBUG - Entering check_server_status() with Correlation ID: fdc7b2ea-a0d7-457d-a33b-4d17d20deadb
+chat_service  | 2024-12-27 07:00:43,892 - DEBUG - Exiting check_server_status() with Correlation ID: fdc7b2ea-a0d7-457d-a33b-4d17d20deadb
+chat_service  | INFO:     127.0.0.1:46418 - "GET / HTTP/1.1" 200 OK
+chat_service  | 2024-12-27 07:00:53,954 - INFO - Request received with Correlation ID: aa52c3ef-27ab-4cf1-a29a-9c0c624d6da5
+chat_service  | 2024-12-27 07:00:53,954 - DEBUG - Entering check_server_status() with Correlation ID: aa52c3ef-27ab-4cf1-a29a-9c0c624d6da5
+chat_service  | 2024-12-27 07:00:53,954 - DEBUG - Exiting check_server_status() with Correlation ID: aa52c3ef-27ab-4cf1-a29a-9c0c624d6da5
+chat_service  | INFO:     127.0.0.1:56986 - "GET / HTTP/1.1" 200 OK
+chat_service  | 2024-12-27 07:01:04,139 - INFO - Request received with Correlation ID: 199ecd83-87e8-4830-919a-33c2899cff67
+chat_service  | 2024-12-27 07:01:04,140 - DEBUG - Entering check_server_status() with Correlation ID: 199ecd83-87e8-4830-919a-33c2899cff67
+chat_service  | 2024-12-27 07:01:04,140 - DEBUG - Exiting check_server_status() with Correlation ID: 199ecd83-87e8-4830-919a-33c2899cff67
+chat_service  | INFO:     127.0.0.1:37324 - "GET / HTTP/1.1" 200 OK
+chat_service  | 2024-12-27 07:01:14,261 - INFO - Request received with Correlation ID: 77b2e15b-dd2e-42ca-9189-5c04576e2c96
+chat_service  | 2024-12-27 07:01:14,262 - DEBUG - Entering check_server_status() with Correlation ID: 77b2e15b-dd2e-42ca-9189-5c04576e2c96
+chat_service  | 2024-12-27 07:01:14,262 - DEBUG - Exiting check_server_status() with Correlation ID: 77b2e15b-dd2e-42ca-9189-5c04576e2c96
+chat_service  | INFO:     127.0.0.1:53068 - "GET / HTTP/1.1" 200 OK
+chat_service  | 2024-12-27 07:01:24,380 - INFO - Request received with Correlation ID: 5443f09b-8b0b-463d-a97c-a107b4e07c9f
+chat_service  | 2024-12-27 07:01:24,381 - DEBUG - Entering check_server_status() with Correlation ID: 5443f09b-8b0b-463d-a97c-a107b4e07c9f
+chat_service  | 2024-12-27 07:01:24,381 - DEBUG - Exiting check_server_status() with Correlation ID: 5443f09b-8b0b-463d-a97c-a107b4e07c9f
+chat_service  | INFO:     127.0.0.1:36228 - "GET / HTTP/1.1" 200 OK
+chat_service  | 2024-12-27 07:01:34,570 - INFO - Request received with Correlation ID: b5e377c3-91af-401e-a5ad-35f51611a463
+chat_service  | 2024-12-27 07:01:34,571 - DEBUG - Entering check_server_status() with Correlation ID: b5e377c3-91af-401e-a5ad-35f51611a463
+chat_service  | 2024-12-27 07:01:34,571 - DEBUG - Exiting check_server_status() with Correlation ID: b5e377c3-91af-401e-a5ad-35f51611a463
+chat_service  | INFO:     127.0.0.1:47774 - "GET / HTTP/1.1" 200 OK
+[Kollama exited with code 0
+chat_service  | 2024-12-27 07:01:44,652 - INFO - Request received with Correlation ID: 69c0a48a-2d5d-4446-b302-7394e97e0e6e
+chat_service  | 2024-12-27 07:01:44,654 - DEBUG - Entering check_server_status() with Correlation ID: 69c0a48a-2d5d-4446-b302-7394e97e0e6e
+chat_service  | 2024-12-27 07:01:44,654 - DEBUG - Exiting check_server_status() with Correlation ID: 69c0a48a-2d5d-4446-b302-7394e97e0e6e
+chat_service  | INFO:     127.0.0.1:33282 - "GET / HTTP/1.1" 200 OK
+[Kchat_service exited with code 137
+minio         | INFO: Exiting on signal: TERMINATED
+mysql_db      | 2024-12-27T07:01:48.699098Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 8.0.40).
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Shutting down... ","time":"2024-12-27T07:01:48Z","version":"1.27.2"}
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Stopped serving weaviate at http://[::]:8080","time":"2024-12-27T07:01:48Z","version":"1.27.2"}
+[Kminio exited with code 0
+mysql_db      | 2024-12-27T07:01:49.907092Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.0.40)  MySQL Community Server - GPL.
+weaviate-1    | {"action":"telemetry_push","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"telemetry terminated","payload":"\u0026{MachineID:5bac3f8a-7f10-4b69-ab38-52f328b75b4e Type:TERMINATE Version:1.27.2 NumObjects:0 OS:linux Arch:amd64 UsedModules:[]}","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft FSM store ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"shutting down raft sub-system ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"transferring leadership to another server","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","error":"cannot find peer","level":"error","msg":"transferring leadership","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft-net ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing log store ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing data store ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing loaded database ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft-rpc client ...","time":"2024-12-27T07:01:50Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft-rpc server ...","time":"2024-12-27T07:01:50Z"}
+[Kweaviate-1 exited with code 0
+[Kmysql_db exited with code 0

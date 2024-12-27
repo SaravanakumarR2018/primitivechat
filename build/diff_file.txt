@@ -1,0 +1,90 @@
+diff --git a/build/kill_server.sh b/build/kill_server.sh
+index 48e7e8a..75f848a 100755
+--- a/build/kill_server.sh
++++ b/build/kill_server.sh
+@@ -16,19 +16,33 @@ echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
+ # Load environment variables from .env file
+ if [ -f "$PROJECT_ROOT/src/backend/.env" ]; then
+     echo "Loading environment variables from .env file..."
+-    export $(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs)
++
++    # Export variables from the .env file
++    while IFS='=' read -r key value; do
++        # Skip comments and empty lines
++        case "$key" in
++            \#*|"") continue ;;
++        esac
++
++        # Strip quotes around the value if present
++        value=$(echo "$value" | sed 's/^"\(.*\)"$/\1/' | sed "s/^'\(.*\)'$/\1/")
++        
++        export "$key=$value"
++    done < "$PROJECT_ROOT/src/backend/.env"
+ 
+     echo "Exported environment variables:"
+     while IFS='=' read -r key value; do
+-        [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue  # Skip comments and empty lines
+-        echo "$key=${!key}"  # Print the variable name and its value
+-    done < <(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs -n1 echo)
++        # Skip comments and empty lines
++        case "$key" in
++            \#*|"") continue ;;
++        esac
++        echo "$key=$(eval echo \$$key)"  # Print variable name and its value
++    done < "$PROJECT_ROOT/src/backend/.env"
+ 
+ else
+     echo ".env file not found in $PROJECT_ROOT/src/backend/. Exiting..."
+     exit 1
+ fi
+-
+ # Move to src/backend directory
+ cd "$PROJECT_ROOT/src/backend" || exit 1
+ echo "Bringing Docker down"
+diff --git a/build/run_server.sh b/build/run_server.sh
+index 7e40171..6b59bb0 100755
+--- a/build/run_server.sh
++++ b/build/run_server.sh
+@@ -12,15 +12,31 @@ export PROJECT_ROOT
+ echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
+ 
+ # Load environment variables from .env file
++# Check if the .env file exists
+ if [ -f "$PROJECT_ROOT/src/backend/.env" ]; then
+     echo "Loading environment variables from .env file..."
+-    export $(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs)
++
++    # Export variables from the .env file
++    while IFS='=' read -r key value; do
++        # Skip comments and empty lines
++        case "$key" in
++            \#*|"") continue ;;
++        esac
++
++        # Strip quotes around the value if present
++        value=$(echo "$value" | sed 's/^"\(.*\)"$/\1/' | sed "s/^'\(.*\)'$/\1/")
++        
++        export "$key=$value"
++    done < "$PROJECT_ROOT/src/backend/.env"
+ 
+     echo "Exported environment variables:"
+     while IFS='=' read -r key value; do
+-        [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue  # Skip comments and empty lines
+-        echo "$key=${!key}"  # Print the variable name and its value
+-    done < <(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs -n1 echo)
++        # Skip comments and empty lines
++        case "$key" in
++            \#*|"") continue ;;
++        esac
++        echo "$key=$(eval echo \$$key)"  # Print variable name and its value
++    done < "$PROJECT_ROOT/src/backend/.env"
+ 
+ else
+     echo ".env file not found in $PROJECT_ROOT/src/backend/. Exiting..."
+@@ -166,4 +182,4 @@ done
+ 
+ echo "Docker logs: $LOG_FILE"
+ echo "Server did not come up within the expected time. Exiting..."
+-exit 1
+\ No newline at end of file
++exit 1

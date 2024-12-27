@@ -1,0 +1,90 @@
+weaviate-1    | {"action":"startup","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","default_vectorizer_module":"none","level":"info","msg":"the default vectorizer modules is set to \"none\", as a result all new schema classes without an explicit vectorizer setting, will use this vectorizer","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"action":"startup","auto_schema_enabled":true,"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"auto schema enabled setting is set to \"true\"","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"No resource limits set, weaviate will use all available memory and CPU. To limit resources, set LIMIT_RESOURCES=true","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"module offload-s3 is enabled","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"open cluster service","servers":{"node1":8300},"time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"address":"172.18.0.4:8301","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting cloud rpc server ...","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting raft sub-system ...","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"address":"172.18.0.4:8300","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"tcp transport","tcpMaxPool":3,"tcpTimeout":10000000000,"time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"loading local db","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"local DB successfully loaded","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"schema manager loaded","n":0,"time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","metadata_only_voters":false,"msg":"construct a new raft node","name":"node1","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":0,"level":"info","msg":"initial configuration","servers":"[[]]","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":0,"leader-address":"","leader-id":"","level":"info","msg":"entering follower state","servers":"[[]]","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","last_snapshot_index":0,"last_store_applied_index_on_start":0,"level":"info","msg":"raft node constructed","raft_applied_index":0,"raft_last_index":0,"time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","hasState":false,"level":"info","msg":"raft init","time":"2024-12-27T07:12:15Z"}
+chat_service  | /app
+chat_service  | Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+chat_service  | Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+chat_service  | Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
+minio         | INFO: 
+minio         |  You are running an older version of MinIO released 1 month before the latest release 
+minio         |  Update: Run `mc admin update ALIAS` 
+minio         | 
+minio         | 
+minio         | MinIO Object Storage Server
+minio         | Copyright: 2015-2024 MinIO, Inc.
+minio         | License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+minio         | Version: RELEASE.2024-11-07T00-52-20Z (go1.23.3 linux/amd64)
+minio         | 
+minio         | API: http://172.18.0.5:9000  http://127.0.0.1:9000 
+minio         | WebUI: http://172.18.0.5:44011 http://127.0.0.1:44011  
+minio         | 
+minio         | Docs: https://docs.min.io
+minio         | WARN: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+weaviate-1    | {"action":"read_disk_use","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"warning","msg":"disk usage currently at 80.95%, threshold set to 80.00%","path":"/var/lib/weaviate","time":"2024-12-27T07:12:15Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":0,"leader-address":"","leader-id":"","level":"warning","msg":"no known peers, aborting election","servers":"[[]]","time":"2024-12-27T07:12:16Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.4:8300"],"time":"2024-12-27T07:12:16Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempted to join and failed","remoteNode":"172.18.0.4:8300","status":8,"time":"2024-12-27T07:12:16Z"}
+weaviate-1    | {"action":"bootstrap","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","error":"could not join a cluster from [172.18.0.4:8300]","level":"warning","msg":"failed to join cluster","servers":["172.18.0.4:8300"],"time":"2024-12-27T07:12:16Z","voter":true}
+weaviate-1    | {"action":"bootstrap","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","candidates":[{"Suffrage":0,"ID":"node1","Address":"172.18.0.4:8300"}],"level":"info","msg":"starting cluster bootstrapping","time":"2024-12-27T07:12:16Z"}
+weaviate-1    | {"action":"bootstrap","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"notified peers this node is ready to join as voter","servers":["172.18.0.4:8300"],"time":"2024-12-27T07:12:16Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"configured versions","server_version":"1.27.2","time":"2024-12-27T07:12:17Z","version":"1.27.2"}
+weaviate-1    | {"action":"grpc_startup","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"grpc server listening at [::]:50051","time":"2024-12-27T07:12:17Z"}
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Serving weaviate at http://[::]:8080","time":"2024-12-27T07:12:17Z","version":"1.27.2"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.4:8300"],"time":"2024-12-27T07:12:17Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempted to join and failed","remoteNode":"172.18.0.4:8300","status":8,"time":"2024-12-27T07:12:17Z"}
+weaviate-1    | {"action":"bootstrap","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","error":"could not join a cluster from [172.18.0.4:8300]","level":"warning","msg":"failed to join cluster","servers":["172.18.0.4:8300"],"time":"2024-12-27T07:12:17Z","voter":true}
+weaviate-1    | {"action":"bootstrap","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"notified peers this node is ready to join as voter","servers":["172.18.0.4:8300"],"time":"2024-12-27T07:12:17Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":0,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"warning","msg":"heartbeat timeout reached, starting election","servers":"[[]]","time":"2024-12-27T07:12:18Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":0,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"entering candidate state","node":{},"servers":"[[]]","term":2,"time":"2024-12-27T07:12:18Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":0,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"pre-vote successful, starting election","needed":1,"node":{},"refused":0,"servers":"[[]]","tally":1,"term":2,"time":"2024-12-27T07:12:18Z","votesNeeded":1}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":0,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"election won","needed":1,"node":{},"refused":0,"servers":"[[]]","tally":1,"term":2,"time":"2024-12-27T07:12:18Z","votesNeeded":1}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":0,"last-leader-addr":"","last-leader-id":"","leader":{},"leader-address":"","leader-id":"","level":"info","msg":"entering leader state","needed":1,"node":{},"refused":0,"servers":"[[]]","tally":1,"term":2,"time":"2024-12-27T07:12:18Z","votesNeeded":1}
+weaviate-1    | {"address":"172.18.0.4:8300","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"current Leader","time":"2024-12-27T07:12:18Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting migration from old schema","time":"2024-12-27T07:12:18Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"legacy schema is empty, nothing to migrate","time":"2024-12-27T07:12:18Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"migration from the old schema has been successfully completed","time":"2024-12-27T07:12:18Z"}
+weaviate-1    | {"action":"bootstrap","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"node reporting ready, exiting bootstrap process","time":"2024-12-27T07:12:19Z"}
+weaviate-1    | {"action":"telemetry_push","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"telemetry started","payload":"\u0026{MachineID:31829e4a-1102-4c03-ad56-94ba306bd689 Type:INIT Version:1.27.2 NumObjects:0 OS:linux Arch:amd64 UsedModules:[]}","time":"2024-12-27T07:12:19Z"}
+mysql_db      | 2024-12-27 07:12:14+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.40-1.el9 started.
+mysql_db      | 2024-12-27 07:12:14+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+mysql_db      | 2024-12-27 07:12:14+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.40-1.el9 started.
+mysql_db      | '/var/lib/mysql/mysql.sock' -> '/var/run/mysqld/mysqld.sock'
+mysql_db      | 2024-12-27T07:12:15.715849Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+mysql_db      | 2024-12-27T07:12:15.728961Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.40) starting as process 1
+mysql_db      | 2024-12-27T07:12:15.767897Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+mysql_db      | 2024-12-27T07:12:17.292413Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+mysql_db      | 2024-12-27T07:12:17.943007Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+mysql_db      | 2024-12-27T07:12:17.943136Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+mysql_db      | 2024-12-27T07:12:17.950523Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+mysql_db      | 2024-12-27T07:12:18.014068Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+mysql_db      | 2024-12-27T07:12:18.014523Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.40'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+ollama        | 2024/12/27 07:12:14 routes.go:1189: INFO server config env="map[CUDA_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG:false OLLAMA_FLASH_ATTENTION:false OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://0.0.0.0:11434 OLLAMA_INTEL_GPU:false OLLAMA_KEEP_ALIVE:5m0s OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/root/.ollama/models OLLAMA_MULTIUSER_CACHE:false OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:false OLLAMA_NUM_PARALLEL:0 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://*] OLLAMA_SCHED_SPREAD:false OLLAMA_TMPDIR: ROCR_VISIBLE_DEVICES: http_proxy: https_proxy: no_proxy:]"
+ollama        | time=2024-12-27T07:12:14.746Z level=INFO source=images.go:755 msg="total blobs: 6"
+ollama        | time=2024-12-27T07:12:14.747Z level=INFO source=images.go:762 msg="total unused blobs removed: 0"
+ollama        | time=2024-12-27T07:12:14.754Z level=INFO source=routes.go:1240 msg="Listening on [::]:11434 (version 0.4.1)"
+ollama        | time=2024-12-27T07:12:14.756Z level=INFO source=common.go:49 msg="Dynamic LLM libraries" runners="[cuda_v11 cuda_v12 cpu cpu_avx cpu_avx2]"
+ollama        | time=2024-12-27T07:12:14.757Z level=INFO source=gpu.go:221 msg="looking for compatible GPUs"
+ollama        | time=2024-12-27T07:12:14.770Z level=INFO source=gpu.go:386 msg="no compatible GPUs were discovered"
+ollama        | time=2024-12-27T07:12:14.771Z level=INFO source=types.go:123 msg="inference compute" id=0 library=cpu variant=avx2 compute="" driver=0.0 name="" total="3.8 GiB" available="2.7 GiB"
+ollama        | [GIN] 2024/12/27 - 07:12:23 | 200 |    2.803791ms |      172.18.0.1 | GET      "/"
+ollama        | [GIN] 2024/12/27 - 07:12:25 | 200 |  2.003960696s |      172.18.0.1 | POST     "/api/pull"
+chat_service  | Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [8856 B]
+chat_service  | Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [240 kB]
+ollama        | time=2024-12-27T07:12:26.263Z level=INFO source=server.go:105 msg="system memory" total="3.8 GiB" free="2.2 GiB" free_swap="1.0 GiB"
+ollama        | time=2024-12-27T07:12:26.265Z level=WARN source=server.go:137 msg="model request too large for system" requested="3.4 GiB" available=3384696832 total="3.8 GiB" free="2.2 GiB" swap="1.0 GiB"
+ollama        | time=2024-12-27T07:12:26.266Z level=INFO source=sched.go:428 msg="NewLlamaServer failed" model=/root/.ollama/models/blobs/sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff error="model requires more system memory (3.4 GiB) than is available (3.2 GiB)"
+ollama        | [GIN] 2024/12/27 - 07:12:26 | 500 |  233.368861ms |      172.18.0.1 | POST     "/api/generate"

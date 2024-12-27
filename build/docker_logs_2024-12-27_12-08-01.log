@@ -1,0 +1,613 @@
+weaviate-1    | {"action":"startup","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","default_vectorizer_module":"none","level":"info","msg":"the default vectorizer modules is set to \"none\", as a result all new schema classes without an explicit vectorizer setting, will use this vectorizer","time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"action":"startup","auto_schema_enabled":true,"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"auto schema enabled setting is set to \"true\"","time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"No resource limits set, weaviate will use all available memory and CPU. To limit resources, set LIMIT_RESOURCES=true","time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"module offload-s3 is enabled","time":"2024-12-27T06:37:39Z"}
+chat_service  | /app
+chat_service  | Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+chat_service  | Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+chat_service  | Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+mysql_db      | 2024-12-27 06:37:39+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.40-1.el9 started.
+mysql_db      | 2024-12-27 06:37:39+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"open cluster service","servers":{"node1":8300},"time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"address":"172.18.0.5:8301","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting cloud rpc server ...","time":"2024-12-27T06:37:39Z"}
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
+mysql_db      | 2024-12-27 06:37:39+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.40-1.el9 started.
+mysql_db      | '/var/lib/mysql/mysql.sock' -> '/var/run/mysqld/mysqld.sock'
+minio         | INFO: 
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"starting raft sub-system ...","time":"2024-12-27T06:37:39Z"}
+mysql_db      | 2024-12-27T06:37:40.751932Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+mysql_db      | 2024-12-27T06:37:40.764251Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.40) starting as process 1
+mysql_db      | 2024-12-27T06:37:40.798655Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+weaviate-1    | {"address":"172.18.0.5:8300","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"tcp transport","tcpMaxPool":3,"tcpTimeout":10000000000,"time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"loading local db","time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"local DB successfully loaded","time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"schema manager loaded","n":0,"time":"2024-12-27T06:37:39Z"}
+mysql_db      | 2024-12-27T06:37:41.999015Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+mysql_db      | 2024-12-27T06:37:42.768288Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","metadata_only_voters":false,"msg":"construct a new raft node","name":"node1","time":"2024-12-27T06:37:39Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":56,"level":"info","msg":"initial configuration","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","time":"2024-12-27T06:37:40Z"}
+mysql_db      | 2024-12-27T06:37:42.768497Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+mysql_db      | 2024-12-27T06:37:42.776316Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+mysql_db      | 2024-12-27T06:37:42.852587Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+mysql_db      | 2024-12-27T06:37:42.853375Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.40'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":56,"leader-address":"","leader-id":"","level":"info","msg":"entering follower state","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","time":"2024-12-27T06:37:40Z"}
+minio         |  You are running an older version of MinIO released 1 month before the latest release 
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","last_snapshot_index":0,"last_store_applied_index_on_start":57,"level":"info","msg":"raft node constructed","raft_applied_index":0,"raft_last_index":57,"time":"2024-12-27T06:37:40Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","hasState":true,"level":"info","msg":"raft init","time":"2024-12-27T06:37:40Z"}
+minio         |  Update: Run `mc admin update ALIAS` 
+minio         | 
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.5:8300"],"time":"2024-12-27T06:37:40Z"}
+minio         | 
+minio         | MinIO Object Storage Server
+minio         | Copyright: 2015-2024 MinIO, Inc.
+minio         | License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempted to join and failed","remoteNode":"172.18.0.5:8300","status":8,"time":"2024-12-27T06:37:40Z"}
+weaviate-1    | {"action":"read_disk_use","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"warning","msg":"disk usage currently at 80.94%, threshold set to 80.00%","path":"/var/lib/weaviate","time":"2024-12-27T06:37:40Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.5:8300"],"time":"2024-12-27T06:37:41Z"}
+minio         | Version: RELEASE.2024-11-07T00-52-20Z (go1.23.3 linux/amd64)
+minio         | 
+minio         | API: http://172.18.0.4:9000  http://127.0.0.1:9000 
+minio         | WebUI: http://172.18.0.4:33315 http://127.0.0.1:33315  
+minio         | 
+minio         | Docs: https://docs.min.io
+minio         | WARN: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempted to join and failed","remoteNode":"172.18.0.5:8300","status":8,"time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"configured versions","server_version":"1.27.2","time":"2024-12-27T06:37:41Z","version":"1.27.2"}
+weaviate-1    | {"action":"grpc_startup","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"grpc server listening at [::]:50051","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Serving weaviate at http://[::]:8080","time":"2024-12-27T06:37:41Z","version":"1.27.2"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":56,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"warning","msg":"heartbeat timeout reached, starting election","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"index":56,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"entering candidate state","node":{},"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","term":6,"time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":56,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"pre-vote successful, starting election","needed":1,"node":{},"refused":0,"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","tally":1,"term":6,"time":"2024-12-27T06:37:41Z","votesNeeded":1}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":56,"last-leader-addr":"","last-leader-id":"","leader-address":"","leader-id":"","level":"info","msg":"election won","needed":1,"node":{},"refused":0,"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","tally":1,"term":6,"time":"2024-12-27T06:37:41Z","votesNeeded":1}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","follower":{},"from":"node1","id":"node1","index":56,"last-leader-addr":"","last-leader-id":"","leader":{},"leader-address":"","leader-id":"","level":"info","msg":"entering leader state","needed":1,"node":{},"refused":0,"servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.4:8300}]]","tally":1,"term":6,"time":"2024-12-27T06:37:41Z","votesNeeded":1}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [3/57]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [4/57]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [5/57]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [6/57]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [7/57]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [8/57]","time":"2024-12-27T06:37:41Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [9/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [10/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [11/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"address":"172.18.0.5:8300","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"current Leader","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [12/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"attempting to join","remoteNodes":["172.18.0.5:8300"],"time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"action":"raft","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","command":0,"follower":{},"from":"node1","id":"node1","index":56,"last-leader-addr":"","last-leader-id":"","leader":{},"leader-address":"","leader-id":"","level":"info","msg":"updating configuration","needed":1,"node":{},"refused":0,"server-addr":"172.18.0.5:8300","server-id":"node1","servers":"[[{Suffrage:Voter ID:node1 Address:172.18.0.5:8300}]]","tally":1,"term":6,"time":"2024-12-27T06:37:42Z","votesNeeded":1}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [13/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [14/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [15/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [16/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [17/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [18/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [19/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [20/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [21/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [22/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [23/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [24/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [25/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [26/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [27/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [28/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [29/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [30/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [31/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [32/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [33/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [34/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [35/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [36/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [37/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [38/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [39/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [40/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [41/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [42/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [43/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [44/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [45/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [46/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [47/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [48/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [51/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [54/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Schema catching up: applying log entry: [57/57]","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","last_store_log_applied_index":57,"level":"info","log_index":57,"log_name":"LogCommand","log_type":0,"msg":"reloading local DB as RAFT and local DB are now caught up","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"reload local db: update schema ...","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_57ef957e_a3b1_48b5_9f76_772cbd27b3a9","level":"info","msg":"reload local index","time":"2024-12-27T06:37:42Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_94a1e5ae_4c89_47e9_bea8_d512cf9611a7","level":"info","msg":"reload local index","time":"2024-12-27T06:37:43Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_753f0baa_da00_4f44_954e_2d42c5ab0f19","level":"info","msg":"reload local index","time":"2024-12-27T06:37:43Z"}
+weaviate-1    | {"action":"telemetry_push","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"telemetry started","payload":"\u0026{MachineID:adac5c52-f0f7-482d-a295-6fa2147a2b56 Type:INIT Version:1.27.2 NumObjects:0 OS:linux Arch:amd64 UsedModules:[]}","time":"2024-12-27T06:37:43Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_d3e9ad9c_f128_432b_8f6f_18f3c03e7516","level":"info","msg":"reload local index","time":"2024-12-27T06:37:43Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_386d1454_b43a_46c6_858d_c2f0e5658ded","level":"info","msg":"reload local index","time":"2024-12-27T06:37:44Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:44Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_57ef957e_a3b1_48b5_9f76_772cbd27b3a9_xXlYjHxBclcN in 114.470219ms","time":"2024-12-27T06:37:44Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:44Z","took":192617}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_cf1bd94c_322f_49a8_8e68_afe8c0a064dc","level":"info","msg":"reload local index","time":"2024-12-27T06:37:44Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:44Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_94a1e5ae_4c89_47e9_bea8_d512cf9611a7_V7YbHKraVPer in 77.10016ms","time":"2024-12-27T06:37:44Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:44Z","took":135469}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_701c17ef_63c7_4062_bd5c_480849517aaf","level":"info","msg":"reload local index","time":"2024-12-27T06:37:44Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:44Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_753f0baa_da00_4f44_954e_2d42c5ab0f19_rRAmwseJ4E8b in 91.942169ms","time":"2024-12-27T06:37:44Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:44Z","took":223245}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_a19e92a7_c69f_4227_bff8_addcb675285a","level":"info","msg":"reload local index","time":"2024-12-27T06:37:45Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:45Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_d3e9ad9c_f128_432b_8f6f_18f3c03e7516_WCE5ISlXuGBX in 107.140705ms","time":"2024-12-27T06:37:45Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:45Z","took":150656}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_7ac8284d_0ab8_4b78_af02_e7064c6e1b84","level":"info","msg":"reload local index","time":"2024-12-27T06:37:45Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:45Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_386d1454_b43a_46c6_858d_c2f0e5658ded_PMf3jRMeQ16H in 107.746667ms","time":"2024-12-27T06:37:45Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:45Z","took":90999}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_81af2c35_1a1d_4ed1_ae47_a03dab376f8f","level":"info","msg":"reload local index","time":"2024-12-27T06:37:45Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:45Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_cf1bd94c_322f_49a8_8e68_afe8c0a064dc_kChoN2rV7UQ5 in 186.034027ms","time":"2024-12-27T06:37:45Z"}
+ollama        | 2024/12/27 06:37:39 routes.go:1189: INFO server config env="map[CUDA_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: NO_PROXY: OLLAMA_DEBUG:false OLLAMA_FLASH_ATTENTION:false OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://0.0.0.0:11434 OLLAMA_INTEL_GPU:false OLLAMA_KEEP_ALIVE:5m0s OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MODELS:/root/.ollama/models OLLAMA_MULTIUSER_CACHE:false OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:false OLLAMA_NUM_PARALLEL:0 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://*] OLLAMA_SCHED_SPREAD:false OLLAMA_TMPDIR: ROCR_VISIBLE_DEVICES: http_proxy: https_proxy: no_proxy:]"
+ollama        | time=2024-12-27T06:37:39.481Z level=INFO source=images.go:755 msg="total blobs: 6"
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:45Z","took":172627}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_25309cf5_56cf_4e44_941a_8bc41483e27b","level":"info","msg":"reload local index","time":"2024-12-27T06:37:45Z"}
+ollama        | time=2024-12-27T06:37:39.482Z level=INFO source=images.go:762 msg="total unused blobs removed: 0"
+ollama        | time=2024-12-27T06:37:39.487Z level=INFO source=routes.go:1240 msg="Listening on [::]:11434 (version 0.4.1)"
+ollama        | time=2024-12-27T06:37:39.494Z level=INFO source=common.go:49 msg="Dynamic LLM libraries" runners="[cpu_avx2 cuda_v11 cuda_v12 cpu cpu_avx]"
+ollama        | time=2024-12-27T06:37:39.494Z level=INFO source=gpu.go:221 msg="looking for compatible GPUs"
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:46Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_701c17ef_63c7_4062_bd5c_480849517aaf_lKtJYv5UXqJH in 88.6025ms","time":"2024-12-27T06:37:46Z"}
+ollama        | time=2024-12-27T06:37:39.518Z level=INFO source=gpu.go:386 msg="no compatible GPUs were discovered"
+ollama        | time=2024-12-27T06:37:39.518Z level=INFO source=types.go:123 msg="inference compute" id=0 library=cpu variant=avx2 compute="" driver=0.0 name="" total="3.8 GiB" available="2.7 GiB"
+ollama        | [GIN] 2024/12/27 - 06:38:03 | 200 |    1.838233ms |      172.18.0.1 | GET      "/"
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:46Z","took":148043}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_fe46de14_ca5a_4e02_881e_ea743df2ec73","level":"info","msg":"reload local index","time":"2024-12-27T06:37:46Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:46Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_a19e92a7_c69f_4227_bff8_addcb675285a_emdzjY2neT6S in 124.590337ms","time":"2024-12-27T06:37:46Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:46Z","took":127996}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_127bc2e7_0b5c_47cf_8c3f_173309240bf3","level":"info","msg":"reload local index","time":"2024-12-27T06:37:46Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:46Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_7ac8284d_0ab8_4b78_af02_e7064c6e1b84_2NUH2oTR0pT8 in 107.165873ms","time":"2024-12-27T06:37:46Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:46Z","took":120003}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_a2495ae2_a90b_4873_8f86_a59dea4e5c67","level":"info","msg":"reload local index","time":"2024-12-27T06:37:46Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:47Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_81af2c35_1a1d_4ed1_ae47_a03dab376f8f_M3j4Mzdob7mh in 105.340416ms","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:47Z","took":75669}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_b948c0b7_ae3f_4850_a1e9_3977dea3aad7","level":"info","msg":"reload local index","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:47Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_25309cf5_56cf_4e44_941a_8bc41483e27b_oji8xEpORv8q in 101.787753ms","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:47Z","took":64565}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_a792cd6e_5daa_4d1e_a7ff_d7fbead7d121","level":"info","msg":"reload local index","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:47Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_fe46de14_ca5a_4e02_881e_ea743df2ec73_OkUUguacoqQM in 90.762301ms","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:47Z","took":99141}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_bfea18f9_4cbe_420c_ae60_cb16f67fe151","level":"info","msg":"reload local index","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:47Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_127bc2e7_0b5c_47cf_8c3f_173309240bf3_4ZJbAy7NzmCN in 82.712697ms","time":"2024-12-27T06:37:47Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:47Z","took":84871}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_b2ecebd0_ca96_4c6c_9265_f62e79e138fa","level":"info","msg":"reload local index","time":"2024-12-27T06:37:48Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_b2e23d37_251a_41f6_a577_0d42ad590d46","level":"info","msg":"reload local index","time":"2024-12-27T06:37:48Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:48Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_a2495ae2_a90b_4873_8f86_a59dea4e5c67_Dezn4fOv1Ls3 in 338.853308ms","time":"2024-12-27T06:37:48Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:48Z","took":318189}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:48Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_b948c0b7_ae3f_4850_a1e9_3977dea3aad7_oHQcag2kuNet in 81.820841ms","time":"2024-12-27T06:37:48Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:48Z","took":109272}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_3a3ad3de_5b5d_4454_9eb6_bdf76ae5f187","level":"info","msg":"reload local index","time":"2024-12-27T06:37:48Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:48Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_a792cd6e_5daa_4d1e_a7ff_d7fbead7d121_yi655PLI4J4A in 67.874969ms","time":"2024-12-27T06:37:48Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:48Z","took":80470}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_9a5cab87_b2c3_4efb_bcb3_341b1ef122dc","level":"info","msg":"reload local index","time":"2024-12-27T06:37:49Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:49Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_bfea18f9_4cbe_420c_ae60_cb16f67fe151_88S0RoV3HblX in 91.461737ms","time":"2024-12-27T06:37:49Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:49Z","took":136731}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_b6881555_86aa_4428_aca9_518b1b8c23f9","level":"info","msg":"reload local index","time":"2024-12-27T06:37:49Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:49Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_b2ecebd0_ca96_4c6c_9265_f62e79e138fa_oFEcKz2Ao2vh in 75.835456ms","time":"2024-12-27T06:37:49Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:49Z","took":109027}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_9935f0eb_6c94_447d_81e8_35de0192c605","level":"info","msg":"reload local index","time":"2024-12-27T06:37:49Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:49Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_b2e23d37_251a_41f6_a577_0d42ad590d46_P1sTRAipmTgs in 80.782844ms","time":"2024-12-27T06:37:49Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:49Z","took":122853}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_71247aa2_38ac_4f1b_8183_c49a84182889","level":"info","msg":"reload local index","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:50Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_3a3ad3de_5b5d_4454_9eb6_bdf76ae5f187_29QUWNsgBhsU in 61.629783ms","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:50Z","took":129874}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_1270efa4_0cc7_4d4c_b24f_00aabd31a46b","level":"info","msg":"reload local index","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:50Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_9a5cab87_b2c3_4efb_bcb3_341b1ef122dc_n4sluPv0iQLo in 88.607605ms","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:50Z","took":87115}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_eecd4296_ee4e_481c_b043_c4ace25ecc2c","level":"info","msg":"reload local index","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:50Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_b6881555_86aa_4428_aca9_518b1b8c23f9_V3ljqajeI86q in 104.106077ms","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:50Z","took":93463}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_b32d145f_f37e_477c_9752_87295ffbc193","level":"info","msg":"reload local index","time":"2024-12-27T06:37:50Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:51Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_9935f0eb_6c94_447d_81e8_35de0192c605_9tRgEHBtu1OY in 95.549252ms","time":"2024-12-27T06:37:51Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:51Z","took":80327}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_8ffd4092_43fe_41c3_a872_cc08b67e23ba","level":"info","msg":"reload local index","time":"2024-12-27T06:37:51Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:51Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_71247aa2_38ac_4f1b_8183_c49a84182889_sC08ZTezBssK in 122.28759ms","time":"2024-12-27T06:37:51Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:51Z","took":193319}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_1beb46d7_d098_49ef_8933_13f4e6ac8be5","level":"info","msg":"reload local index","time":"2024-12-27T06:37:51Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:51Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_1270efa4_0cc7_4d4c_b24f_00aabd31a46b_TBYYUsXkrqe2 in 102.586126ms","time":"2024-12-27T06:37:51Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:51Z","took":85924}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_8cb3e9b0_6572_4e61_b6ef_d5ecef617c37","level":"info","msg":"reload local index","time":"2024-12-27T06:37:51Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:52Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_eecd4296_ee4e_481c_b043_c4ace25ecc2c_1uKwA41Ci4Ca in 118.381643ms","time":"2024-12-27T06:37:52Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:52Z","took":205785}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_3c5b6aec_9f72_4f46_a8b9_e1993102d35d","level":"info","msg":"reload local index","time":"2024-12-27T06:37:52Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:52Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_b32d145f_f37e_477c_9752_87295ffbc193_25z2uGS7UZVI in 103.217507ms","time":"2024-12-27T06:37:52Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:52Z","took":161091}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_c9fc9a00_723e_4bc7_9353_dcfd3e9eb8d2","level":"info","msg":"reload local index","time":"2024-12-27T06:37:52Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:52Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_8ffd4092_43fe_41c3_a872_cc08b67e23ba_ljSJPEYXvwGw in 112.839863ms","time":"2024-12-27T06:37:52Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:52Z","took":136840}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_912ebdfe_4f2c_4b57_9210_3fa77b1de01f","level":"info","msg":"reload local index","time":"2024-12-27T06:37:52Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:53Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_1beb46d7_d098_49ef_8933_13f4e6ac8be5_HJpPxt51O5ou in 104.23128ms","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:53Z","took":167898}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_cc1032ef_3eac_463e_b766_2ed10f212ad3","level":"info","msg":"reload local index","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:53Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_8cb3e9b0_6572_4e61_b6ef_d5ecef617c37_lJ7usTFVqD6m in 158.633796ms","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:53Z","took":100056}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_c6d47873_6eee_4434_8b8b_1941c89f55cc","level":"info","msg":"reload local index","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:53Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_3c5b6aec_9f72_4f46_a8b9_e1993102d35d_nuEsSV7v0neT in 125.965604ms","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:53Z","took":133207}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_20f0b36b_868e_42d4_b377_132731358607","level":"info","msg":"reload local index","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:53Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_c9fc9a00_723e_4bc7_9353_dcfd3e9eb8d2_m8mIoV7tj2zj in 147.614472ms","time":"2024-12-27T06:37:53Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:53Z","took":179793}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_12a55e0d_5d2b_4007_8052_0183598bffda","level":"info","msg":"reload local index","time":"2024-12-27T06:37:54Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:54Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_912ebdfe_4f2c_4b57_9210_3fa77b1de01f_aAR9tpPKi3Jx in 141.922619ms","time":"2024-12-27T06:37:54Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:54Z","took":145014}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_0c50627c_50a9_4884_8511_89988a506fe5","level":"info","msg":"reload local index","time":"2024-12-27T06:37:54Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:54Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_cc1032ef_3eac_463e_b766_2ed10f212ad3_TxiqM0HxEAnU in 124.148748ms","time":"2024-12-27T06:37:54Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:54Z","took":196028}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_5201763d_8de5_45d8_b987_35bb34d50919","level":"info","msg":"reload local index","time":"2024-12-27T06:37:54Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:54Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_c6d47873_6eee_4434_8b8b_1941c89f55cc_toSWqCZEEWiC in 83.250859ms","time":"2024-12-27T06:37:54Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:54Z","took":130513}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_fdcd6f35_3b7c_40b1_96df_de50de9ca8f7","level":"info","msg":"reload local index","time":"2024-12-27T06:37:55Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:55Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_20f0b36b_868e_42d4_b377_132731358607_E7gb6rAH26VM in 97.909545ms","time":"2024-12-27T06:37:55Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:55Z","took":191754}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_404d5d18_e381_4884_85d9_7edd3cc31216","level":"info","msg":"reload local index","time":"2024-12-27T06:37:55Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:55Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_12a55e0d_5d2b_4007_8052_0183598bffda_ntSPyEwpd0qD in 123.380529ms","time":"2024-12-27T06:37:55Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:55Z","took":182461}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_49151641_161a_4828_94d2_f4dfc09c272e","level":"info","msg":"reload local index","time":"2024-12-27T06:37:55Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:55Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_0c50627c_50a9_4884_8511_89988a506fe5_frzctjLIS2qM in 103.592789ms","time":"2024-12-27T06:37:55Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:55Z","took":144190}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_ca833d0a_3e86_4e40_9a37_aae4f10ac7b3","level":"info","msg":"reload local index","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:56Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_5201763d_8de5_45d8_b987_35bb34d50919_OJlib8HwdzHj in 125.050333ms","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:56Z","took":132539}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_12e7a05c_c9a0_42a0_b9aa_5e28546718a2","level":"info","msg":"reload local index","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:56Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_fdcd6f35_3b7c_40b1_96df_de50de9ca8f7_CyrebcLtl0Nr in 132.745226ms","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:56Z","took":190871}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_e0be2956_4520_4f41_b608_347453fe798d","level":"info","msg":"reload local index","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:56Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_404d5d18_e381_4884_85d9_7edd3cc31216_uOVdJkkma4uO in 76.840548ms","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:56Z","took":79353}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_8149dd5c_0d2f_4eca_b773_263822af1b06","level":"info","msg":"reload local index","time":"2024-12-27T06:37:56Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:57Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_49151641_161a_4828_94d2_f4dfc09c272e_9b7LzRGq7XxM in 58.350198ms","time":"2024-12-27T06:37:57Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:57Z","took":94321}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_519d4d45_12e6_4254_9cfc_1c9461aa7915","level":"info","msg":"reload local index","time":"2024-12-27T06:37:57Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:57Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_ca833d0a_3e86_4e40_9a37_aae4f10ac7b3_GaAbkSa7htSc in 57.609797ms","time":"2024-12-27T06:37:57Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:57Z","took":78664}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_8648b919_0c2a_4d57_8563_2945fb3b4195","level":"info","msg":"reload local index","time":"2024-12-27T06:37:57Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:57Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_12e7a05c_c9a0_42a0_b9aa_5e28546718a2_T3kKXAIftFSm in 114.718219ms","time":"2024-12-27T06:37:57Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:57Z","took":145037}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","index":"Customer_efd21ba1_033d_4dca_86cd_aef73783ba75","level":"info","msg":"reload local index","time":"2024-12-27T06:37:57Z"}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:58Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_e0be2956_4520_4f41_b608_347453fe798d_O1XzxfEYy9Qf in 97.938023ms","time":"2024-12-27T06:37:58Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:58Z","took":69440}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:58Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_8149dd5c_0d2f_4eca_b773_263822af1b06_FmPL7iEp4f8V in 62.472364ms","time":"2024-12-27T06:37:58Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:58Z","took":80889}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:58Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_519d4d45_12e6_4254_9cfc_1c9461aa7915_NTKfwvIFM3Om in 93.041985ms","time":"2024-12-27T06:37:58Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:58Z","took":131247}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:59Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_8648b919_0c2a_4d57_8563_2945fb3b4195_AVfDdL5eZ5pW in 89.300913ms","time":"2024-12-27T06:37:59Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:59Z","took":156852}
+weaviate-1    | {"action":"hnsw_prefill_cache_async","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"not waiting for vector cache prefill, running in background","time":"2024-12-27T06:37:59Z","wait_for_cache_prefill":false}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Completed loading shard customer_efd21ba1_033d_4dca_86cd_aef73783ba75_dXe3XocM8FCK in 64.250523ms","time":"2024-12-27T06:37:59Z"}
+weaviate-1    | {"action":"hnsw_vector_cache_prefill","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","count":3000,"index_id":"main","level":"info","limit":1000000000000,"msg":"prefilled vector cache","time":"2024-12-27T06:37:59Z","took":170312}
+ollama        | time=2024-12-27T06:38:06.937Z level=INFO source=images.go:1022 msg="request failed: Get \"https://registry.ollama.ai/v2/library/llama3.2/manifests/3b\": dial tcp 192.168.1.1:443: connect: connection refused"
+ollama        | [GIN] 2024/12/27 - 06:38:06 | 200 |  2.877965743s |      172.18.0.1 | POST     "/api/pull"
+ollama        | time=2024-12-27T06:38:07.268Z level=INFO source=server.go:105 msg="system memory" total="3.8 GiB" free="2.1 GiB" free_swap="1.0 GiB"
+ollama        | time=2024-12-27T06:38:07.269Z level=WARN source=server.go:137 msg="model request too large for system" requested="3.4 GiB" available=3378249728 total="3.8 GiB" free="2.1 GiB" swap="1.0 GiB"
+ollama        | time=2024-12-27T06:38:07.269Z level=INFO source=sched.go:428 msg="NewLlamaServer failed" model=/root/.ollama/models/blobs/sha256-dde5aa3fc5ffc17176b5e8bdc82f587b24b2678c6c66101bf7da77af9f7ccdff error="model requires more system memory (3.4 GiB) than is available (3.1 GiB)"
+ollama        | [GIN] 2024/12/27 - 06:38:07 | 500 |  165.853263ms |      172.18.0.1 | POST     "/api/generate"
+weaviate-1    | {"action":"read_disk_use","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"warning","msg":"disk usage currently at 80.94%, threshold set to 80.00%","path":"/var/lib/weaviate","time":"2024-12-27T06:38:10Z"}
+chat_service  | Ign:4 http://deb.debian.org/debian bookworm/main amd64 Packages
+chat_service  | Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [8856 B]
+chat_service  | Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [240 kB]
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
+chat_service  | Ign:4 http://deb.debian.org/debian bookworm/main amd64 Packages
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
+chat_service  | Fetched 5940 kB in 41s (146 kB/s)
+chat_service  | Reading package lists...
+chat_service  | Reading package lists...
+chat_service  | Building dependency tree...
+chat_service  | Reading state information...
+chat_service  | The following additional packages will be installed:
+chat_service  |   libbrotli1 libcurl4 libldap-2.5-0 libldap-common libnghttp2-14 libpsl5
+chat_service  |   librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db libssh2-1
+chat_service  |   publicsuffix
+chat_service  | Suggested packages:
+chat_service  |   libsasl2-modules-gssapi-mit | libsasl2-modules-gssapi-heimdal
+chat_service  |   libsasl2-modules-ldap libsasl2-modules-otp libsasl2-modules-sql
+chat_service  | The following NEW packages will be installed:
+chat_service  |   curl libbrotli1 libcurl4 libldap-2.5-0 libldap-common libnghttp2-14 libpsl5
+chat_service  |   librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db libssh2-1
+chat_service  |   publicsuffix
+chat_service  | 0 upgraded, 13 newly installed, 0 to remove and 0 not upgraded.
+chat_service  | Need to get 1837 kB of archives.
+chat_service  | After this operation, 4548 kB of additional disk space will be used.
+chat_service  | Get:1 http://deb.debian.org/debian bookworm/main amd64 libbrotli1 amd64 1.0.9-2+b6 [275 kB]
+chat_service  | Get:2 http://deb.debian.org/debian bookworm/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg-10 [20.3 kB]
+chat_service  | Get:3 http://deb.debian.org/debian bookworm/main amd64 libsasl2-2 amd64 2.1.28+dfsg-10 [59.7 kB]
+chat_service  | Get:4 http://deb.debian.org/debian bookworm/main amd64 libldap-2.5-0 amd64 2.5.13+dfsg-5 [183 kB]
+chat_service  | Get:5 http://deb.debian.org/debian bookworm/main amd64 libnghttp2-14 amd64 1.52.0-1+deb12u2 [73.0 kB]
+chat_service  | Get:6 http://deb.debian.org/debian bookworm/main amd64 libpsl5 amd64 0.21.2-1 [58.7 kB]
+chat_service  | Get:7 http://deb.debian.org/debian bookworm/main amd64 librtmp1 amd64 2.4+20151223.gitfa8646d.1-2+b2 [60.8 kB]
+chat_service  | Get:8 http://deb.debian.org/debian bookworm/main amd64 libssh2-1 amd64 1.10.0-3+b1 [179 kB]
+chat_service  | Get:9 http://deb.debian.org/debian bookworm/main amd64 libcurl4 amd64 7.88.1-10+deb12u8 [390 kB]
+chat_service  | Get:10 http://deb.debian.org/debian bookworm/main amd64 curl amd64 7.88.1-10+deb12u8 [315 kB]
+chat_service  | Get:11 http://deb.debian.org/debian bookworm/main amd64 libldap-common all 2.5.13+dfsg-5 [29.3 kB]
+chat_service  | Get:12 http://deb.debian.org/debian bookworm/main amd64 libsasl2-modules amd64 2.1.28+dfsg-10 [66.6 kB]
+chat_service  | Get:13 http://deb.debian.org/debian bookworm/main amd64 publicsuffix all 20230209.2326-1 [126 kB]
+chat_service  | debconf: delaying package configuration, since apt-utils is not installed
+chat_service  | Fetched 1837 kB in 1s (2303 kB/s)
+chat_service  | Selecting previously unselected package libbrotli1:amd64.
+chat_service  | (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6686 files and directories currently installed.)
+chat_service  | Preparing to unpack .../00-libbrotli1_1.0.9-2+b6_amd64.deb ...
+chat_service  | Unpacking libbrotli1:amd64 (1.0.9-2+b6) ...
+chat_service  | Selecting previously unselected package libsasl2-modules-db:amd64.
+chat_service  | Preparing to unpack .../01-libsasl2-modules-db_2.1.28+dfsg-10_amd64.deb ...
+chat_service  | Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Selecting previously unselected package libsasl2-2:amd64.
+chat_service  | Preparing to unpack .../02-libsasl2-2_2.1.28+dfsg-10_amd64.deb ...
+chat_service  | Unpacking libsasl2-2:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Selecting previously unselected package libldap-2.5-0:amd64.
+chat_service  | Preparing to unpack .../03-libldap-2.5-0_2.5.13+dfsg-5_amd64.deb ...
+chat_service  | Unpacking libldap-2.5-0:amd64 (2.5.13+dfsg-5) ...
+chat_service  | Selecting previously unselected package libnghttp2-14:amd64.
+chat_service  | Preparing to unpack .../04-libnghttp2-14_1.52.0-1+deb12u2_amd64.deb ...
+chat_service  | Unpacking libnghttp2-14:amd64 (1.52.0-1+deb12u2) ...
+chat_service  | Selecting previously unselected package libpsl5:amd64.
+chat_service  | Preparing to unpack .../05-libpsl5_0.21.2-1_amd64.deb ...
+chat_service  | Unpacking libpsl5:amd64 (0.21.2-1) ...
+chat_service  | Selecting previously unselected package librtmp1:amd64.
+chat_service  | Preparing to unpack .../06-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_amd64.deb ...
+chat_service  | Unpacking librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+chat_service  | Selecting previously unselected package libssh2-1:amd64.
+chat_service  | Preparing to unpack .../07-libssh2-1_1.10.0-3+b1_amd64.deb ...
+chat_service  | Unpacking libssh2-1:amd64 (1.10.0-3+b1) ...
+chat_service  | Selecting previously unselected package libcurl4:amd64.
+chat_service  | Preparing to unpack .../08-libcurl4_7.88.1-10+deb12u8_amd64.deb ...
+chat_service  | Unpacking libcurl4:amd64 (7.88.1-10+deb12u8) ...
+chat_service  | Selecting previously unselected package curl.
+chat_service  | Preparing to unpack .../09-curl_7.88.1-10+deb12u8_amd64.deb ...
+chat_service  | Unpacking curl (7.88.1-10+deb12u8) ...
+chat_service  | Selecting previously unselected package libldap-common.
+chat_service  | Preparing to unpack .../10-libldap-common_2.5.13+dfsg-5_all.deb ...
+chat_service  | Unpacking libldap-common (2.5.13+dfsg-5) ...
+chat_service  | Selecting previously unselected package libsasl2-modules:amd64.
+chat_service  | Preparing to unpack .../11-libsasl2-modules_2.1.28+dfsg-10_amd64.deb ...
+chat_service  | Unpacking libsasl2-modules:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Selecting previously unselected package publicsuffix.
+chat_service  | Preparing to unpack .../12-publicsuffix_20230209.2326-1_all.deb ...
+chat_service  | Unpacking publicsuffix (20230209.2326-1) ...
+chat_service  | Setting up libpsl5:amd64 (0.21.2-1) ...
+chat_service  | Setting up libbrotli1:amd64 (1.0.9-2+b6) ...
+chat_service  | Setting up libsasl2-modules:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Setting up libnghttp2-14:amd64 (1.52.0-1+deb12u2) ...
+chat_service  | Setting up libldap-common (2.5.13+dfsg-5) ...
+chat_service  | Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Setting up librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+chat_service  | Setting up libsasl2-2:amd64 (2.1.28+dfsg-10) ...
+chat_service  | Setting up libssh2-1:amd64 (1.10.0-3+b1) ...
+chat_service  | Setting up publicsuffix (20230209.2326-1) ...
+chat_service  | Setting up libldap-2.5-0:amd64 (2.5.13+dfsg-5) ...
+chat_service  | Setting up libcurl4:amd64 (7.88.1-10+deb12u8) ...
+chat_service  | Setting up curl (7.88.1-10+deb12u8) ...
+chat_service  | Processing triggers for libc-bin (2.36-9+deb12u9) ...
+chat_service  | Collecting fastapi==0.95.2
+chat_service  |   Downloading fastapi-0.95.2-py3-none-any.whl (56 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.0/57.0 kB 528.6 kB/s eta 0:00:00
+chat_service  | Collecting pydantic==1.10.8
+chat_service  |   Downloading pydantic-1.10.8-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.1 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.1/3.1 MB 2.5 MB/s eta 0:00:00
+chat_service  | Collecting uvicorn==0.23.2
+chat_service  |   Downloading uvicorn-0.23.2-py3-none-any.whl (59 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 kB 1.6 MB/s eta 0:00:00
+chat_service  | Collecting requests==2.31.0
+chat_service  |   Downloading requests-2.31.0-py3-none-any.whl (62 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 62.6/62.6 kB 2.0 MB/s eta 0:00:00
+chat_service  | Collecting SQLAlchemy==1.4.48
+chat_service  |   Downloading SQLAlchemy-1.4.48-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.6 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 3.0 MB/s eta 0:00:00
+chat_service  | Collecting mysql-connector-python==8.0.32
+chat_service  |   Downloading mysql_connector_python-8.0.32-cp310-cp310-manylinux1_x86_64.whl (23.5 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.5/23.5 MB 2.6 MB/s eta 0:00:00
+chat_service  | Collecting minio==7.2.10
+chat_service  |   Downloading minio-7.2.10-py3-none-any.whl (93 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 93.9/93.9 kB 2.2 MB/s eta 0:00:00
+chat_service  | Collecting weaviate==0.1.2
+chat_service  |   Downloading weaviate-0.1.2-py3-none-any.whl (2.6 kB)
+chat_service  | Collecting weaviate-client==2.5.0
+chat_service  |   Downloading weaviate_client-2.5.0-py3-none-any.whl (56 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.8/56.8 kB 1.7 MB/s eta 0:00:00
+chat_service  | Collecting python-multipart==0.0.17
+chat_service  |   Downloading python_multipart-0.0.17-py3-none-any.whl (24 kB)
+chat_service  | Collecting python-dotenv==1.0.1
+chat_service  |   Downloading python_dotenv-1.0.1-py3-none-any.whl (19 kB)
+chat_service  | Collecting starlette<0.28.0,>=0.27.0
+chat_service  |   Downloading starlette-0.27.0-py3-none-any.whl (66 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 67.0/67.0 kB 2.4 MB/s eta 0:00:00
+chat_service  | Collecting typing-extensions>=4.2.0
+chat_service  |   Downloading typing_extensions-4.12.2-py3-none-any.whl (37 kB)
+chat_service  | Collecting click>=7.0
+chat_service  |   Downloading click-8.1.8-py3-none-any.whl (98 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 98.2/98.2 kB 2.3 MB/s eta 0:00:00
+chat_service  | Collecting h11>=0.8
+chat_service  |   Downloading h11-0.14.0-py3-none-any.whl (58 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.3/58.3 kB 2.1 MB/s eta 0:00:00
+chat_service  | Collecting urllib3<3,>=1.21.1
+chat_service  |   Downloading urllib3-2.3.0-py3-none-any.whl (128 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 128.4/128.4 kB 1.9 MB/s eta 0:00:00
+chat_service  | Collecting certifi>=2017.4.17
+chat_service  |   Downloading certifi-2024.12.14-py3-none-any.whl (164 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 164.9/164.9 kB 1.6 MB/s eta 0:00:00
+chat_service  | Collecting idna<4,>=2.5
+chat_service  |   Downloading idna-3.10-py3-none-any.whl (70 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.4/70.4 kB 1.7 MB/s eta 0:00:00
+chat_service  | Collecting charset-normalizer<4,>=2
+chat_service  |   Downloading charset_normalizer-3.4.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (146 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 146.1/146.1 kB 1.8 MB/s eta 0:00:00
+chat_service  | Collecting greenlet!=0.4.17
+chat_service  |   Downloading greenlet-3.1.1-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (599 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 599.5/599.5 kB 3.1 MB/s eta 0:00:00
+chat_service  | Collecting protobuf<=3.20.3,>=3.11.0
+chat_service  |   Downloading protobuf-3.20.3-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.1 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 2.9 MB/s eta 0:00:00
+chat_service  | Collecting pycryptodome
+chat_service  |   Downloading pycryptodome-3.21.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.3 MB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 3.2 MB/s eta 0:00:00
+chat_service  | Collecting argon2-cffi
+chat_service  |   Downloading argon2_cffi-23.1.0-py3-none-any.whl (15 kB)
+chat_service  | Collecting tqdm>=4.59.0
+chat_service  |   Downloading tqdm-4.67.1-py3-none-any.whl (78 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.5/78.5 kB 1.7 MB/s eta 0:00:00
+chat_service  | Collecting validators>=0.18.2
+chat_service  |   Downloading validators-0.34.0-py3-none-any.whl (43 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 43.5/43.5 kB 1.9 MB/s eta 0:00:00
+chat_service  | Collecting anyio<5,>=3.4.0
+chat_service  |   Downloading anyio-4.7.0-py3-none-any.whl (93 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 93.1/93.1 kB 1.7 MB/s eta 0:00:00
+chat_service  | Collecting argon2-cffi-bindings
+chat_service  |   Downloading argon2_cffi_bindings-21.2.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (86 kB)
+chat_service  |      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 86.2/86.2 kB 1.5 MB/s eta 0:00:00
+chat_service  | Collecting exceptiongroup>=1.0.2
+chat_service  |   Downloading exceptiongroup-1.2.2-py3-none-any.whl (16 kB)
+chat_service  | Collecting sniffio>=1.1
+chat_service  |   Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+chat_service  | Collecting cffi>=1.0.1
+chat_service  |   Downloading cffi-1.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (446 kB)
+chat_service  |      ━━━━━━                                   71.7/446.2 kB 2.6 MB/s eta 0:00:01
+chat_service  | ERROR: Exception:
+chat_service  | Traceback (most recent call last):
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/urllib3/response.py", line 438, in _error_catcher
+chat_service  |     yield
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/urllib3/response.py", line 561, in read
+chat_service  |     data = self._fp_read(amt) if not fp_closed else b""
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/urllib3/response.py", line 527, in _fp_read
+chat_service  |     return self._fp.read(amt) if amt is not None else self._fp.read()
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/cachecontrol/filewrapper.py", line 90, in read
+chat_service  |     data = self.__fp.read(amt)
+chat_service  |   File "/usr/local/lib/python3.10/http/client.py", line 466, in read
+chat_service  |     s = self.fp.read(amt)
+chat_service  |   File "/usr/local/lib/python3.10/socket.py", line 717, in readinto
+chat_service  |     return self._sock.recv_into(b)
+chat_service  |   File "/usr/local/lib/python3.10/ssl.py", line 1307, in recv_into
+chat_service  |     return self.read(nbytes, buffer)
+chat_service  |   File "/usr/local/lib/python3.10/ssl.py", line 1163, in read
+chat_service  |     return self._sslobj.read(len, buffer)
+chat_service  | TimeoutError: The read operation timed out
+chat_service  | 
+chat_service  | During handling of the above exception, another exception occurred:
+chat_service  | 
+chat_service  | Traceback (most recent call last):
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/cli/base_command.py", line 160, in exc_logging_wrapper
+chat_service  |     status = run_func(*args)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/cli/req_command.py", line 247, in wrapper
+chat_service  |     return func(self, options, args)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/commands/install.py", line 419, in run
+chat_service  |     requirement_set = resolver.resolve(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/resolver.py", line 92, in resolve
+chat_service  |     result = self._result = resolver.resolve(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/resolvelib/resolvers.py", line 481, in resolve
+chat_service  |     state = resolution.resolve(requirements, max_rounds=max_rounds)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/resolvelib/resolvers.py", line 373, in resolve
+chat_service  |     failure_causes = self._attempt_to_pin_criterion(name)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/resolvelib/resolvers.py", line 213, in _attempt_to_pin_criterion
+chat_service  |     criteria = self._get_updated_criteria(candidate)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/resolvelib/resolvers.py", line 204, in _get_updated_criteria
+chat_service  |     self._add_to_criteria(criteria, requirement, parent=candidate)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/resolvelib/resolvers.py", line 172, in _add_to_criteria
+chat_service  |     if not criterion.candidates:
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/resolvelib/structs.py", line 151, in __bool__
+chat_service  |     return bool(self._sequence)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 155, in __bool__
+chat_service  |     return any(self)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 143, in <genexpr>
+chat_service  |     return (c for c in iterator if id(c) not in self._incompatible_ids)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 47, in _iter_built
+chat_service  |     candidate = func()
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/factory.py", line 206, in _make_candidate_from_link
+chat_service  |     self._link_candidate_cache[link] = LinkCandidate(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 297, in __init__
+chat_service  |     super().__init__(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 162, in __init__
+chat_service  |     self.dist = self._prepare()
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 231, in _prepare
+chat_service  |     dist = self._prepare_distribution()
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 308, in _prepare_distribution
+chat_service  |     return preparer.prepare_linked_requirement(self._ireq, parallel_builds=True)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/operations/prepare.py", line 491, in prepare_linked_requirement
+chat_service  |     return self._prepare_linked_requirement(req, parallel_builds)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/operations/prepare.py", line 536, in _prepare_linked_requirement
+chat_service  |     local_file = unpack_url(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/operations/prepare.py", line 166, in unpack_url
+chat_service  |     file = get_http_url(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/operations/prepare.py", line 107, in get_http_url
+chat_service  |     from_path, content_type = download(link, temp_dir.path)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/network/download.py", line 147, in __call__
+chat_service  |     for chunk in chunks:
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/cli/progress_bars.py", line 53, in _rich_progress_bar
+chat_service  |     for chunk in iterable:
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_internal/network/utils.py", line 63, in response_chunks
+chat_service  |     for chunk in response.raw.stream(
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/urllib3/response.py", line 622, in stream
+chat_service  |     data = self.read(amt=amt, decode_content=decode_content)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/urllib3/response.py", line 560, in read
+chat_service  |     with self._error_catcher():
+chat_service  |   File "/usr/local/lib/python3.10/contextlib.py", line 153, in __exit__
+chat_service  |     self.gen.throw(typ, value, traceback)
+chat_service  |   File "/usr/local/lib/python3.10/site-packages/pip/_vendor/urllib3/response.py", line 443, in _error_catcher
+chat_service  |     raise ReadTimeoutError(self._pool, None, "Read timed out.")
+chat_service  | pip._vendor.urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Read timed out.
+chat_service  | 
+chat_service  | [notice] A new release of pip is available: 23.0.1 -> 24.3.1
+chat_service  | [notice] To update, run: pip install --upgrade pip
+[Kchat_service exited with code 2
+weaviate-1    | {"action":"read_disk_use","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"warning","msg":"disk usage currently at 80.94%, threshold set to 80.00%","path":"/var/lib/weaviate","time":"2024-12-27T06:40:11Z"}
+mysql_db      | 2024-12-27T06:40:26.911334Z 0 [System] [MY-013172] [Server] Received SHUTDOWN from user <via user signal>. Shutting down mysqld (Version: 8.0.40).
+minio         | INFO: Exiting on signal: TERMINATED
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Shutting down... ","time":"2024-12-27T06:40:26Z","version":"1.27.2"}
+weaviate-1    | {"action":"restapi_management","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"Stopped serving weaviate at http://[::]:8080","time":"2024-12-27T06:40:26Z","version":"1.27.2"}
+[Kollama exited with code 0
+[Kminio exited with code 0
+mysql_db      | 2024-12-27T06:40:27.911272Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.0.40)  MySQL Community Server - GPL.
+weaviate-1    | {"action":"telemetry_push","build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"telemetry terminated","payload":"\u0026{MachineID:adac5c52-f0f7-482d-a295-6fa2147a2b56 Type:TERMINATE Version:1.27.2 NumObjects:0 OS:linux Arch:amd64 UsedModules:[]}","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft FSM store ...","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"shutting down raft sub-system ...","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"transferring leadership to another server","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","error":"cannot find peer","level":"error","msg":"transferring leadership","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft-net ...","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing log store ...","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing data store ...","time":"2024-12-27T06:40:28Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing loaded database ...","time":"2024-12-27T06:40:28Z"}
+[Kmysql_db exited with code 0
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft-rpc client ...","time":"2024-12-27T06:40:31Z"}
+weaviate-1    | {"build_git_commit":"64457c2","build_go_version":"go1.22.9","build_image_tag":"v1.27.2","build_wv_version":"1.27.2","level":"info","msg":"closing raft-rpc server ...","time":"2024-12-27T06:40:31Z"}
+[Kweaviate-1 exited with code 0
