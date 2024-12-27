@@ -155,6 +155,15 @@ class DatabaseManager:
             logger.debug("Exiting add_customer method")
             session.close()
 
+    def set_log_level(self, log_level: str):
+        logger.debug(f"Setting log level to: {log_level}")
+        if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+            logger.error(f"Invalid log level: {log_level}")
+            raise ValueError("Invalid log level provided")
+
+        logging.getLogger().setLevel(log_level)
+        logger.info(f"Log level changed to {log_level}")
+
     def add_message(self, customer_guid, message, sender_type, chat_id=None):
         logger.debug("Entering add_message method")
         customer_db_name = self.get_customer_db(customer_guid)
