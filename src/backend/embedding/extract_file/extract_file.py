@@ -119,6 +119,15 @@ class UploadFileForChunks:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
 
+    def set_log_level(self, log_level: str):
+        logger.debug(f"Setting log level to: {log_level}")
+        if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+            logger.error(f"Invalid log level: {log_level}")
+            raise ValueError("Invalid log level provided")
+
+        logging.getLogger().setLevel(log_level)
+        logger.info(f"Log level changed to {log_level}")
+
 class FileExtractor:
 
     def detect_file_type(self, file_path: str):
