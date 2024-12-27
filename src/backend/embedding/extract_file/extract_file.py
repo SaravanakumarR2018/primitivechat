@@ -20,7 +20,9 @@ from openpyxl.chart import (
 )
 from bs4 import BeautifulSoup
 import requests
+from urllib.parse import urlparse
 from io import BytesIO
+import re
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -663,13 +665,26 @@ class FileExtractor:
             return self.extract_text_from_richtext_object(obj)
         else:
             return str(obj)
-    def extract_html_content(self, customer_guid: str, file_path: str, filename: str):
+
+    def extract_html_content(self, customer_guid: str, source: str, filename: str):
         try:
             results = []
 
-            # Read the HTML file
-            with open(file_path, "r", encoding="utf-8") as html_file:
-                soup = BeautifulSoup(html_file, "html.parser")
+            # Check if the file_path is a URL or a local file path
+            if urlparse(source).scheme in ["http", "https"]:
+                # Fetch HTML content from URL
+                logger.debug(f"Fetching HTML content from URL: {source}")
+                response = requests.get(source)
+                response.raise_for_status()
+                html_content = response.text
+            else:
+                # Read the HTML file from local file system
+                logger.debug(f"Reading local HTML file from: {source}")
+                with open(source, "r", encoding="utf-8") as html_file:
+                    html_content = html_file.read()
+
+            # Parse the HTML content
+            soup = BeautifulSoup(html_content, "html.parser")
 
             # Identify pages or fallback to treat the entire HTML as one page
             pages = soup.find_all("div", class_="page")
@@ -681,26 +696,13 @@ class FileExtractor:
                 page_number += 1
                 logger.debug(f"Processing page {page_number}")
                 text_content = []
-                page_elements = []
 
                 # Extract text content from the current page
                 for text_element in page.find_all(string=True):
                     if text_element.parent.name not in ["script", "style", "meta", "[document]"]:
                         clean_text = text_element.strip()
                         if clean_text:
-                            text_content.append({"text": clean_text, "y0": 0})
-
-                # Combine all text blocks into a single content element
-                if text_content:
-                    logger.debug(f"Extracted {len(text_content)} text elements from page {page_number}")
-                    sorted_content = sorted(text_content, key=lambda t: t["y0"])
-                    merged_text = " ".join([t["text"] for t in sorted_content])
-                    page_elements.append({
-                        "type": "text",
-                        "content": merged_text,
-                        "x0": 0,
-                        "y0": 0
-                    })
+                            text_content.append(clean_text)
 
                 # Extract tables from the current page
                 tables = page.find_all("table")
@@ -724,21 +726,35 @@ class FileExtractor:
                         # Format the table as text
                         if headers or rows:
                             formatted_table = self.format_table_as_text([headers] + rows)
-                            page_elements.append({
-                                "type": "table",
-                                "content": formatted_table,
-                                "x0": 0,
-                                "y0": 0
-                            })
+                            text_content.append(formatted_table)
 
-                # Extract images
+                # Extract charts and their data from script tags
+                scripts = page.find_all("script")
+                for script in scripts:
+                    script_content = script.string
+                    if script_content and "new Chart" in script_content:
+                        # Regex to find chart data from script
+                        chart_labels = re.findall(r"labels:\s*\[(.*?)\]", script_content)
+                        chart_values = re.findall(r"data:\s*\[(.*?)\]", script_content)
+
+                        for chart_label, chart_value in zip(chart_labels, chart_values):
+                            labels = [label.strip().replace("'", "") for label in chart_label.split(",")]
+                            data = [int(x.strip()) for x in chart_value.split(",")]
+
+                            # Format the chart data as plain text
+                            formatted_chart = self.format_chart_as_table(labels, data)
+                            text_content.append(formatted_chart)
+                            logger.debug(f"Chart found with labels: {labels}")
+                            logger.debug(f"Chart data: {data}")
+
+                # Extract images and perform OCR
                 images = page.find_all("img")
                 for img in images:
                     img_src = img.get("src")
                     if img_src:
                         try:
                             # Resolve the image path (local or remote)
-                            image_path = os.path.join(os.path.dirname(file_path), img_src) if not img_src.startswith(
+                            image_path = os.path.join(os.path.dirname(source), img_src) if not img_src.startswith(
                                 "http") else img_src
                             image_data = None
 
@@ -756,34 +772,14 @@ class FileExtractor:
                             # OCR to extract text from image
                             ocr_text = pytesseract.image_to_string(image_data).strip()
                             if ocr_text:
-                                page_elements.append({
-                                    "type": "image",
-                                    "content": ocr_text,
-                                    "src": img_src,
-                                    "x0": 0,
-                                    "y0": 0
-                                })
+                                text_content.append(ocr_text)
                         except Exception as e:
                             logger.error(f"Failed to process image {img_src}: {e}")
-
-                # Sort page elements by vertical position (y0)
-                page_elements.sort(key=lambda w: (w["y0"], w["x0"]))
-
-                # Handle corrections for reversed vertical text
-                corrected_content = []
-                for element in page_elements:
-                    if element["type"] == "text" and self.is_vertical_text(element):
-                        corrected_content.append(self.reverse_vertical_text(element["content"]))
-                    else:
-                        corrected_content.append(element["content"])
-
-                # Join the corrected content for the current page
-                full_text = " ".join(corrected_content)
 
                 # Append the result for the current page
                 results.append({
                     "metadata": {"page_number": page_number},
-                    "text": full_text
+                    "text": " ".join(text_content)
                 })
 
             # Save extracted content
@@ -799,9 +795,32 @@ class FileExtractor:
             logger.error(f"Error extracting content from HTML file '{filename}': {e}")
             raise Exception(f"HTML content extraction failed: {e}")
 
+    def format_chart_as_table(self, labels, data):
+        try:
+            if not labels or not data:
+                logger.error("Empty or invalid chart data received for formatting.")
+                return "Empty chart data"
+
+            # Format chart data into a table-like structure
+            headers = ["Label", "Data"]
+            rows = zip(labels, data)
+
+            result = []
+            for row in rows:
+                formatted_row = ", ".join(
+                    [f"{headers[i]}: {row[i]}" for i in range(len(headers))]
+                )
+                result.append(formatted_row)
+
+            return "\n".join(result).strip()
+
+        except Exception as e:
+            logger.error(f"Error formatting chart data: {e}")
+            raise Exception(f"Chart formatting failed: {e}")
+
 
 if __name__ == "__main__":
-    customer_guid = "777609ff-689b-4bf7-8f1f-878faee9825d"
-    filename = "images.html"
+    customer_guid = "72023cf5-3417-44c7-84fe-4e2f8ff35b2d"
+    filename = "gym_website.html"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
