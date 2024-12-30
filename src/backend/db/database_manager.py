@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import uuid
 from enum import Enum
 
@@ -20,7 +21,7 @@ class SenderType(Enum):
 class DatabaseManager:
     _session_factory = None
 
-    allowed_custom_field_sql_types = {"VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT"}
+    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def __init__(self):
         logger.debug("Initializing DatabaseManager")
@@ -324,13 +325,56 @@ class DatabaseManager:
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
 
-        # Validate the field type
-        if field_type not in self.allowed_custom_field_sql_types:
-            raise ValueError(f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
-
         try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Validate the field type
+            if field_type not in self.allowed_custom_field_sql_types:
+                raise ValueError(
+                    f"Unsupported field type: {field_type}. Allowed types are: {', '.join(self.allowed_custom_field_sql_types)}")
+            # Validate the 'required' field
+            if not isinstance(required, bool):
+                raise ValueError(
+                    f"Invalid value for 'required'. Expected a boolean value (True/False), but got {type(required)}.")
+            # Validate field name to only allow alphanumeric characters and underscores
+            if not re.match("^[A-Za-z0-9_]+$", field_name):
+                raise ValueError(
+                    f"Invalid field name '{field_name}'. Field names can only contain letters, numbers, and underscores.")
+
+            # Validate the length of the field name
+            max_field_name_length = 64
+            if len(field_name) > max_field_name_length:
+                raise ValueError(
+                    f"Field name '{field_name[:20]}...' is too long. The maximum length allowed is {max_field_name_length} characters."
+                )
+
+            # Check if the field already exists with the same name and type
+            check_query = '''
+            SELECT field_name, field_type, required FROM custom_fields WHERE field_name = :field_name
+            '''
+            existing_field = session.execute(
+                text(check_query),
+                {"field_name": field_name}
+            ).fetchone()
+
+            if existing_field:
+                # If the field exists but has the same type and required flag, return success (200)
+                if existing_field['field_type'] == field_type and existing_field['required'] == required:
+                    return True
+                # If the field name exists but the type or required flag differs, raise an error (400)
+                raise ValueError(
+                    f"A custom field with this name {field_name} already exists, but the field type or required flag differs.")
 
             # Add metadata to custom_fields table
             query = '''INSERT INTO custom_fields (field_name, field_type, required)
@@ -369,41 +413,73 @@ class DatabaseManager:
         except IntegrityError as e:
             logger.error(f"Duplicate field name error: {e}")
             session.rollback()
-            raise ValueError("A custom field with this name already exists.")
-        except SQLAlchemyError as e:
-            logger.error(f"Error adding custom field: {e}")
-            session.rollback()
-            return False
+            raise ValueError(f"A custom field with this name {field_name} already exists.")
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except Exception as e:
+            logger.error(f"Internal Server error: {e}")
+            raise e
         finally:
             session.close()
 
-    def list_custom_fields(self, customer_guid):
+    def list_paginated_custom_fields(self, customer_guid, page=1, page_size=10):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
+
         try:
+            # Check if the database exists
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+
+            if not result:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            query = '''SELECT * FROM custom_fields'''
-            results = session.execute(text(query)).fetchall()
-            logger.debug(results)
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(
+                f"Fetching custom fields with improved sorting: page={page}, page_size={page_size}, offset={offset}")
+
+            # Improved SQL query to sort by numeric part of field_name
+            query = """
+                SELECT field_name, field_type, required
+                FROM custom_fields
+                ORDER BY
+                    CAST(REGEXP_SUBSTR(field_name, '[0-9]+') AS UNSIGNED),
+                    field_name
+                LIMIT :page_size OFFSET :offset
+            """
+            results = session.execute(
+                text(query),
+                {"page_size": page_size, "offset": offset}
+            ).fetchall()
 
             if results:
+                # Return paginated results
                 return [
-                    {"field_name": result[0] or "Unknown",  # Default if field_name is None
-                     "field_type": result[1] or "Unknown",  # Default if field_type is None
-                     "required": result[2] if result[2] is not None else False}  # Default if required is None
+                    {
+                        column: (value if column != "required" else value if value is not None else False)
+                        for column, value in zip(result.keys(), result)
+                        if column in ("field_name", "field_type", "required")
+                    }
                     for result in results
                 ]
             else:
-                # If no results found, log and return an empty list
                 logger.info(f"No custom fields found for customer: {customer_guid}")
                 return []
 
-        except SQLAlchemyError as e:
-            # Log the error and return an empty list or raise an exception
-            logger.error(f"Error listing custom fields for customer {customer_guid}: {e}")
-            return []  # You could also raise a custom exception here, if needed
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error while listing custom fields for customer {customer_guid}: {e}")
+            raise Exception("Database connectivity issue")
+        except Exception as e:
+            logger.error(f"Internal Server error while listing custom fields for customer {customer_guid}: {e}")
+            raise e
         finally:
             session.close()
 
@@ -868,8 +944,6 @@ class DatabaseManager:
 
         finally:
             session.close()
-
-
 
 
     #Comments related methods

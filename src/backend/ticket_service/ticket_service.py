@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
@@ -28,6 +28,12 @@ class CustomField(BaseModel):
     field_name: str
     field_type: str
     required: bool
+
+    @validator("required", pre=True, always=True)
+    def validate_required(cls, value):
+        if not isinstance(value, bool):
+            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,detail=f"Invalid value for 'required'. Expected a boolean, got {type(value).__name__}.")
+        return value
 
 class CustomFieldResponse(BaseModel):
     field_name: str
@@ -99,7 +105,7 @@ class CommentDeleteResponse(BaseModel):
     status:str
 
 # Custom Fields Management APIs
-@app.post("/custom_fields", response_model=CustomField)
+@app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
 async def add_custom_field(custom_field: CustomField):
     """Add a new custom field to a customer's tickets"""
     try:
@@ -115,44 +121,68 @@ async def add_custom_field(custom_field: CustomField):
             raise HTTPException(status_code=400, detail="Failed to add custom field")
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/custom_fields", response_model=List[CustomFieldResponse])
-async def list_custom_fields(customer_guid: UUID):
-    """List all custom fields for a customer"""
-    try:
-        # Fetch custom fields for the customer
-        fields = db_manager.list_custom_fields(str(customer_guid))
-
-        # Check if fields are empty and raise a 404 if so
-        if not fields:
-            raise HTTPException(status_code=404, detail=f"No custom fields found for customer {customer_guid}")
-
-        # If fields are found, return them as structured response
-        return [
-            CustomFieldResponse(
-                field_name=field["field_name"],
-                field_type=field["field_type"],
-                required=field["required"],
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
             )
-            for field in fields
-        ]
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+
+@app.get("/custom_fields", response_model=List[CustomFieldResponse], tags=["Custom Field Management"])
+async def list_custom_fields(
+    customer_guid: UUID,
+    page: int = 1,
+    page_size: int = 10
+):
+    """List all custom fields for a customer with pagination."""
+    try:
+        # Call the modified list_paginated_custom_fields to get paginated results
+        paginated_fields = db_manager.list_paginated_custom_fields(str(customer_guid), page, page_size)
+
+        if not paginated_fields:
+            logger.info(f"No custom fields found for customer {customer_guid}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"No custom fields found for customer {customer_guid}",
+            )
+
+        # Construct and return the structured response with pagination
+        return [
+                CustomFieldResponse(
+                    field_name=field["field_name"],
+                    field_type=field["field_type"],
+                    required=field["required"],
+                )
+                for field in paginated_fields
+            ]
+
+    except ValueError as e:
+        logger.error(f"Validation error while listing custom fields: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
 
     except SQLAlchemyError as e:
-        # Log database specific errors and raise HTTPException with 500 error
-        logger.error(f"Database error: {e}")
-        raise HTTPException(status_code=500, detail="Database error occurred.")
+        logger.error(f"Database error while listing custom fields: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred.")
 
     except HTTPException as e:
-        raise HTTPException(status_code=404, detail="There is No custom_fields to show")
+        raise e
 
     except Exception as e:
-        # Catch other unexpected errors
-        logger.error(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error.")
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database connectivity error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later.",
+            )
+        logger.error(f"Unexpected error while listing custom fields: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
-@app.delete("/custom_fields/{field_name}")
+@app.delete("/custom_fields/{field_name}", tags=["Custom Field Management"])
 async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
     """Delete a custom field"""
     try:
@@ -350,7 +380,7 @@ async def delete_ticket(ticket_id: str, customer_guid: str):
         elif result["status"] == "unknown_db":
             logger.error(logger.error("Unknown Database error occurred: " + result["reason"]))
             raise HTTPException(
-                status_code=HTTPStatus.CONFLICT,
+                status_code=HTTPStatus.BAD_REQUEST,
                 detail=result["reason"]
             )
         elif result["status"] == "db_unreachable":
