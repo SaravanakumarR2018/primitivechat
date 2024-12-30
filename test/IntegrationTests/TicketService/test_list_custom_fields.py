@@ -24,9 +24,7 @@ class TestListCustomFieldsAPI(unittest.TestCase):
         self.valid_customer_guid = response.json().get("customer_guid")
         logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
-        # Adding custom fields for the valid customer
-        custom_field_url = f"{self.BASE_URL}/custom_fields"
-        # Add sample custom fields (if needed)
+        logger.info(f"Starting test: {self._testMethodName}")
 
     def test_list_custom_fields_invalid_customer_guid(self):
         """Test listing custom fields for an invalid customer GUID."""
@@ -194,6 +192,7 @@ class TestListCustomFieldsAPI(unittest.TestCase):
 
     def tearDown(self):
         """Clean up resources if necessary."""
+        logger.info(f"Finished test: {self._testMethodName}")
         logger.info("=== Test teardown complete ===")
 
 if __name__ == "__main__":
