@@ -187,16 +187,43 @@ async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...))
     """Delete a custom field"""
     try:
         result = db_manager.delete_custom_field(str(customer_guid), field_name)
+
         if result["status"] == "deleted":
             return {"field_name": field_name, "status": "deleted"}
+
         elif result["status"] == "not_found":
-            return {
-                "message": f"Custom field '{field_name}' was not found, no action needed",
-            }
+            return {"message": f"Custom field '{field_name}' was not found, no action needed"}
+
+        elif result["status"] == "unknown_db":
+            logger.error("Unknown Database error occurred: " + result["reason"])
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=result["reason"]
+            )
+
+        elif result["status"] == "db_unreachable":
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+
         else:
-            raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete Custom Field '{field_name}': {result['reason']}"
+            )
+
+    except HTTPException as e:
+        raise e
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error during custom field deletion: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting the custom field."
+        )
 
 
 #Tickets APIS
