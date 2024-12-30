@@ -485,36 +485,79 @@ class DatabaseManager:
 
     def delete_custom_field(self, customer_guid, field_name):
         customer_db_name = self.get_customer_db(customer_guid)
-        session = DatabaseManager._session_factory()
-        try:
-            logger.debug(f"Switching to customer database: {customer_db_name}")
-            session.execute(text(f"USE `{customer_db_name}`"))
 
+        try:
+            session = DatabaseManager._session_factory()
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            logger.debug(f"Checking if database {customer_db_name} exists")
+            try:
+                result = session.execute(
+                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                    {"db_name": customer_db_name}
+                ).fetchone()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during schema check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            if not result:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            try:
+                session.execute(text(f"USE `{customer_db_name}`"))
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during USE statement: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
             # Check if the field exists
-            query_check = '''SELECT COUNT(*) FROM custom_fields WHERE field_name = :field_name'''
-            result = session.execute(text(query_check), {"field_name": field_name}).scalar()
+            try:
+                query_check = '''SELECT COUNT(*) FROM custom_fields WHERE field_name = :field_name'''
+                result = session.execute(text(query_check), {"field_name": field_name}).scalar()
+            except OperationalError as e:
+                logger.error(f"Database connectivity issue during field existence check: {e}")
+                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
             if result == 0:
                 logger.debug(f"No custom field found with name: {field_name}")
-                return {"status": "not_found"}  # Field does not exist
+                return {"status": "deleted"}  # Field does not exist
 
-            # Delete the column from custom_field_values table
-            logger.debug(f"Dropping column {field_name} from custom_field_values table")
-            alter_table_query = f"""ALTER TABLE custom_field_values DROP COLUMN `{field_name}`;"""
-            session.execute(text(alter_table_query))
+            # Drop the column from the custom_field_values table
+            try:
+                logger.debug(f"Dropping column {field_name} from custom_field_values table")
+                alter_table_query = f"""ALTER TABLE custom_field_values DROP COLUMN `{field_name}`;"""
+                session.execute(text(alter_table_query))
+            except SQLAlchemyError as e:
+                logger.error(f"Error dropping column: {e}")
+                session.rollback()
+                return {"status": "failure", "reason": str(e)}
 
             # Remove the field details from the custom_fields table
-            logger.debug(f"Deleting field {field_name} from custom_fields table")
-            query_delete = '''DELETE FROM custom_fields WHERE field_name = :field_name'''
-            session.execute(text(query_delete), {"field_name": field_name})
+            try:
+                logger.debug(f"Deleting field {field_name} from custom_fields table")
+                query_delete = '''DELETE FROM custom_fields WHERE field_name = :field_name'''
+                session.execute(text(query_delete), {"field_name": field_name})
+                session.commit()
+                logger.info(f"Custom field {field_name} deleted successfully")
+                return {"status": "deleted"}
+            except SQLAlchemyError as e:
+                logger.error(f"Error deleting custom field: {e}")
+                session.rollback()
+                return {"status": "failure", "reason": str(e)}
 
-            session.commit()
-            logger.info(f"Custom field {field_name} deleted successfully")
-            return {"status": "deleted"}
-        except SQLAlchemyError as e:
-            logger.error(f"Error deleting custom field: {e}")
+        except OperationalError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+        except Exception as e:
+            logger.error(f"Unexpected error during deletion: {e}")
             session.rollback()
-            return {"status": "error", "error": str(e)}
+            return {"status": "failure", "reason": "Unexpected error occurred"}
+
         finally:
             session.close()
 
