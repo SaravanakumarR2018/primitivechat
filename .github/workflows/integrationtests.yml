@@ -100,7 +100,7 @@ jobs:
       - name: Run Python Integration Tests
         working-directory: ${{ github.workspace }}
         run: |
-          python -m unittest discover -s ./test/IntegrationTests -p "*.py"
+          python -m unittest discover -s ./test/IntegrationTests -pattern "test_*.py"
 
       # Step 9: Shut down Docker Compose (clean up)
       - name: Docker-compose down
