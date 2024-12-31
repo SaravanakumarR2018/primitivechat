@@ -20,7 +20,7 @@ from openpyxl.chart import (
 )
 from bs4 import BeautifulSoup
 import requests
-from urllib.parse import urlparse
+from bs4.element import Comment
 from io import BytesIO
 import re
 
@@ -130,6 +130,35 @@ class UploadFileForChunks:
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
+
+    def extract_html_files(self, customer_guid: str, source_url_link: str, filename: str):
+
+        try:
+
+            logger.info(f"Fetching HTML content from URL: {source_url_link}")
+            response = requests.get(source_url_link)
+            response.raise_for_status()
+            html_content = response.text
+
+            local_path = f"/tmp/{customer_guid}/{filename}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "w", encoding="utf-8") as html_file:
+                html_file.write(html_content)
+
+            logger.info(f"HTML content from '{source_url_link}' saved to '{local_path}'")
+
+            output_file_path=self.file_extract.extract_html_content(customer_guid, local_path, filename)
+            logger.info(f"HTML content from URL '{source_url_link}' extracted successfully.")
+
+            self.upload_extracted_content(customer_guid, filename, output_file_path)
+            return {"message": "HTML extracted and uploaded successfully."}
+
+        except requests.exceptions.RequestException as req_err:
+            logger.error(f"Failed to fetch HTML content from URL '{source_url_link}': {req_err}")
+            raise Exception(f"Failed to fetch HTML content: {req_err}")
+        except Exception as e:
+            logger.error(f"Error processing HTML file from URL '{source_url_link}': {e}")
+            raise Exception(f"HTML file processing failed: {e}")
 
 class FileExtractor:
 
@@ -670,18 +699,10 @@ class FileExtractor:
         try:
             results = []
 
-            # Check if the file_path is a URL or a local file path
-            if urlparse(source).scheme in ["http", "https"]:
-                # Fetch HTML content from URL
-                logger.debug(f"Fetching HTML content from URL: {source}")
-                response = requests.get(source)
-                response.raise_for_status()
-                html_content = response.text
-            else:
-                # Read the HTML file from local file system
-                logger.debug(f"Reading local HTML file from: {source}")
-                with open(source, "r", encoding="utf-8") as html_file:
-                    html_content = html_file.read()
+            # Read the HTML file from the local file system
+            logger.debug(f"Reading local HTML file from: {source}")
+            with open(source, "r", encoding="utf-8") as html_file:
+                html_content = html_file.read()
 
             # Parse the HTML content
             soup = BeautifulSoup(html_content, "html.parser")
@@ -697,12 +718,13 @@ class FileExtractor:
                 logger.debug(f"Processing page {page_number}")
                 text_content = []
 
-                # Extract text content from the current page
                 for text_element in page.find_all(string=True):
-                    if text_element.parent.name not in ["script", "style", "meta", "[document]"]:
-                        clean_text = text_element.strip()
-                        if clean_text:
-                            text_content.append(clean_text)
+                    if isinstance(text_element, Comment) or text_element.parent.name in ["script", "style", "meta",
+                                                                                         "[document]"]:
+                        continue
+
+                    clean_text = text_element.strip()
+                    text_content.append(clean_text)
 
                 # Extract tables from the current page
                 tables = page.find_all("table")
@@ -776,6 +798,21 @@ class FileExtractor:
                         except Exception as e:
                             logger.error(f"Failed to process image {img_src}: {e}")
 
+                            # Append footer content to the text_content
+                            footer = soup.find("footer")  # Look for a <footer> tag
+                            if footer:
+                                for text_element in footer.find_all(string=True):
+                                    # Skip comments and other non-visible elements
+                                    if isinstance(text_element, Comment) or text_element.parent.name in ["script",
+                                                                                                         "style",
+                                                                                                         "meta",
+                                                                                                         "[document]"]:
+                                        continue
+
+                                    clean_text = text_element.strip()
+                                    if clean_text:
+                                        text_content.append(clean_text)
+
                 # Append the result for the current page
                 results.append({
                     "metadata": {"page_number": page_number},
@@ -821,6 +858,6 @@ class FileExtractor:
 
 if __name__ == "__main__":
     customer_guid = "72023cf5-3417-44c7-84fe-4e2f8ff35b2d"
-    filename = "gym_website.html"
+    filename = "charts.html"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
