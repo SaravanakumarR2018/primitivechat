@@ -24,6 +24,7 @@ class TestCustomFieldAPI(unittest.TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create customer")
         self.valid_customer_guid = response.json().get("customer_guid")
         logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
+        logger.info(f"Starting test: {self._testMethodName}")
 
     def test_add_valid_custom_field(self):
         """Test adding a valid custom field."""
@@ -287,6 +288,7 @@ class TestCustomFieldAPI(unittest.TestCase):
 
     def tearDown(self):
         """Clean up resources if necessary."""
+        logger.info(f"Finished test: {self._testMethodName}")
         logger.info("=== Test teardown complete ===")
 
 if __name__ == "__main__":
