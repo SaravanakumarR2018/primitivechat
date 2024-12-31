@@ -2,6 +2,7 @@ import unittest
 from http import HTTPStatus
 import requests
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -29,8 +30,8 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         logger.info("Setup complete.")
         logger.info(f"Starting test: {self._testMethodName}")
 
-    def list_custom_fields(self):
-        """Reusable function to list all custom fields."""
+    def list_custom_fields(self, expected_fields=None):
+        """Reusable function to list all custom fields and optionally validate them."""
         logger.info("Listing all custom fields.")
         url = f"{self.BASE_URL}/custom_fields?customer_guid={self.valid_customer_guid}"
         response = requests.get(url)
@@ -40,7 +41,19 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
             return []  # Return an empty list if no custom fields are found
         else:
             self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to list custom fields")
-            return response.json()
+            custom_fields = response.json()
+
+            if expected_fields:
+                logger.info("Validating listed custom fields against expected fields.")
+                for field in expected_fields:
+                    matching_field = next((f for f in custom_fields if f['field_name'] == field['field_name']), None)
+                    self.assertIsNotNone(matching_field, f"Expected field {field['field_name']} not found")
+                    self.assertEqual(
+                        matching_field['field_type'], field['field_type'],
+                        f"Field type mismatch for {field['field_name']}. Expected {field['field_type']}, got {matching_field['field_type']}"
+                    )
+
+            return custom_fields
 
     def test_add_and_delete_all_custom_fields(self):
         """Test adding all allowed custom fields, deleting them one by one, and verifying the results."""

@@ -2,6 +2,7 @@ import unittest
 from http import HTTPStatus
 import requests
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
