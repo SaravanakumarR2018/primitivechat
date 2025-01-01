@@ -13,7 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TestCreateTicketAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('TICKET_SERVICE_PORT', 8000)}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
