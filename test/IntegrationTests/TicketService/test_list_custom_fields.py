@@ -63,7 +63,7 @@ class TestListCustomFieldsAPI(unittest.TestCase):
             {"field_name": "varchar_field", "field_type": "VARCHAR(255)", "required": True},
             {"field_name": "integer_field", "field_type": "INT", "required": False},
             {"field_name": "boolean_field", "field_type": "BOOLEAN", "required": True},
-            {"field_name": "date_field", "field_type": "DATE", "required": False},
+            {"field_name": "date_field", "field_type": "DATETIME", "required": False},
             {"field_name": "text_field", "field_type": "TEXT", "required": True},
             {"field_name": "medium_text_field", "field_type": "MEDIUMTEXT", "required": True},
             {"field_name": "float_field", "field_type": "FLOAT", "required": False}  # Added one more field for testing
