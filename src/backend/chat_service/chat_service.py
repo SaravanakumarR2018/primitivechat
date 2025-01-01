@@ -40,6 +40,33 @@ class DeleteChatsRequest(BaseModel):
     chat_id: str
 
 
+class ChangeLogLevelRequest(BaseModel):
+    log_level: str
+
+# API endpoint to change log levels
+@app.post("/changeloglevel", tags=["Logging Management"])
+async def change_log_level(request: Request, change_log_level_request: ChangeLogLevelRequest):
+    logger.debug(f"Entering change_log_level() with Correlation ID: {request.state.correlation_id}")
+
+    log_level = change_log_level_request.log_level.upper()
+    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+        logger.error(f"Invalid log level: {log_level}")
+        raise HTTPException(status_code=400, detail="Invalid log level provided")
+
+    # Call the Database, Minio & weaviate Manager method to set the log level
+    try:
+        db_manager.set_log_level(log_level)
+        minio_manager.set_log_level(log_level)
+        weaviate_manager.set_log_level(log_level)
+    except ValueError as e:
+        logger.error(f"Failed to set log level: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info(f"Log level changed to {log_level}")
+
+    logger.debug(f"Exiting change_log_level() with Correlation ID: {request.state.correlation_id}")
+    return {"message": f"Log level changed to {log_level}"}
+
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
 async def add_customer(request: Request):
