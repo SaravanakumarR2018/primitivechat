@@ -21,7 +21,7 @@ class SenderType(Enum):
 class DatabaseManager:
     _session_factory = None
 
-    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT", "FLOAT", "TEXT"]
+    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def __init__(self):
         logger.debug("Initializing DatabaseManager")
@@ -563,54 +563,117 @@ class DatabaseManager:
 
 
     # Tickets related function
+    def validate_custom_field_values(self, custom_fields, field_definitions):
+        for field_name, value in custom_fields.items():
+            field_type = field_definitions.get(field_name)
+            logger.debug(f"Field: {field_name}, Type: {field_type}, Value: {value}")
+
+            if not field_type:
+                raise ValueError(f"Unknown custom field: {field_name}")
+
+            # Decode field_type if it's a bytes object
+            if isinstance(field_type, bytes):
+                field_type = field_type.decode("utf-8").upper()
+
+            try:
+                # Integer validation
+                if field_type.startswith("INT"):
+                    if isinstance(value, str) and value.isdigit():
+                        value = int(value)  # Convert numeric strings to integers
+                    elif not isinstance(value, int):
+                        raise ValueError(f"Invalid integer value for field '{field_name}': {value}")
+
+                # Boolean validation (TINYINT(1))
+                elif field_type == "TINYINT(1)" or field_type.startswith("BOOLEAN"):
+                    if isinstance(value, str):
+                        # Accept valid string representations
+                        if value.lower() in ("true", "false", "1", "0"):
+                            # Convert "true" to 1 and "false" to 0
+                            value = int(value.lower() in ("true", "1"))
+                        else:
+                            raise ValueError(f"Invalid boolean value for field '{field_name}': {value}")
+                    elif isinstance(value, int):
+                        # Ensure only 0 or 1 are accepted
+                        if value not in (0, 1):
+                            raise ValueError(f"Invalid boolean value for field '{field_name}': {value}")
+                    else:
+                        raise ValueError(f"Field '{field_name}' must be a boolean (0, 1, true, false).")
+
+                # Float validation
+                elif field_type.startswith("FLOAT"):
+                    try:
+                        value = float(value)  # Attempt to convert to float
+                    except (ValueError, TypeError):
+                        raise ValueError(f"Invalid float value for field '{field_name}': {value}")
+
+                # DateTime validation
+                elif field_type.startswith("DATETIME"):
+                    from datetime import datetime
+                    if isinstance(value, str):
+                        try:
+                            datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            raise ValueError(
+                                f"Invalid datetime value for field '{field_name}': {value}. "
+                                "Expected format: YYYY-MM-DD HH:MM:SS"
+                            )
+                    else:
+                        raise ValueError(f"Field '{field_name}' must be a string in datetime format.")
+
+                # VARCHAR, TEXT, MEDIUMTEXT can store any string
+                elif field_type.startswith("VARCHAR") or field_type.startswith("TEXT") or field_type.startswith(
+                        "MEDIUMTEXT"):
+                    if not isinstance(value, str):
+                        raise ValueError(f"Field '{field_name}' must be a string.")
+
+                # Unsupported field type
+                else:
+                    raise ValueError(f"Unsupported field type for field '{field_name}': {field_type}")
+
+            except ValueError as e:
+                raise ValueError(f"Validation failed for field '{field_name}': {value}. {str(e)}")
+            except Exception as e:
+                raise ValueError(f"Unexpected error for field '{field_name}': {value}. {str(e)}")
+
     def create_ticket(self, customer_guid, chat_id, title, description, priority, reported_by, assigned, custom_fields):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
-
         try:
-            try:
-                # Check if the database exists
-                logger.debug(f"Checking if database {customer_db_name} exists")
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except OperationalError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                raise e
-
+            # Check if the database exists
+            ALLOWED_PRIORITIES = {"low", "medium", "high"}
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
             if not result:
                 raise ValueError(f"Database {customer_db_name} does not exist")
 
             # Switch to the customer database
-            logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            # Check if the chat_id exists in the chat_messages table
+            # Check if the chat_id exists
             chat_exists = session.execute(
                 text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
                 {"chat_id": chat_id}
             ).fetchone()
-
             if not chat_exists:
                 raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
 
-            # Validate custom fields against the database columns
+            # Fetch valid custom field definitions
+            field_definitions = {}
             if custom_fields:
-                # Fetch the valid column names from the custom_field_values table
                 result = session.execute("SHOW COLUMNS FROM custom_field_values").fetchall()
-                valid_columns = {row[0] for row in result}
-
-                # Check for invalid fields
-                invalid_fields = [field for field in custom_fields.keys() if field not in valid_columns]
-                if invalid_fields:
-                    raise ValueError(f"Invalid custom field(s): {', '.join(invalid_fields)}")
+                field_definitions = {row[0]: row[1] for row in result}
+                logger.debug(f"custom field: {custom_fields}, field_definition: {field_definitions}")
+                self.validate_custom_field_values(custom_fields, field_definitions)
 
             # Begin transaction
             with session.begin_nested():
+                if priority.lower() not in ALLOWED_PRIORITIES:
+                    raise ValueError("Invalid priority. Use [low, medium, high].")
+
                 # Insert into tickets table
                 ticket_uuid = str(uuid.uuid4())
-
                 query = '''INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned, ticket_uuid)
                            VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned, :ticket_uuid)'''
                 session.execute(
@@ -620,67 +683,52 @@ class DatabaseManager:
                         "title": title,
                         "description": description,
                         "priority": priority,
-                        "reported_by":reported_by,
-                        "assigned":assigned,
-                        "ticket_uuid":ticket_uuid
+                        "reported_by": reported_by,
+                        "assigned": assigned,
+                        "ticket_uuid": ticket_uuid
                     },
                 )
-                logger.debug(f"ticket uuid {ticket_uuid}")
+
                 # Fetch the generated ticket_id
                 result = session.execute(
-                    text("""
-                        SELECT ticket_id 
-                        FROM tickets 
-                        WHERE ticket_uuid= :ticket_uuid
-                    """),
+                    text("SELECT ticket_id FROM tickets WHERE ticket_uuid = :ticket_uuid"),
                     {"ticket_uuid": ticket_uuid}
                 ).fetchone()
-
-                if result:
-                    ticket_id = result[0]
-                    logger.debug(f"Created ticket with ID: {ticket_id}")
-                else:
+                if not result:
                     raise Exception("Failed to retrieve the newly created ticket ID.")
 
-                # Insert into custom_field_values if there are valid custom fields
+                ticket_id = result[0]
+
+                # Insert custom field values
                 if custom_fields:
                     columns = ', '.join([f"`{field}`" for field in custom_fields.keys()])
                     placeholders = ', '.join([f":{field}" for field in custom_fields.keys()])
-
                     query_for_insert_custom_fields = f'''
                         INSERT INTO custom_field_values (ticket_id, {columns}) 
                         VALUES (:ticket_id, {placeholders})
                     '''
                     params = {"ticket_id": ticket_id}
                     params.update(custom_fields)
-
-                    logger.debug(f"Inserting custom fields: {custom_fields}")
                     session.execute(text(query_for_insert_custom_fields), params)
 
             session.commit()
-            logger.debug(f"Ticket ID {ticket_id} created successfully with custom fields")
-
+            logger.debug(f"Ticket ID {ticket_id} created successfully")
             return {"ticket_id": ticket_id, "status": "created"}
 
         except ValueError as e:
             logger.error(f"Validation error: {e}")
             session.rollback()
-            raise e  # Propagate the ValueError to the calling function
+            raise ValueError(str(e))
 
         except SQLAlchemyError as e:
-            logger.error(f"Database error creating ticket for customer {customer_guid}: {e}")
+            logger.error(f"Database error: {e}")
             session.rollback()
-            raise e  # Propagate the SQLAlchemyError to the calling function
-        except OperationalError as e:
-            logger.error(f"Database connectivity issue: {e}")
-            raise e
-        except DatabaseError as e:
-            logger.error(f"Database connectivity issue: {e}")
-            raise e
+            raise ValueError("Database error occurred")
+
         except Exception as e:
-            logger.error(f"Unexpected error while creating ticket: {e}")
+            logger.error(f"Unexpected error: {e}")
             session.rollback()
-            raise e  # Propagate the general exception to the calling function
+            raise ValueError("An unexpected error occurred")
 
         finally:
             session.close()
@@ -735,10 +783,10 @@ class DatabaseManager:
                 text(custom_field_query),
                 {"ticket_id": ticket_id},
             ).fetchone()
-
+            logger.debug(f"custom_field_results: {str(custom_field_result)}")
             if custom_field_result:
                 ticket_data["custom_fields"] = {
-                    column: value
+                    column: str(value)
                     for column, value in zip(custom_field_result.keys(), custom_field_result)
                     if column != "ticket_id" and value is not None
                 }
