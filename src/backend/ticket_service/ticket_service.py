@@ -60,7 +60,7 @@ class TicketRequest(BaseModel):
     priority: str
     reported_by: str
     assigned: str
-    custom_fields: Optional[Dict[str, str]] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
 class TicketResponse(BaseModel):
     ticket_id: str
