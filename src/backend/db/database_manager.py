@@ -625,6 +625,8 @@ class DatabaseManager:
                         "MEDIUMTEXT"):
                     if not isinstance(value, str):
                         raise ValueError(f"Field '{field_name}' must be a string.")
+                    elif len(value)==0 and isinstance(value, str):
+                        raise ValueError(f"{field_name} should not be empty")
 
                 # Unsupported field type
                 else:
@@ -638,9 +640,11 @@ class DatabaseManager:
     def create_ticket(self, customer_guid, chat_id, title, description, priority, reported_by, assigned, custom_fields):
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
+
         try:
-            # Check if the database exists
             ALLOWED_PRIORITIES = {"low", "medium", "high"}
+
+            # Check if database exists
             result = session.execute(
                 text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
                 {"db_name": customer_db_name}
@@ -648,10 +652,10 @@ class DatabaseManager:
             if not result:
                 raise ValueError(f"Database {customer_db_name} does not exist")
 
-            # Switch to the customer database
+            # Switch to the customer's database
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            # Check if the chat_id exists
+            # Check chat_id validity
             chat_exists = session.execute(
                 text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
                 {"chat_id": chat_id}
@@ -659,12 +663,25 @@ class DatabaseManager:
             if not chat_exists:
                 raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
 
-            # Fetch valid custom field definitions
+            # Fetch custom field definitions
             field_definitions = {}
+            required_fields = {}
+            fields_result = session.execute(
+                text("SELECT field_name, field_type, required FROM custom_fields")
+            ).fetchall()
+            field_definitions = {row[0]: row[1] for row in fields_result}
+            required_fields = {row[0]: row[2] for row in fields_result}
+            logger.debug(f"Field definitions: {field_definitions}")
+            logger.debug(f"Required fields: {required_fields}")
+
+            # Check if required custom fields are missing
+            missing_required = [field for field, is_required in required_fields.items()
+                                if is_required and (not custom_fields or field not in custom_fields)]
+            if missing_required:
+                raise ValueError(f"Missing required custom fields: {', '.join(missing_required)}")
+
+            # Validate custom field values if any are provided
             if custom_fields:
-                result = session.execute("SHOW COLUMNS FROM custom_field_values").fetchall()
-                field_definitions = {row[0]: row[1] for row in result}
-                logger.debug(f"custom field: {custom_fields}, field_definition: {field_definitions}")
                 self.validate_custom_field_values(custom_fields, field_definitions)
 
             # Begin transaction
@@ -672,10 +689,12 @@ class DatabaseManager:
                 if priority.lower() not in ALLOWED_PRIORITIES:
                     raise ValueError("Invalid priority. Use [low, medium, high].")
 
-                # Insert into tickets table
+                # Insert ticket data
                 ticket_uuid = str(uuid.uuid4())
-                query = '''INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned, ticket_uuid)
-                           VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned, :ticket_uuid)'''
+                query = '''
+                    INSERT INTO tickets (chat_id, title, description, priority, reported_by, assigned, ticket_uuid)
+                    VALUES (:chat_id, :title, :description, :priority, :reported_by, :assigned, :ticket_uuid)
+                '''
                 session.execute(
                     text(query),
                     {
@@ -689,7 +708,7 @@ class DatabaseManager:
                     },
                 )
 
-                # Fetch the generated ticket_id
+                # Fetch ticket_id
                 result = session.execute(
                     text("SELECT ticket_id FROM tickets WHERE ticket_uuid = :ticket_uuid"),
                     {"ticket_uuid": ticket_uuid}
@@ -707,8 +726,7 @@ class DatabaseManager:
                         INSERT INTO custom_field_values (ticket_id, {columns}) 
                         VALUES (:ticket_id, {placeholders})
                     '''
-                    params = {"ticket_id": ticket_id}
-                    params.update(custom_fields)
+                    params = {"ticket_id": ticket_id, **custom_fields}
                     session.execute(text(query_for_insert_custom_fields), params)
 
             session.commit()
@@ -718,7 +736,7 @@ class DatabaseManager:
         except ValueError as e:
             logger.error(f"Validation error: {e}")
             session.rollback()
-            raise ValueError(str(e))
+            raise
 
         except SQLAlchemyError as e:
             logger.error(f"Database error: {e}")
