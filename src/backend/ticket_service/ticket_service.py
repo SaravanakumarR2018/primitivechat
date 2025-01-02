@@ -232,7 +232,6 @@ async def create_ticket(ticket: TicketRequest):
     """Create a new ticket"""
     try:
         logger.debug(f"Received ticket data: {ticket}")
-
         # Call the database method to create the ticket
         db_response = db_manager.create_ticket(
             ticket.customer_guid,
