@@ -53,8 +53,9 @@ class TestCreateTicketAPI(unittest.TestCase):
             self.custom_fields[field_name] = field_type
 
         logger.info(f"Test setup complete: customer_guid={self.valid_customer_guid}, chat_id={self.valid_chat_id}")
+        logger.info(f"=== Test Case {self._testMethodName} Started ===")
 
-    def test_create_ticket_with_out_valid_custom_fields(self):
+    def test_create_ticket_with_out_custom_fields(self):
         """Test creating a ticket with valid custom field values."""
         url = f"{self.BASE_URL}/tickets"
         payload = {
@@ -110,8 +111,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         invalid_custom_fields = {
             "field_int": "1.0",  # Invalid: INT should not accept string, float, string of int, string of float
             "field_float": "string",  # Invalid: FLOAT should not accept string
-            "field_boolean": "string_value",
-            # Invalid: BOOLEAN should not accept strings or string of boolean ("true", "false") except "0" or "1"
+            "field_boolean": "string_value", # Invalid: BOOLEAN should not accept strings or string of boolean ("true", "false") except "0" or "1"
             "field_datetime": "31-12-2023",  # Invalid: incorrect format and without timestamp
             "field_varchar": 123,  # Invalid: VARCHAR should not accept non-string
             "field_text": False,  # Invalid: TEXT should not accept boolean
@@ -146,26 +146,6 @@ class TestCreateTicketAPI(unittest.TestCase):
 
         logger.info("Negative test case for individual invalid custom fields passed.")
 
-    def test_create_ticket_missing_required_fields(self):
-        """Test creating a ticket with missing required fields."""
-        url = f"{self.BASE_URL}/tickets"
-        payload = {
-            "customer_guid": self.valid_customer_guid,
-            "chat_id": self.valid_chat_id,
-            # Missing title and description
-            "priority": "medium",
-            "reported_by": "user@example.com",
-            "assigned": "agent@example.com"
-        }
-
-        logger.info("Testing ticket creation with missing required fields.")
-        response = requests.post(url, json=payload)
-
-        self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY, "Missing required fields should return 422.")
-        self.assertIn("title", response.text)
-        self.assertIn("description", response.text)
-        logger.info("Negative test case for missing required fields passed.")
-
     def test_create_ticket_invalid_priority(self):
         """Test creating a ticket with an invalid priority."""
         url = f"{self.BASE_URL}/tickets"
@@ -185,6 +165,129 @@ class TestCreateTicketAPI(unittest.TestCase):
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid priority should return 400.")
         self.assertIn("Invalid priority", response.text)
         logger.info("Negative test case for invalid priority passed.")
+
+    def test_create_ticket_with_missing_required_custom_fields(self):
+        """Test creating a ticket with each required custom field missing its value."""
+        url = f"{self.BASE_URL}/tickets"
+        custom_fields_url = f"{self.BASE_URL}/custom_fields"
+
+        # Iterate over all allowed custom field types and create each with 'required' set to True
+        for field_type in self.allowed_custom_field_sql_types:
+            field_name = f"required_field_{field_type.split('(')[0].lower()}"
+            payload = {
+                "customer_guid": self.valid_customer_guid,
+                "field_name": field_name,
+                "field_type": field_type,
+                "required": True
+            }
+            response = requests.post(custom_fields_url, json=payload)
+            self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
+            logger.info(f"Created custom field {field_name} with required:true")
+
+            # Now test ticket creation with the custom field missing
+            logger.info(f"Testing ticket creation with missing required custom field {field_name}")
+
+            ticket_payload = {
+                "customer_guid": self.valid_customer_guid,
+                "chat_id": self.valid_chat_id,
+                "title": f"Ticket without {field_name}",
+                "description": f"This ticket does not include the required custom field '{field_name}'.",
+                "priority": "medium",
+                "reported_by": "user@example.com",
+                "assigned": "agent@example.com"
+            }
+
+            response = requests.post(url, json=ticket_payload)
+
+            # Assert that the response returns 400 Bad Request due to missing required custom field
+            self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
+                             f"Missing required custom field {field_name} should return 400.")
+
+            # Assert that the error message indicates the missing custom field
+            response_data = response.json()
+            self.assertIn("Missing required custom fields", response_data.get("detail", ""))
+            self.assertIn(field_name, response_data["detail"],
+                          f"Error message should include the missing custom field '{field_name}'.")
+
+            logger.info(f"Test case for missing required custom field {field_name} passed.")
+
+        logger.info("Test case for all missing required custom fields passed.")
+
+    def test_create_ticket_with_non_existent_custom_field(self):
+        """Test creating a ticket with a custom field that does not exist."""
+        url = f"{self.BASE_URL}/tickets"
+        non_existent_field = "random_field"  # Custom field name that does not exist
+
+        payload = {
+            "customer_guid": self.valid_customer_guid,
+            "chat_id": self.valid_chat_id,
+            "title": "Ticket with Non-Existent Custom Field",
+            "description": "This ticket has a custom field that does not exist.",
+            "priority": "medium",
+            "reported_by": "user@example.com",
+            "assigned": "agent@example.com",
+            "custom_fields": {
+                non_existent_field: "Some value"  # Custom field does not exist
+            }
+        }
+
+        logger.info(f"Testing ticket creation with non-existent custom field: {non_existent_field}")
+        response = requests.post(url, json=payload)
+
+        # Assert that the response returns 400 Bad Request or 404 Not Found
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
+                         f"Creating ticket with non-existent custom field should return 400.")
+
+        # Assert that the error message contains the invalid field name
+        response_data = response.json()
+        self.assertIn("Unknown custom field", response_data.get("detail", ""),
+                      f"Error message should indicate that the custom field '{non_existent_field}' is unknown.")
+
+        logger.info(f"Test case for non-existent custom field '{non_existent_field}' passed.")
+
+    def test_create_ticket_missing_mandatory_fields(self):
+        """Test creating a ticket with each mandatory field missing individually."""
+        url = f"{self.BASE_URL}/tickets"
+        mandatory_fields = ["title", "description", "customer_guid", "chat_id", "reported_by", "assigned"]
+
+        # Base payload with all fields
+        base_payload = {
+            "title": "Missing Mandatory Field Test",
+            "description": "Testing missing mandatory fields.",
+            "customer_guid": self.valid_customer_guid,
+            "chat_id": self.valid_chat_id,
+            "priority": "medium",
+            "reported_by": "user@example.com",
+            "assigned": "agent@example.com"
+        }
+
+        for field in mandatory_fields:
+            with self.subTest(missing_field=field):
+                # Create a payload without the current field
+                payload = base_payload.copy()
+                payload.pop(field)
+
+                logger.info(f"Testing missing mandatory field: {field}")
+                response = requests.post(url, json=payload)
+
+                # Assert that the API returns 422 Unprocessable Entity
+                self.assertEqual(
+                    response.status_code,
+                    HTTPStatus.UNPROCESSABLE_ENTITY,
+                    f"Missing mandatory field '{field}' should return 422."
+                )
+
+                # Assert the error message contains the missing field in the `loc` field
+                response_data = response.json()
+                missing_field_in_detail = any(
+                    field in error.get("loc", []) for error in response_data.get("detail", [])
+                )
+                self.assertTrue(
+                    missing_field_in_detail,
+                    f"Error for missing field '{field}' should be in response detail."
+                )
+
+        logger.info("Test case for missing mandatory fields passed.")
 
     def tearDown(self):
         """Clean up after tests."""
