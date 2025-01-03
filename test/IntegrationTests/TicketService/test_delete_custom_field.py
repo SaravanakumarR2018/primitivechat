@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class TestDeleteCustomFieldAPI(unittest.TestCase):
     BASE_URL = "http://localhost:8000"
 
-    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATE", "MEDIUMTEXT", "FLOAT", "TEXT"]
+    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def setUp(self):
         """Setup function to initialize valid customer GUID and custom fields."""

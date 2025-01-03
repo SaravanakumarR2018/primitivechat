@@ -146,7 +146,7 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Expected error response
         expected_message = {
-            "detail": f"Unsupported field type: {invalid_field_type}. Allowed types are: VARCHAR(255), INT, BOOLEAN, DATE, MEDIUMTEXT, FLOAT, TEXT"
+            "detail": f"Unsupported field type: {invalid_field_type}. Allowed types are: VARCHAR(255), INT, BOOLEAN, DATETIME, MEDIUMTEXT, FLOAT, TEXT"
         }
 
         # Convert the response to JSON for comparison
@@ -197,7 +197,7 @@ class TestCustomFieldAPI(unittest.TestCase):
         self._test_add_custom_field("BOOLEAN")
 
     def test_add_custom_field_date(self):
-        self._test_add_custom_field("DATE")
+        self._test_add_custom_field("DATETIME")
 
     def test_add_custom_field_mediumtext(self):
         self._test_add_custom_field("MEDIUMTEXT")
