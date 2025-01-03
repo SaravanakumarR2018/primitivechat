@@ -289,6 +289,94 @@ class TestCreateTicketAPI(unittest.TestCase):
 
         logger.info("Test case for missing mandatory fields passed.")
 
+    def test_create_ticket_invalid_customer_guid(self):
+        """Test creating a ticket with an invalid customer_guid."""
+        url = f"{self.BASE_URL}/tickets"
+
+        # Invalid customer_guid
+        invalid_customer_guid = "invalid_customer_guid_1234"
+        payload = {
+            "title": "Invalid Customer GUID Test",
+            "description": "Testing invalid customer_guid.",
+            "customer_guid": invalid_customer_guid,
+            "chat_id": self.valid_chat_id,
+            "priority": "medium",
+            "reported_by": "user@example.com",
+            "assigned": "agent@example.com"
+        }
+
+        logger.info("Testing with invalid customer_guid.")
+        response = requests.post(url, json=payload)
+
+        # Assert that the API returns 400 Bad Request
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.BAD_REQUEST,
+            "Invalid customer_guid should return 400 Bad Request."
+        )
+
+        # Parse the response data
+        response_data = response.json()
+
+        # Assert the error message contains the expected invalid customer_guid
+        self.assertIn(
+            "detail",
+            response_data,
+            "Response should contain 'detail' key."
+        )
+        expected_message = f"Database customer_{invalid_customer_guid} does not exist"
+        self.assertEqual(
+            response_data["detail"],
+            expected_message,
+            f"Error message for invalid customer_guid is incorrect. Expected '{expected_message}', got '{response_data['detail']}'."
+        )
+
+        logger.info("Test case for invalid customer_guid with 400 Bad Request passed.")
+
+    def test_create_ticket_invalid_chat_id(self):
+        """Test creating a ticket with an invalid chat_id."""
+        url = f"{self.BASE_URL}/tickets"
+
+        # Invalid chat_id
+        invalid_chat_id = "dd8347f7-846d-4e64-8dca-928c747e6881"
+        payload = {
+            "title": "Invalid Chat ID Test",
+            "description": "Testing invalid chat_id.",
+            "customer_guid": self.valid_customer_guid,
+            "chat_id": invalid_chat_id,
+            "priority": "high",
+            "reported_by": "user@example.com",
+            "assigned": "agent@example.com"
+        }
+
+        logger.info("Testing with invalid chat_id.")
+        response = requests.post(url, json=payload)
+
+        # Assert that the API returns 400 Bad Request
+        self.assertEqual(
+            response.status_code,
+            HTTPStatus.BAD_REQUEST,
+            "Invalid chat_id should return 400 Bad Request."
+        )
+
+        # Parse the response data
+        response_data = response.json()
+
+        # Assert the error message contains the expected invalid chat_id
+        self.assertIn(
+            "detail",
+            response_data,
+            "Response should contain 'detail' key."
+        )
+        expected_message = f"Invalid chat_id: {invalid_chat_id} does not exist."
+        self.assertEqual(
+            response_data["detail"],
+            expected_message,
+            f"Error message for invalid chat_id is incorrect. Expected '{expected_message}', got '{response_data['detail']}'."
+        )
+
+        logger.info("Test case for invalid chat_id with 400 Bad Request passed.")
+
     def tearDown(self):
         """Clean up after tests."""
         logger.info(f"=== Test {self._testMethodName} completed and passed ===")
