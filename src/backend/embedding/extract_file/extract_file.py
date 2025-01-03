@@ -18,6 +18,11 @@ from openpyxl.chart import (
     BarChart, PieChart, LineChart, AreaChart, RadarChart, ScatterChart, BubbleChart, DoughnutChart, StockChart,
     SurfaceChart
 )
+from bs4 import BeautifulSoup
+import requests
+from bs4.element import Comment
+from io import BytesIO
+import re
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -29,6 +34,7 @@ class FileType(Enum):
     DOCX = ".docx"
     PPTX = ".pptx"
     XLSX = ".xlsx"
+    HTML = ".html"
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -89,7 +95,9 @@ class UploadFileForChunks:
             elif file_type==FileType.PPTX:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
             elif file_type == FileType.XLSX:
-                logger.info(f"Verified file '{filename}' as a valid XLSX.")    
+                logger.info(f"Verified file '{filename}' as a valid XLSX.")
+            elif file_type == FileType.HTML:
+                logger.info(f"Verified file '{filename}' as a valid HTML")
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
@@ -114,10 +122,43 @@ class UploadFileForChunks:
             elif file_type == FileType.XLSX:
                 output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "XLSX extracted and uploaded successfully."}     
+                return {"message": "XLSX extracted and uploaded successfully."}
+            elif file_type == FileType.HTML:
+                output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "HTML extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
+
+    def extract_html_files(self, customer_guid: str, source_url_link: str, filename: str):
+
+        try:
+
+            logger.info(f"Fetching HTML content from URL: {source_url_link}")
+            response = requests.get(source_url_link)
+            response.raise_for_status()
+            html_content = response.text
+
+            local_path = f"/tmp/{customer_guid}/{filename}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "w", encoding="utf-8") as html_file:
+                html_file.write(html_content)
+
+            logger.info(f"HTML content from '{source_url_link}' saved to '{local_path}'")
+
+            output_file_path=self.file_extract.extract_html_content(customer_guid, local_path, filename)
+            logger.info(f"HTML content from URL '{source_url_link}' extracted successfully.")
+
+            self.upload_extracted_content(customer_guid, filename, output_file_path)
+            return {"message": "HTML extracted and uploaded successfully."}
+
+        except requests.exceptions.RequestException as req_err:
+            logger.error(f"Failed to fetch HTML content from URL '{source_url_link}': {req_err}")
+            raise Exception(f"Failed to fetch HTML content: {req_err}")
+        except Exception as e:
+            logger.error(f"Error processing HTML file from URL '{source_url_link}': {e}")
+            raise Exception(f"HTML file processing failed: {e}")
 
 class FileExtractor:
 
@@ -126,7 +167,9 @@ class FileExtractor:
             "application/pdf": FileType.PDF,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileType.DOCX,
             "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX,
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileType.XLSX
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileType.XLSX,
+            "text/html": FileType.HTML,
+            "application/xhtml+xml": FileType.HTML
         }
         try:
             mime = magic.Magic(mime=True)
@@ -650,11 +693,171 @@ class FileExtractor:
         elif isinstance(obj, openpyxl.chart.text.RichText):
             return self.extract_text_from_richtext_object(obj)
         else:
-            return str(obj)         
+            return str(obj)
+
+    def extract_html_content(self, customer_guid: str, source: str, filename: str):
+        try:
+            results = []
+
+            # Read the HTML file from the local file system
+            logger.debug(f"Reading local HTML file from: {source}")
+            with open(source, "r", encoding="utf-8") as html_file:
+                html_content = html_file.read()
+
+            # Parse the HTML content
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            # Identify pages or fallback to treat the entire HTML as one page
+            pages = soup.find_all("div", class_="page")
+            if not pages:
+                pages = [soup]
+
+            page_number = 0
+            for page in pages:
+                page_number += 1
+                logger.debug(f"Processing page {page_number}")
+                text_content = []
+
+                for text_element in page.find_all(string=True):
+                    if isinstance(text_element, Comment) or text_element.parent.name in ["script", "style", "meta",
+                                                                                         "[document]"]:
+                        continue
+
+                    clean_text = text_element.strip()
+                    text_content.append(clean_text)
+
+                # Extract tables from the current page
+                tables = page.find_all("table")
+                if tables:
+                    logger.debug(f"Found {len(tables)} tables on page {page_number}")
+                    for table in tables:
+                        headers = []
+                        rows = []
+
+                        # Extract table headers
+                        header_row = table.find("tr")
+                        if header_row:
+                            headers = [header.get_text(strip=True) for header in header_row.find_all("th")]
+
+                        # Extract table rows
+                        for row in table.find_all("tr")[1:]:  # Skip the header row
+                            row_data = [cell.get_text(strip=True) for cell in row.find_all("td")]
+                            if row_data:
+                                rows.append(row_data)
+
+                        # Format the table as text
+                        if headers or rows:
+                            formatted_table = self.format_table_as_text([headers] + rows)
+                            text_content.append(formatted_table)
+
+                # Extract charts and their data from script tags
+                scripts = page.find_all("script")
+                for script in scripts:
+                    script_content = script.string
+                    if script_content and "new Chart" in script_content:
+                        # Regex to find chart data from script
+                        chart_labels = re.findall(r"labels:\s*\[(.*?)\]", script_content)
+                        chart_values = re.findall(r"data:\s*\[(.*?)\]", script_content)
+
+                        for chart_label, chart_value in zip(chart_labels, chart_values):
+                            labels = [label.strip().replace("'", "") for label in chart_label.split(",")]
+                            data = [int(x.strip()) for x in chart_value.split(",")]
+
+                            # Format the chart data as plain text
+                            formatted_chart = self.format_chart_as_table(labels, data)
+                            text_content.append(formatted_chart)
+                            logger.debug(f"Chart found with labels: {labels}")
+                            logger.debug(f"Chart data: {data}")
+
+                # Extract images and perform OCR
+                images = page.find_all("img")
+                for img in images:
+                    img_src = img.get("src")
+                    if img_src:
+                        try:
+                            # Resolve the image path (local or remote)
+                            image_path = os.path.join(os.path.dirname(source), img_src) if not img_src.startswith(
+                                "http") else img_src
+                            image_data = None
+
+                            if img_src.startswith("http"):
+                                response = requests.get(image_path)
+                                response.raise_for_status()
+                                image_data = Image.open(BytesIO(response.content))
+                            else:
+                                if os.path.exists(image_path):
+                                    image_data = Image.open(image_path)
+                                else:
+                                    logger.error(f"Image file not found: {image_path}")
+                                    continue
+
+                            # OCR to extract text from image
+                            ocr_text = pytesseract.image_to_string(image_data).strip()
+                            if ocr_text:
+                                text_content.append(ocr_text)
+                        except Exception as e:
+                            logger.error(f"Failed to process image {img_src}: {e}")
+
+                            # Append footer content to the text_content
+                            footer = soup.find("footer")  # Look for a <footer> tag
+                            if footer:
+                                for text_element in footer.find_all(string=True):
+                                    # Skip comments and other non-visible elements
+                                    if isinstance(text_element, Comment) or text_element.parent.name in ["script",
+                                                                                                         "style",
+                                                                                                         "meta",
+                                                                                                         "[document]"]:
+                                        continue
+
+                                    clean_text = text_element.strip()
+                                    if clean_text:
+                                        text_content.append(clean_text)
+
+                # Append the result for the current page
+                results.append({
+                    "metadata": {"page_number": page_number},
+                    "text": " ".join(text_content)
+                })
+
+            # Save extracted content
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted HTML content saved to '{output_file_path}'")
+            return output_file_path
+
+        except Exception as e:
+            logger.error(f"Error extracting content from HTML file '{filename}': {e}")
+            raise Exception(f"HTML content extraction failed: {e}")
+
+    def format_chart_as_table(self, labels, data):
+        try:
+            if not labels or not data:
+                logger.error("Empty or invalid chart data received for formatting.")
+                return "Empty chart data"
+
+            # Format chart data into a table-like structure
+            headers = ["Label", "Data"]
+            rows = zip(labels, data)
+
+            result = []
+            for row in rows:
+                formatted_row = ", ".join(
+                    [f"{headers[i]}: {row[i]}" for i in range(len(headers))]
+                )
+                result.append(formatted_row)
+
+            return "\n".join(result).strip()
+
+        except Exception as e:
+            logger.error(f"Error formatting chart data: {e}")
+            raise Exception(f"Chart formatting failed: {e}")
 
 
 if __name__ == "__main__":
-    customer_guid = "5eb7b2a3-83aa-4b97-b7c3-007459ef376a"
-    filename = "charts.xlsx"
+    customer_guid = "72023cf5-3417-44c7-84fe-4e2f8ff35b2d"
+    filename = "charts.html"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
