@@ -60,6 +60,7 @@ class TestGetTicketEndpoint(unittest.TestCase):
             f"{self.BASE_URL}/tickets/{self.valid_ticket_id}",
             params={"customer_guid": self.valid_customer_guid}
         )
+        response_json = response.json()
 
         # Check if the response is as expected
         self.assertEqual(response.status_code, HTTPStatus.OK, "Expected 200 OK for valid ticket.")
@@ -72,6 +73,8 @@ class TestGetTicketEndpoint(unittest.TestCase):
             "status": "open",
             "reported_by": "support_agent_1",
             "assigned": "support_agent_1",
+            "created_at":response_json["created_at"],
+            "updated_at":response_json["updated_at"],
             "custom_fields": {}
         })
 
@@ -176,6 +179,8 @@ class TestGetTicketEndpoint(unittest.TestCase):
             "status": "open",
             "reported_by": "support_agent_1",
             "assigned": "support_agent_1",
+            "created_at": response_json["created_at"],
+            "updated_at": response_json["updated_at"],
             "custom_fields": {
                 "field_varchar": "Some string value",
                 "field_int": 123,
@@ -188,6 +193,57 @@ class TestGetTicketEndpoint(unittest.TestCase):
         }
 
         self.assertEqual(response_json, expected_response)
+
+    def test_ticket_timestamps(self):
+        """Test that created_at and updated_at timestamps are set and updated correctly."""
+        # Create a ticket
+        ticket_url = f"{self.BASE_URL}/tickets"
+        ticket_data = {
+            "customer_guid": self.valid_customer_guid,
+            "chat_id": self.valid_chat_id,
+            "title": "Test Ticket",
+            "description": "This is a test ticket.",
+            "priority": "high",
+            "reported_by": "support_agent_1",
+            "assigned": "support_agent_1"
+        }
+        response = requests.post(ticket_url, json=ticket_data)
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
+        ticket_id = response.json().get("ticket_id")
+
+        # Get the created ticket
+        response = requests.get(f"{self.BASE_URL}/tickets/{ticket_id}",
+                                params={"customer_guid": self.valid_customer_guid})
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the created ticket")
+        ticket_data = response.json()
+        created_at=ticket_data["created_at"]
+        updated_at=ticket_data["updated_at"]
+        self.assertIn("created_at", ticket_data, "created_at timestamp mismatch.")
+        self.assertIn("updated_at", ticket_data, "updated_at timestamp mismatch.")
+
+        import time
+        time.sleep(1)
+
+        # Update the ticket
+        update_url = f"{self.BASE_URL}/tickets/{ticket_id}"
+        update_data = {"description": "Updated description."}
+        requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(f"{self.BASE_URL}/tickets/{ticket_id}",
+                                params={"customer_guid": self.valid_customer_guid})
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket")
+        updated_at_new = response.json().get("updated_at")
+
+        # Validate timestamps after update
+        self.assertEqual(created_at, response.json().get("created_at"), "created_at should not change on update.")
+        self.assertNotEqual(updated_at, updated_at_new, "updated_at should change after an update.")
+
+        # Get the updated ticket
+        response = requests.get(f"{self.BASE_URL}/tickets/{ticket_id}",
+                                params={"customer_guid": self.valid_customer_guid})
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket")
+        ticket_data = response.json()
+        self.assertEqual(ticket_data["created_at"], created_at, "created_at timestamp mismatch after update.")
+        self.assertEqual(ticket_data["updated_at"], updated_at_new, "updated_at timestamp mismatch after update.")
 
     def tearDown(self):
         """Clean up after tests."""
