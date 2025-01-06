@@ -770,7 +770,7 @@ class DatabaseManager:
 
             # Retrieve ticket base details
             ticket_query = '''
-                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, created_at, updated_at
                 FROM tickets
                 WHERE ticket_id = :ticket_id
             '''
@@ -787,8 +787,9 @@ class DatabaseManager:
             ticket_data = {
                 column: value
                 for column, value in zip(ticket_result.keys(), ticket_result)
-                if column in ("ticket_id", "chat_id", "title", "description", "priority", "status", "reported_by", "assigned")
+                if column in ("ticket_id", "chat_id", "title", "description", "priority", "status", "reported_by", "assigned", "updated_at", "created_at")
             }
+            logger.debug(f"ticket_data: {ticket_data}")
             ticket_data["custom_fields"] = {}
 
             # Retrieve custom field values for the ticket
