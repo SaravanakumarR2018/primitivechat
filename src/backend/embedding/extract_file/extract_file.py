@@ -23,7 +23,6 @@ import requests
 from bs4.element import Comment
 from io import BytesIO
 import re
-from urllib.parse import urlparse
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
