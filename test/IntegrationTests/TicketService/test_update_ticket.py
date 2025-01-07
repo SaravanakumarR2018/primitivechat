@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestUpdateTicketEndpoint(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Set up test environment: create customer, chat, and ticket."""
