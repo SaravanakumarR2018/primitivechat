@@ -2,6 +2,7 @@ import unittest
 from http import HTTPStatus
 import requests
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -11,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TestCustomFieldAPI(unittest.TestCase):
-    BASE_URL = "http://localhost:8000"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
     MYSQL_CONTAINER_NAME = "mysql_db"
 
     def setUp(self):

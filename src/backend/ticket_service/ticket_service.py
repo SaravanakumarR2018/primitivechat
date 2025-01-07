@@ -50,7 +50,9 @@ class Ticket(BaseModel):
     status: str
     reported_by: str
     assigned: str
-    custom_fields: Optional[Dict[str, Union[str, None]]] = None
+    created_at:datetime
+    updated_at:datetime
+    custom_fields: Optional[Dict[str, Union[Any, None]]] = None
 
 class TicketRequest(BaseModel):
     customer_guid: str
