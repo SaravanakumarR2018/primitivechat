@@ -96,7 +96,7 @@ class DatabaseManager:
                 title VARCHAR(255) NOT NULL,
                 description TEXT,
                 priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
-                status VARCHAR(50) DEFAULT 'open',
+                status ENUM('Open', 'On Progress', 'Closed') DEFAULT 'Open',
                 reported_by VARCHAR(255),
                 assigned VARCHAR(255),
                 ticket_uuid VARCHAR(255),
