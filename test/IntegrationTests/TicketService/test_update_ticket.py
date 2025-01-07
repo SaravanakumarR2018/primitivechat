@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestUpdateTicketEndpoint(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def setUp(self):
         """Set up test environment: create customer, chat, and ticket."""
@@ -348,6 +348,34 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         expected_error_message = "Incorrect value for column: float_field."
         self.assertEqual(response.json().get("detail"), expected_error_message,
                          "Error message for invalid FLOAT field is incorrect.")
+
+    def test_update_ticket_with_invalid_guid(self):
+        """Test retrieving a ticket by ID with an invalid GUID."""
+        invalid_customer_guid="34e67372-28aa-48e6-8646-54b2578b90a2" #invalid customer_guid
+        response = requests.get(
+            f"{self.BASE_URL}/tickets/{self.valid_ticket_id}",
+            params={"customer_guid": invalid_customer_guid}
+        )
+
+        # Check for 404 error with the appropriate detail message
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 400 NOT FOUND for invalid GUID.")
+        self.assertEqual(response.json(), {
+            "detail": f"Database customer_{invalid_customer_guid} does not exist"
+        })
+
+    def test_update_ticket_not_found(self):
+        """Test attempting to retrieve a ticket that does not exist."""
+        invalid_ticket_id = "nonexistent_ticket_id"
+        response = requests.get(
+            f"{self.BASE_URL}/tickets/{invalid_ticket_id}",
+            params={"customer_guid": self.valid_customer_guid}
+        )
+
+        # Check if the response is as expected for invalid ticket ID
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND, "Expected 404 NOT FOUND for invalid ticket ID.")
+        self.assertEqual(response.json(), {
+            "detail": f"Ticket with ticket_id {invalid_ticket_id} not found for customer {self.valid_customer_guid}"
+        })
 
     def tearDown(self):
         """Clean up after tests."""
