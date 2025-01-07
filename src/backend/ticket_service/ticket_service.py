@@ -345,6 +345,7 @@ async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, customer_gu
             )
         elif update_status["status"] == "conflict":
             original_error = update_status["reason"]
+            logger.info(f"Original_error: {original_error}")
             formatted_error = extract_core_error_details(original_error)
             logger.error(f"Conflict error occurred:\n{formatted_error}")
             raise HTTPException(
@@ -440,7 +441,8 @@ def extract_core_error_details(message):
     patterns = [
         r"Unknown column '(.+?)' in 'field list'",  # Matches "Unknown column" errors
         r"Data truncated for column '(.+?)'",       # Matches "Data truncated" errors
-        r"Incorrect integer value: '(.*?)' for column '(.+?)'",  # Matches "Incorrect integer value" errors
+        r"Incorrect integer value: '(.*?)' for column '(.+?)'",# Matches "Incorrect integer value" errors
+        r"Incorrect datetime value: '(.*?)' for column '(.+?)'",
     ]
 
     for pattern in patterns:
@@ -450,8 +452,18 @@ def extract_core_error_details(message):
             if "Unknown column" in pattern:
                 return f"Unknown custom field column: '{match.group(1)}'."
             elif "Data truncated" in pattern:
-                return f"Value Not allowed for column: '{match.group(1)}'. use [Low, Medium, High]"
+                if match.group(1) == "status":
+                    return (
+                        f"Value Not allowed for column: '{match.group(1)}'. use [Open, On Progress, Closed]"
+                    )
+                elif match.group(1)== "priority":
+                    return (
+                        f"Value Not allowed for column: '{match.group(1)}'. use [Low, Medium, High]"
+                    )
+                return f"Incorrect value for column: {match.group(1)}."
             elif "Incorrect integer value" in pattern:
+                return f"Incorrect value: '{match.group(1)}' for column: '{match.group(2)}'."
+            elif "Incorrect datetime value" in pattern:
                 return f"Incorrect value: '{match.group(1)}' for column: '{match.group(2)}'."
 
     # Default message if no pattern matches
