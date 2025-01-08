@@ -301,23 +301,34 @@ async def get_ticket(ticket_id: str, customer_guid: UUID):
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.get("/tickets", response_model=List[TicketByChatId], tags=["Ticket Management"])
-async def get_tickets_by_chat_id(customer_guid: UUID, chat_id: str):
-    """Retrieve all tickets for a specific chat_id"""
+async def get_tickets_by_chat_id(
+        customer_guid: UUID,
+        chat_id: str,
+        page: int = 1,
+        page_size: int = 10
+):
+    """Retrieve all tickets for a specific chat_id with pagination"""
     try:
-        ticket = db_manager.get_tickets_by_chat_id(str(customer_guid), chat_id)
+        tickets = db_manager.get_paginated_tickets_by_chat_id(str(customer_guid), chat_id, page, page_size)
 
-        if ticket is None:
-            logger.info(f"Ticket with chat_id {chat_id} not found for customer {customer_guid}")
-            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Tickets not found for chat_id {chat_id}")  # Correctly raise 404 error if not found
-        else:
-            return ticket
+        if not tickets:
+            logger.info(f"No tickets found for chat_id {chat_id} and customer {customer_guid}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"No tickets found for chat_id {chat_id}"
+            )
+        return tickets
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     except HTTPException as e:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=f"Tickets not found for chat_id {chat_id}")
+        logger.info(f"No tickets found for chat_id {chat_id} and customer {customer_guid}")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"No tickets found for chat_id {chat_id}"
+        )
     except SQLAlchemyError as e:
-        logger.error(f"Database error while retrieving ticket: {e}")
+        logger.error(f"Database error while retrieving tickets: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error")
     except Exception as e:
         if "Database connectivity issue" in str(e):
