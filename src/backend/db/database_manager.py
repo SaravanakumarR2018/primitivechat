@@ -909,7 +909,7 @@ class DatabaseManager:
             ).fetchone()
 
             if result[0] == 0:
-                return {"status": "not_found", "reason": f"Ticket ID {ticket_id} not found."}
+                return {"status": "not_found", "reason": f"Ticket with ticket_id {ticket_id} not found for customer {customer_guid}"}
 
             # Validate and update ticket fields
             ticket_fields = {
@@ -946,7 +946,7 @@ class DatabaseManager:
                     logger.error(f"Error updating custom fields: {e}")
                     session.rollback()
                     return {
-                        "status": "conflict",
+                        "status": "bad_request",
                         "reason": f"Invalid custom fields provided: {str(e)}"
                     }
 
