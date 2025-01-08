@@ -37,6 +37,7 @@ class FileType(Enum):
     XLSX = ".xlsx"
     HTML = ".html"
     JSON = ".json"
+    IMAGE = (".jpg", ".jpeg", ".png")
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -102,6 +103,8 @@ class UploadFileForChunks:
                 logger.info(f"Verified file '{filename}' as a valid HTML")
             elif file_type == FileType.JSON:
                 logger.info(f"Verified file '{filename}' as a valid JSON")
+            elif file_type == FileType.IMAGE:
+                logger.info(f"Verified file '{filename}' as a valid JPEG or JPG or PNG")
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
@@ -135,6 +138,10 @@ class UploadFileForChunks:
                 output_file_path = self.file_extract.extract_json_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "JSON extracted and uploaded successfully."}
+            elif file_type == FileType.IMAGE:
+                output_file_path = self.file_extract.extract_image_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "JPEG or PNG or JPG extracted and uploaded successfully"}
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
@@ -179,7 +186,10 @@ class FileExtractor:
             "text/html": FileType.HTML,
             "application/xhtml+xml": FileType.HTML,
             "application/json": FileType.JSON,
-            "text/json": FileType.JSON
+            "text/json": FileType.JSON,
+            "image/jpeg": FileType.IMAGE,
+            "image/png": FileType.IMAGE,
+            "image/jpg": FileType.IMAGE
         }
         try:
             mime = magic.Magic(mime=True)
@@ -944,10 +954,38 @@ class FileExtractor:
         format_section(extracted_data)
         return "\n".join(formatted_output)
 
+    def extract_image_content(self, customer_guid: str, image_path: str, filename: str):
+
+        try:
+            logger.info(f"Extracting text from image '{image_path}' for customer '{customer_guid}'")
+            image = Image.open(image_path)
+
+            ocr_text = pytesseract.image_to_string(image)
+
+            results = []
+
+            results.append({
+                "metadata": {"page_number": 1},
+                "text": ocr_text.strip()
+            })
+
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
+            # Save the extracted text to a JSON file
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted content saved to '{output_file_path}'")
+            return output_file_path
+        except Exception as e:
+            logger.error(f"Error extracting text from image '{filename}': {e}")
+            raise Exception(f"Image extraction failed: {e}")
+
 
 
 if __name__ == "__main__":
-    customer_guid = "0ed13e14-326e-43f4-a7a0-39e0903a542f"
-    filename = "SingleJsonFile.json"
+    customer_guid = "b6b8709c-94e6-4213-a15b-9b7e2ded0749"
+    filename = "images_3.jpg"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
