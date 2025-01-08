@@ -821,21 +821,19 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_tickets_by_chat_id(self, customer_guid, chat_id):
+    def get_paginated_tickets_by_chat_id(self, customer_guid, chat_id, page=1, page_size=10):
+        logger.debug("Entering get_paginated_tickets_by_chat_id method")
         customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+
         try:
-            session = DatabaseManager._session_factory()
-            # Add retry logic here for connection
-        except OperationalError as e:
-            logger.error(f"Database connection failed: {e}")
-            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-        try:
-                # Check if the database exists
+            # Check if the database exists
             logger.debug(f"Checking if database {customer_db_name} exists")
             result = session.execute(
                 text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
                 {"db_name": customer_db_name}
             ).fetchone()
+
             if not result:
                 raise ValueError(f"Database {customer_db_name} does not exist")
 
@@ -844,24 +842,39 @@ class DatabaseManager:
 
             # Check if the chat_id exists in the chat_messages table
             chat_exists = session.execute(
-                    text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
-                    {"chat_id": chat_id}
+                text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+                {"chat_id": chat_id}
             ).fetchone()
 
             if not chat_exists:
+                logger.error(f"Invalid chat_id: {chat_id}")
                 raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
 
-            query = '''SELECT ticket_id, chat_id, title, description, priority, status
-                FROM tickets WHERE chat_id = :chat_id'''
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(f"Fetching tickets with pagination: page={page}, page_size={page_size}, offset={offset}")
+
+            query = """
+                SELECT ticket_id, chat_id, title, description, priority, status
+                FROM tickets
+                WHERE chat_id = :chat_id
+                ORDER BY ticket_id ASC
+                LIMIT :page_size OFFSET :offset
+            """
             results = session.execute(
                 text(query),
-                {"chat_id": chat_id},
+                {"chat_id": chat_id, "page_size": page_size, "offset": offset},
             ).fetchall()
-            logger.info(f"get by chat_id {results}")
-            return [
-                {column: value for column, value in zip(row.keys(), row) if column in ("ticket_id", "title", "status")}
+
+            tickets_list = [
+                {"ticket_id": row.ticket_id, "chat_id": row.chat_id, "title": row.title,
+                 "description": row.description, "priority": row.priority, "status": row.status}
                 for row in results
             ]
+
+            logger.info(f"Retrieved {len(tickets_list)} tickets for chat_id: {chat_id}")
+
+            return tickets_list
         except (OperationalError, DatabaseError) as e:
             logger.error(f"Database error: {e}")
             raise Exception("Database connectivity issue")
