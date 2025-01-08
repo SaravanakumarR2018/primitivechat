@@ -96,7 +96,7 @@ class DatabaseManager:
                 title VARCHAR(255) NOT NULL,
                 description TEXT,
                 priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
-                status ENUM('Open', 'On Progress', 'Closed') DEFAULT 'Open',
+                status VARCHAR(50) DEFAULT 'open',
                 reported_by VARCHAR(255),
                 assigned VARCHAR(255),
                 ticket_uuid VARCHAR(255),
@@ -946,7 +946,7 @@ class DatabaseManager:
                     logger.error(f"Error updating custom fields: {e}")
                     session.rollback()
                     return {
-                        "status": "conflict",
+                        "status": "bad_request",
                         "reason": f"Invalid custom fields provided: {str(e)}"
                     }
 
