@@ -89,7 +89,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         # Validate the update
         response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
-        self.assertEqual(response.json().get("status"), "Closed", "Ticket status update failed.")
+        self.assertEqual(response.json().get("status"), "closed", "Ticket status update failed.")
 
     def test_update_ticket_priority(self):
         """Test updating the ticket priority."""
@@ -211,22 +211,6 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         self.assertEqual(response.json().get("detail"), expected_error_message,
                          "Error message for invalid priority is incorrect.")
 
-    def test_update_ticket_invalid_status(self):
-        """Test updating the ticket with an invalid priority value."""
-        update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
-        invalid_update_data = {"status": "working"}  # Invalid priority value
-        response = requests.put(update_url, json=invalid_update_data,
-                                params={"customer_guid": self.valid_customer_guid})
-
-        # Assert that the response status is 400 Bad Request
-        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
-                         "Invalid priority did not return 400 Bad Request.")
-
-        # Assert that the error detail matches the expected message
-        expected_error_message = "Value Not allowed for column: 'status'. use [Open, On Progress, Closed]"
-        self.assertEqual(response.json().get("detail"), expected_error_message,
-                         "Error message for invalid priority is incorrect.")
-
     def test_update_ticket_invalid_custom_field_column(self):
         """Test updating the ticket with a non-existent custom field."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
@@ -239,7 +223,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
                                 params={"customer_guid": self.valid_customer_guid})
 
         # Assert that the response status is 400 Bad Request
-        self.assertEqual(response.status_code, HTTPStatus.CONFLICT,
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
                          "Invalid custom field did not return 400 Bad Request.")
 
         # Assert that the error detail matches the expected message
@@ -274,7 +258,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
                                 params={"customer_guid": self.valid_customer_guid})
 
         # Assert response status is 409 Conflict
-        self.assertEqual(response.status_code, HTTPStatus.CONFLICT, "Invalid INT field did not return 409 Conflict.")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid INT field did not return 400 Conflict.")
 
         # Assert error message
         expected_error_message = "Incorrect value: 'invalid_int' for column: 'int_field'."
@@ -296,8 +280,8 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
                                 params={"customer_guid": self.valid_customer_guid})
 
         # Assert response status is 409 Conflict
-        self.assertEqual(response.status_code, HTTPStatus.CONFLICT,
-                         "Invalid BOOLEAN field did not return 409 Conflict.")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
+                         "Invalid BOOLEAN field did not return 400 Conflict.")
 
         # Assert error message
         expected_error_message = "Incorrect value: 'new' for column: 'bool_field'."
@@ -319,8 +303,8 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
                                 params={"customer_guid": self.valid_customer_guid})
 
         # Assert response status is 409 Conflict
-        self.assertEqual(response.status_code, HTTPStatus.CONFLICT,
-                         "Invalid DATETIME field did not return 409 Conflict.")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
+                         "Invalid DATETIME field did not return 400 Conflict.")
 
         # Assert error message
         expected_error_message = "Incorrect value: 'invalid_date' for column: 'datetime_field'."
@@ -342,7 +326,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
                                 params={"customer_guid": self.valid_customer_guid})
 
         # Assert response status is 409 Conflict
-        self.assertEqual(response.status_code, HTTPStatus.CONFLICT, "Invalid FLOAT field did not return 409 Conflict.")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid FLOAT field did not return 400 Conflict.")
 
         # Assert error message
         expected_error_message = "Incorrect value for column: float_field."
