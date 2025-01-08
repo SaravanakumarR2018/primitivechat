@@ -35,6 +35,7 @@ class FileType(Enum):
     PPTX = ".pptx"
     XLSX = ".xlsx"
     HTML = ".html"
+    JSON = ".json"
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -98,6 +99,8 @@ class UploadFileForChunks:
                 logger.info(f"Verified file '{filename}' as a valid XLSX.")
             elif file_type == FileType.HTML:
                 logger.info(f"Verified file '{filename}' as a valid HTML")
+            elif file_type == FileType.JSON:
+                logger.info(f"Verified file '{filename}' as a valid JSON")
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
@@ -127,6 +130,10 @@ class UploadFileForChunks:
                 output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
                 self.upload_extracted_content(customer_guid, filename, output_file_path)
                 return {"message": "HTML extracted and uploaded successfully."}
+            elif file_type == FileType.JSON:
+                output_file_path = self.file_extract.extract_json_content(customer_guid, local_path, filename)
+                self.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": "JSON extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"File extraction error: {e}")
             raise Exception(f"File extraction failed.{e}")
@@ -169,7 +176,9 @@ class FileExtractor:
             "application/vnd.openxmlformats-officedocument.presentationml.presentation": FileType.PPTX,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": FileType.XLSX,
             "text/html": FileType.HTML,
-            "application/xhtml+xml": FileType.HTML
+            "application/xhtml+xml": FileType.HTML,
+            "application/json": FileType.JSON,
+            "text/json": FileType.JSON
         }
         try:
             mime = magic.Magic(mime=True)
@@ -855,9 +864,89 @@ class FileExtractor:
             logger.error(f"Error formatting chart data: {e}")
             raise Exception(f"Chart formatting failed: {e}")
 
+    def extract_json_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+                extracted_data = self.extract_dynamic_json(data)  # Updated function call
+                structured_data = self.extract_data_from_json(extracted_data)
+                formatted_data = self.format_output(structured_data)
+                if not formatted_data.strip():
+                    return None
+                results.append({
+                    "metadata": {"page_number": 1},
+                    "text": formatted_data
+                })
+            # Save the extracted content to a file
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+            return output_file_path
+        except Exception as e:
+            raise Exception(f"JSON content extraction failed: {e}")
+
+    def extract_dynamic_json(self, data, path=""):
+        extracted_content = []
+        if isinstance(data, dict):
+            for key, value in data.items():
+                full_path = f"{path}.{key}" if path else key
+                if isinstance(value, (dict, list)):
+                    extracted_content.extend(self.extract_dynamic_json(value, full_path))
+                else:
+                    extracted_content.append(f"{full_path}: {value}")
+        elif isinstance(data, list):
+            if not data:
+                print(f"Warning: Empty list at {path}")
+            for idx, item in enumerate(data):
+                full_path = f"{path}[{idx}]"
+                if isinstance(item, (dict, list)):
+                    extracted_content.extend(self.extract_dynamic_json(item, full_path))
+                else:
+                    extracted_content.append(f"{full_path}: {item}")
+        return extracted_content
+
+    def extract_data_from_json(self, json_data):
+        structured_data = {}
+        if isinstance(json_data, list):
+            for item in json_data:
+                if isinstance(item, str):
+                    if ": " in item:
+                        path, value = item.split(": ", 1)
+                        path_parts = path.split('.')
+                        temp = structured_data
+                        for part in path_parts[:-1]:
+                            temp = temp.setdefault(part, {})
+                        temp[path_parts[-1]] = value
+        return structured_data
+
+    def format_output(self, extracted_data):
+        formatted_output = []
+
+        def format_section(data, section_name=""):
+            nonlocal formatted_output
+            if isinstance(data, dict):
+                if section_name:
+                    formatted_output.append(f"{section_name.capitalize()}")
+                for key, value in data.items():
+                    if isinstance(value, (dict, list)):
+                        format_section(value, key)
+                    else:
+                        formatted_output.append(f"    {key}: {value}")
+            elif isinstance(data, list):
+                for idx, item in enumerate(data):
+                    format_section(item, f"{section_name}[{idx}]")
+            else:
+                formatted_output.append(f"    {section_name}: {data}")
+
+        format_section(extracted_data)
+        return "\n".join(formatted_output)
+
+
 
 if __name__ == "__main__":
-    customer_guid = "72023cf5-3417-44c7-84fe-4e2f8ff35b2d"
-    filename = "charts.html"
+    customer_guid = "0ed13e14-326e-43f4-a7a0-39e0903a542f"
+    filename = "SingleJsonFile.json"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
