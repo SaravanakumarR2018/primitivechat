@@ -100,8 +100,8 @@ class DatabaseManager:
                 reported_by VARCHAR(255),
                 assigned VARCHAR(255),
                 ticket_uuid VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                 FOREIGN KEY (chat_id) REFERENCES chat_messages(chat_id) ON DELETE CASCADE
             );
             """
@@ -824,7 +824,12 @@ class DatabaseManager:
     def get_paginated_tickets_by_chat_id(self, customer_guid, chat_id, page=1, page_size=10):
         logger.debug("Entering get_paginated_tickets_by_chat_id method")
         customer_db_name = self.get_customer_db(customer_guid)
-        session = DatabaseManager._session_factory()
+        try:
+            session = DatabaseManager._session_factory()
+            # Add retry logic here for connection
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
             # Check if the database exists
@@ -855,10 +860,10 @@ class DatabaseManager:
             logger.debug(f"Fetching tickets with pagination: page={page}, page_size={page_size}, offset={offset}")
 
             query = """
-                SELECT ticket_id, chat_id, title, description, priority, status
+                SELECT ticket_id, chat_id, title, description, priority, status, created_at
                 FROM tickets
                 WHERE chat_id = :chat_id
-                ORDER BY ticket_id ASC
+                ORDER BY created_at DESC
                 LIMIT :page_size OFFSET :offset
             """
             results = session.execute(
@@ -866,15 +871,12 @@ class DatabaseManager:
                 {"chat_id": chat_id, "page_size": page_size, "offset": offset},
             ).fetchall()
 
-            tickets_list = [
-                {"ticket_id": row.ticket_id, "chat_id": row.chat_id, "title": row.title,
-                 "description": row.description, "priority": row.priority, "status": row.status}
+            return [
+                {column: value for column, value in zip(row.keys(), row) if
+                 column in ("ticket_id", "title", "status", "created_at")}
                 for row in results
             ]
 
-            logger.info(f"Retrieved {len(tickets_list)} tickets for chat_id: {chat_id}")
-
-            return tickets_list
         except (OperationalError, DatabaseError) as e:
             logger.error(f"Database error: {e}")
             raise Exception("Database connectivity issue")
