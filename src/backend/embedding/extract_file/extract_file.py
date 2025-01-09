@@ -23,6 +23,7 @@ import requests
 from bs4.element import Comment
 from io import BytesIO
 import re
+import yaml
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -37,6 +38,7 @@ class FileType(Enum):
     HTML = ".html"
     JSON = ".json"
     IMAGE = (".jpg", ".jpeg", ".png")
+    YAML = ".yaml"
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -84,66 +86,50 @@ class UploadFileForChunks:
     def extract_file(self, customer_guid: str, filename: str):
         logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
 
-        #Download and save file locally
+        # Download and save file locally
         local_path = self.download_and_save_file(customer_guid, filename)
 
-        #Verify file type
+        # Verify file type
         try:
             file_type = self.file_extract.detect_file_type(local_path)
             if file_type == FileType.PDF:
                 logger.info(f"Verified file '{filename}' as a valid PDF.")
+                output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
             elif file_type == FileType.DOCX:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
-            elif file_type==FileType.PPTX:
+                output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
+            elif file_type == FileType.PPTX:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
+                output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
             elif file_type == FileType.XLSX:
                 logger.info(f"Verified file '{filename}' as a valid XLSX.")
+                output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
             elif file_type == FileType.HTML:
                 logger.info(f"Verified file '{filename}' as a valid HTML")
+                output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
             elif file_type == FileType.JSON:
                 logger.info(f"Verified file '{filename}' as a valid JSON")
+                output_file_path = self.file_extract.extract_json_content(customer_guid, local_path, filename)
             elif file_type == FileType.IMAGE:
                 logger.info(f"Verified file '{filename}' as a valid JPEG or JPG or PNG")
+                output_file_path = self.file_extract.extract_image_content(customer_guid, local_path, filename)
+            elif file_type == FileType.YAML:
+                logger.info(f"Verified file '{filename}' as a valid YAML or YML")
+                output_file_path = self.file_extract.extract_yaml_content(customer_guid, local_path, filename)
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
-                raise Exception("Invalid file type: Uploaded file is not a Valid.")
+                raise Exception("Invalid file type: Uploaded file is not valid.")
         except Exception as e:
-            logger.error(f"Error detecting file type for '{filename}': {e}")
-            raise Exception("File type detection failed.")
+            logger.error(f"Error detecting or extracting file type for '{filename}': {e}")
+            raise Exception("File type detection or extraction failed.")
 
-        #Extract Files content here
+        # Upload extracted content
         try:
-            if file_type==FileType.PDF:
-                output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "PDF extracted and uploaded successfully."}
-            elif file_type==FileType.DOCX:
-                output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "Docx extracted and uploaded successfully."}
-            elif file_type==FileType.PPTX:
-                output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "PPTX extracted and uploaded successfully."}
-            elif file_type == FileType.XLSX:
-                output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "XLSX extracted and uploaded successfully."}
-            elif file_type == FileType.HTML:
-                output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "HTML extracted and uploaded successfully."}
-            elif file_type == FileType.JSON:
-                output_file_path = self.file_extract.extract_json_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "JSON extracted and uploaded successfully."}
-            elif file_type == FileType.IMAGE:
-                output_file_path = self.file_extract.extract_image_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "JPEG or PNG or JPG extracted and uploaded successfully"}
+            self.upload_extracted_content(customer_guid, filename, output_file_path)
+            return {"message": f"{file_type.name} extracted and uploaded successfully."}
         except Exception as e:
-            logger.error(f"File extraction error: {e}")
-            raise Exception(f"File extraction failed.{e}")
+            logger.error(f"File upload error: {e}")
+            raise Exception(f"File upload failed: {e}")
 
     def extract_html_files(self, customer_guid: str, source_url_link: str, filename: str):
 
@@ -188,7 +174,10 @@ class FileExtractor:
             "text/json": FileType.JSON,
             "image/jpeg": FileType.IMAGE,
             "image/png": FileType.IMAGE,
-            "image/jpg": FileType.IMAGE
+            "image/jpg": FileType.IMAGE,
+            "text/x-yaml": FileType.YAML,
+            "application/x-yaml": FileType.YAML,
+            "text/plain": FileType.YAML,
         }
         try:
             mime = magic.Magic(mime=True)
@@ -981,10 +970,89 @@ class FileExtractor:
             logger.error(f"Error extracting text from image '{filename}': {e}")
             raise Exception(f"Image extraction failed: {e}")
 
+    def extract_yaml_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = yaml.safe_load(file)  # Parse YAML content
+                extracted_data = self.extract_dynamic_yaml(data)  # Updated function call
+                structured_data = self.extract_data_from_yaml(extracted_data)
+                formatted_data = self.yaml_format_output(structured_data)
+                if not formatted_data.strip():
+                    return None
+                results.append({
+                    "metadata": {"page_number": 1},
+                    "text": formatted_data
+                })
+            # Save the extracted content to a file
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+            return output_file_path
+        except Exception as e:
+            raise Exception(f"YAML content extraction failed: {e}")
+
+    def extract_dynamic_yaml(self, data, path=""):
+        extracted_content = []
+        if isinstance(data, dict):
+            for key, value in data.items():
+                full_path = f"{path}.{key}" if path else key
+                if isinstance(value, (dict, list)):
+                    extracted_content.extend(self.extract_dynamic_yaml(value, full_path))
+                else:
+                    extracted_content.append(f"{full_path}: {value}")
+        elif isinstance(data, list):
+            if not data:
+                print(f"Warning: Empty list at {path}")
+            for idx, item in enumerate(data):
+                full_path = f"{path}[{idx}]"
+                if isinstance(item, (dict, list)):
+                    extracted_content.extend(self.extract_dynamic_yaml(item, full_path))
+                else:
+                    extracted_content.append(f"{full_path}: {item}")
+        return extracted_content
+
+    def extract_data_from_yaml(self, yaml_data):
+        structured_data = {}
+        if isinstance(yaml_data, list):
+            for item in yaml_data:
+                if isinstance(item, str):
+                    if ": " in item:
+                        path, value = item.split(": ", 1)
+                        path_parts = path.split('.')
+                        temp = structured_data
+                        for part in path_parts[:-1]:
+                            temp = temp.setdefault(part, {})
+                        temp[path_parts[-1]] = value
+        return structured_data
+
+    def yaml_format_output(self, extracted_data):
+        formatted_output = []
+
+        def format_section(data, section_name=""):
+            nonlocal formatted_output
+            if isinstance(data, dict):
+                if section_name:
+                    formatted_output.append(f"{section_name.capitalize()}")
+                for key, value in data.items():
+                    if isinstance(value, (dict, list)):
+                        format_section(value, key)
+                    else:
+                        formatted_output.append(f"    {key}: {value}")
+            elif isinstance(data, list):
+                for idx, item in enumerate(data):
+                    format_section(item, f"{section_name}[{idx}]")
+            else:
+                formatted_output.append(f"    {section_name}: {data}")
+
+        format_section(extracted_data)
+        return "\n".join(formatted_output)
+
 
 
 if __name__ == "__main__":
-    customer_guid = "b6b8709c-94e6-4213-a15b-9b7e2ded0749"
-    filename = "images_3.jpg"
+    customer_guid = "aa189089-d025-492e-b4bc-e9c4776821f9"
+    filename = "_config.yaml"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
