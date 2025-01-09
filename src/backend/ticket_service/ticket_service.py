@@ -81,6 +81,7 @@ class TicketByChatId(BaseModel):
     ticket_id: str
     title: str
     status: str
+    created_at:datetime
 
 #Comments Pydantic Model
 class Comment(BaseModel):
