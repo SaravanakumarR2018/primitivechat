@@ -1,3 +1,4 @@
+import time
 import unittest
 import logging
 import requests
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 class TestGetTicketsByChatId(unittest.TestCase):
 
     BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def setUp(self):
         """Set up a valid customer and chat for tests."""
@@ -34,6 +36,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
         response = requests.post(chat_url, json=chat_data)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
+        self.custom_fields = {}
         logger.info(f"=== Test Case {self._testMethodName} Started ===")
 
     def test_get_tickets_by_chat_id_success(self):
@@ -72,7 +75,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
         # Validate the response format and content
         self.assertTrue(isinstance(tickets, list), "Expected a list of tickets")
-        self.assertGreater(len(tickets), 0, "Expected at least one ticket")
+        self.assertEqual(len(tickets), 1, "Expected at least one ticket")
         self.assertEqual(tickets[0]["ticket_id"], "1", "Ticket ID mismatch")
         self.assertEqual(tickets[0]["title"], "Reset Password", "Title mismatch")
         self.assertEqual(tickets[0]["status"], "open", "Status mismatch")
@@ -156,7 +159,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
                 "reported_by": f"user{i}",
                 "assigned": f"agent{i}"
             }
-            for i in range(50)
+            for i in range(1, 51)
         ]
 
         # Add each ticket via POST request
@@ -169,7 +172,6 @@ class TestGetTicketsByChatId(unittest.TestCase):
                 HTTPStatus.CREATED,
                 f"Failed to add ticket: {ticket['title']}"
             )
-
         logger.info("Successfully added 50 tickets.")
 
     def test_pagination_for_tickets_by_chat_id(self):
@@ -213,8 +215,12 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
                 page_num += 1
 
-            # Ensure tickets are sorted by ticket_id
-            all_tickets.sort(key=lambda x: int(x["ticket_id"]))
+            # Check that the tickets are sorted by created_at in descending order
+            created_at_list = [ticket["created_at"] for ticket in all_tickets]
+            self.assertTrue(
+                all(created_at_list[i] >= created_at_list[i + 1] for i in range(len(created_at_list) - 1)),
+                "Tickets are not sorted by created_at in descending order"
+            )
 
             # Validate the total number of tickets retrieved
             self.assertEqual(
@@ -223,8 +229,8 @@ class TestGetTicketsByChatId(unittest.TestCase):
                 f"Total tickets retrieved with per_page={per_page} should be 50"
             )
 
-            # Validate the content of tickets
-            expected_ticket_ids = [str(i) for i in range(1, 51)]
+            # Validate ticket IDs are in reverse order
+            expected_ticket_ids = [str(i) for i in range(50, 0, -1)]
             retrieved_ticket_ids = [ticket["ticket_id"] for ticket in all_tickets]
 
             self.assertEqual(
@@ -232,6 +238,262 @@ class TestGetTicketsByChatId(unittest.TestCase):
                 retrieved_ticket_ids,
                 "Mismatch in expected and retrieved ticket IDs"
             )
+
+            # Test the 'status' field for expected values
+            for ticket in all_tickets:
+                self.assertEqual(
+                    ticket["status"], "open",
+                    f"Unexpected status value {ticket['status']} for ticket {ticket['ticket_id']}"
+                )
+
+            expected_ticket_titles = [f"Ticket {i}" for i in range(50, 0, -1)]
+            retrieved_ticket_titles = [ticket["title"] for ticket in all_tickets]
+
+            # Test the 'title' field for correct format
+            self.assertEqual(
+                expected_ticket_titles,
+                retrieved_ticket_titles,
+                "Mismatch in expected and retrieved ticket IDs"
+            )
+
+    def _add_50_tickets_with_custom_fields(self):
+        """Add 50 tickets for a valid customer and chat with custom fields."""
+        logger.info("Adding 50 tickets for the customer and chat with custom fields.")
+
+        # Create custom fields dynamically
+        custom_fields_url = f"{self.BASE_URL}/custom_fields"
+        for field_type in self.allowed_custom_field_sql_types:
+            field_name = f"field_{field_type.split('(')[0].lower()}"
+            payload = {
+                "customer_guid": self.valid_customer_guid,
+                "field_name": field_name,
+                "field_type": field_type,
+                "required": False
+            }
+            response = requests.post(custom_fields_url, json=payload)
+            self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
+            self.custom_fields[field_name] = field_type
+
+        logger.info(f"Custom fields created: {self.custom_fields}")
+
+        # Create 50 tickets with custom fields
+        tickets = [
+            {
+                "customer_guid": self.valid_customer_guid,
+                "chat_id": self.valid_chat_id,
+                "title": f"Ticket {i}",
+                "description": f"Description for ticket {i}",
+                "priority": "high" if i % 2 == 0 else "low",
+                "reported_by": f"user{i}",
+                "assigned": f"agent{i}",
+                **{field: f"{field}_value_{i}" for field in self.custom_fields}  # Add custom fields
+            }
+            for i in range(1, 51)
+        ]
+
+        # Add each ticket via POST request
+        for ticket in tickets:
+            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket)
+            if response.status_code != HTTPStatus.CREATED:
+                logger.error(f"Failed to add ticket: {ticket['title']}. Server response: {response.text}")
+            self.assertEqual(
+                response.status_code,
+                HTTPStatus.CREATED,
+                f"Failed to add ticket: {ticket['title']}"
+            )
+
+        logger.info("Successfully added 50 tickets with custom fields.")
+
+    def test_pagination_for_tickets_with_custom_fields(self):
+        """Test pagination for tickets with custom fields retrieved by chat ID."""
+        logger.info("Testing pagination for tickets with custom fields and different page sizes.")
+
+        # Add 50 tickets with custom fields for testing pagination
+        self._add_50_tickets_with_custom_fields()
+
+        # Define different page sizes for pagination testing
+        page_sizes = [10, 20, 50]
+
+        for per_page in page_sizes:
+            logger.info(f"Testing with per_page={per_page}")
+
+            # Initialize a list to collect all tickets across pages
+            all_tickets = []
+
+            # Fetch tickets page by page
+            page_num = 1
+            while True:
+                page_url = f"{self.BASE_URL}/tickets?customer_guid={self.valid_customer_guid}&chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
+                response = requests.get(page_url)
+
+                if response.status_code == HTTPStatus.NOT_FOUND:
+                    logger.info(f"Reached the end of available pages for per_page={per_page}")
+                    break
+
+                self.assertEqual(
+                    response.status_code,
+                    HTTPStatus.OK,
+                    f"Failed to fetch page {page_num} for per_page={per_page}"
+                )
+
+                # Parse the response JSON
+                page_data = response.json()
+                all_tickets.extend(page_data)
+
+                if len(page_data) < per_page:
+                    break
+
+                page_num += 1
+
+            # Check that the tickets are sorted by created_at in descending order
+            created_at_list = [ticket["created_at"] for ticket in all_tickets]
+            self.assertTrue(
+                all(created_at_list[i] >= created_at_list[i + 1] for i in range(len(created_at_list) - 1)),
+                "Tickets are not sorted by created_at in descending order"
+            )
+
+            # Validate the total number of tickets retrieved
+            self.assertEqual(
+                len(all_tickets),
+                50,
+                f"Total tickets retrieved with per_page={per_page} should be 50"
+            )
+
+            # Validate ticket IDs are in reverse order
+            expected_ticket_ids = [str(i) for i in range(50, 0, -1)]
+            retrieved_ticket_ids = [ticket["ticket_id"] for ticket in all_tickets]
+
+            self.assertEqual(
+                expected_ticket_ids,
+                retrieved_ticket_ids,
+                "Mismatch in expected and retrieved ticket IDs"
+            )
+
+            # Test the 'status' field for expected values
+            for ticket in all_tickets:
+                self.assertEqual(
+                    ticket["status"], "open",
+                    f"Unexpected status value {ticket['status']} for ticket {ticket['ticket_id']}"
+                )
+
+            expected_ticket_titles = [f"Ticket {i}" for i in range(50, 0, -1)]
+            retrieved_ticket_titles = [ticket["title"] for ticket in all_tickets]
+
+            # Test the 'title' field for correct format
+            self.assertEqual(
+                expected_ticket_titles,
+                retrieved_ticket_titles,
+                "Mismatch in expected and retrieved ticket IDs"
+            )
+
+    def _delete_ticket(self, ticket_id):
+        """Delete a specific ticket."""
+        logger.info(f"Deleting ticket {ticket_id}.")
+        response = requests.delete(f"{self.BASE_URL}/tickets/{ticket_id}",
+                                   params={"customer_guid": self.valid_customer_guid})
+        if response.status_code != HTTPStatus.OK:
+            logger.error(f"Failed to delete ticket {ticket_id}. Server response: {response.text}")
+        self.assertEqual(response.status_code, HTTPStatus.OK, f"Failed to delete ticket {ticket_id}")
+        logger.info(f"Successfully deleted ticket {ticket_id}.")
+
+    def test_pagination_and_deletion_for_tickets_by_chat_id(self):
+        """Test pagination for tickets retrieved by chat ID, including ticket deletion."""
+        logger.info("Testing pagination for tickets with different page sizes and deletion.")
+
+        # Add 50 tickets for testing pagination
+        self._add_50_tickets()
+
+        # Define different page sizes for pagination testing
+        page_sizes = [10, 20, 50]
+
+        # List of ticket IDs to delete for the test
+        ticket_ids_to_delete = [10, 20, 25, 35, 42]
+
+        # Delete specific tickets
+        for ticket_id in ticket_ids_to_delete:
+            self._delete_ticket(ticket_id)
+
+        for per_page in page_sizes:
+            logger.info(f"Testing with per_page={per_page}")
+
+            # Initialize a list to collect all tickets across pages
+            all_tickets = []
+
+            # Fetch tickets page by page
+            page_num = 1
+            while True:
+                page_url = f"{self.BASE_URL}/tickets?customer_guid={self.valid_customer_guid}&chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
+                response = requests.get(page_url)
+
+                if response.status_code == HTTPStatus.NOT_FOUND:
+                    logger.info(f"Reached the end of available pages for per_page={per_page}")
+                    break
+
+                self.assertEqual(
+                    response.status_code,
+                    HTTPStatus.OK,
+                    f"Failed to fetch page {page_num} for per_page={per_page}"
+                )
+
+                # Parse the response JSON
+                page_data = response.json()
+                all_tickets.extend(page_data)
+
+                if len(page_data) < per_page:
+                    break
+
+                page_num += 1
+
+            # Check that the tickets are sorted by created_at in descending order
+            created_at_list = [ticket["created_at"] for ticket in all_tickets]
+            self.assertTrue(
+                all(created_at_list[i] >= created_at_list[i + 1] for i in range(len(created_at_list) - 1)),
+                "Tickets are not sorted by created_at in descending order"
+            )
+
+            # Ensure deleted tickets are not included
+            deleted_ticket_ids = set(ticket_ids_to_delete)
+            retrieved_ticket_ids = {ticket["ticket_id"] for ticket in all_tickets}
+            self.assertTrue(deleted_ticket_ids.isdisjoint(retrieved_ticket_ids),
+                            "Deleted tickets should not be included in the retrieved tickets.")
+
+            logger.info(f"All retrieved ticket IDs: {retrieved_ticket_ids}")
+
+            # Validate the total number of tickets retrieved
+            self.assertEqual(
+                len(all_tickets),
+                45,  # 50 - 5 deleted tickets
+                f"Total tickets retrieved with per_page={per_page} should be 45"
+            )
+
+            # Validate ticket IDs are in reverse order (excluding deleted ones)
+            expected_ticket_ids = [str(i) for i in range(50, 0, -1) if i not in ticket_ids_to_delete]
+            retrieved_ticket_ids = [ticket["ticket_id"] for ticket in all_tickets]
+
+            self.assertEqual(
+                expected_ticket_ids,
+                retrieved_ticket_ids,
+                "Mismatch in expected and retrieved ticket IDs"
+            )
+
+            # Test the 'status' field for expected values
+            for ticket in all_tickets:
+                self.assertEqual(
+                    ticket["status"], "open",
+                    f"Unexpected status value {ticket['status']} for ticket {ticket['ticket_id']}"
+                )
+
+            expected_ticket_titles = [f"Ticket {i}" for i in range(50, 0, -1) if i not in ticket_ids_to_delete]
+            retrieved_ticket_titles = [ticket["title"] for ticket in all_tickets]
+
+            # Test the 'title' field for correct format
+            self.assertEqual(
+                expected_ticket_titles,
+                retrieved_ticket_titles,
+                "Mismatch in expected and retrieved ticket titles"
+            )
+
+            logger.info(f"Successfully verified tickets for per_page={per_page}.")
 
     def tearDown(self):
         """Clean up after tests."""
