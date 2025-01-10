@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestDeleteTicketAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
@@ -63,14 +63,21 @@ class TestDeleteTicketAPI(unittest.TestCase):
         delete_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}?customer_guid={self.valid_customer_guid}"
         logger.info(f"Deleting valid ticket with ID: {valid_ticket_id}")
 
-        self.tickets = []
-
         response = requests.delete(delete_url)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to delete valid ticket")
         response_data = response.json()
         self.assertEqual(response_data["ticket_id"], valid_ticket_id)
         self.assertEqual(response_data["status"], "deleted")
         logger.info("Successfully deleted valid ticket.")
+
+        response = requests.get(f"{self.BASE_URL}/tickets/{valid_ticket_id}",
+                                params={"customer_guid": self.valid_customer_guid})
+        logger.info(f"Get ticket {valid_ticket_id} response status: {response.status_code}")
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
+                         f"Ticket {valid_ticket_id} should not exist but was found.")
+        self.assertIn("not found", response.json().get("detail", "").lower(),
+                      f"Unexpected error message for ticket {valid_ticket_id}: {response.json().get('detail')}")
+        logger.info(f"Confirmed ticket {valid_ticket_id} does not exist.")
 
     def test_delete_non_existent_ticket(self):
         """Test deleting a non-existent ticket."""
@@ -188,6 +195,16 @@ class TestDeleteTicketAPI(unittest.TestCase):
                 logger.error(f"Failed to delete ticket '{ticket_id}': {response.text}")
             self.assertEqual(response.status_code, HTTPStatus.OK, f"Failed to delete ticket '{ticket_id}'")
             logger.info(f"Successfully deleted ticket '{ticket_id}'")
+
+            logger.info(f"Verifying ticket {ticket_id} no longer exists.")
+            response = requests.get(f"{self.BASE_URL}/tickets/{ticket_id}",
+                                    params={"customer_guid": self.valid_customer_guid})
+            logger.info(f"Get ticket {ticket_id} response status: {response.status_code}")
+            self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
+                             f"Ticket {ticket_id} should not exist but was found.")
+            self.assertIn("not found", response.json().get("detail", "").lower(),
+                          f"Unexpected error message for ticket {ticket_id}: {response.json().get('detail')}")
+            logger.info(f"Confirmed ticket {ticket_id} does not exist.")
 
     def _add_50_tickets_with_custom_fields(self):
         """Add 50 tickets for a valid customer and chat with custom fields."""
