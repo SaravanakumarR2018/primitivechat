@@ -39,6 +39,7 @@ class FileType(Enum):
     JSON = ".json"
     IMAGE = (".jpg", ".jpeg", ".png")
     YAML = ".yaml"
+    CODE = (".java", ".py", ".cpp", ".c", ".php", ".js")
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -116,6 +117,9 @@ class UploadFileForChunks:
             elif file_type == FileType.YAML:
                 logger.info(f"Verified file '{filename}' as a valid YAML or YML")
                 output_file_path = self.file_extract.extract_yaml_content(customer_guid, local_path, filename)
+            elif file_type == FileType.CODE:
+                logger.info(f"Verified file '{filename}' as a valid CODE file.")
+                output_file_path = self.file_extract.extract_code_file_content(customer_guid, local_path, filename)
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not valid.")
@@ -178,6 +182,15 @@ class FileExtractor:
             "text/x-yaml": FileType.YAML,
             "application/x-yaml": FileType.YAML,
             "text/plain": FileType.YAML,
+            "text/x-java-source": FileType.CODE,
+            "text/x-java": FileType.CODE,
+            "text/x-python": FileType.CODE,
+            "text/x-script.python": FileType.CODE,
+            "text/x-c": FileType.CODE,
+            "text/x-c++": FileType.CODE,
+            "text/x-php": FileType.CODE,
+            "application/x-php": FileType.CODE,
+            "application/javascript": FileType.CODE,
         }
         try:
             mime = magic.Magic(mime=True)
@@ -1049,10 +1062,45 @@ class FileExtractor:
         format_section(extracted_data)
         return "\n".join(formatted_output)
 
+    def extract_code_file_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+
+            with open(file_path, "r", encoding="utf-8") as file:
+                code_content = file.read()
+
+                # Format code content without line numbers
+                formatted_data = self.code_format_output(code_content)
+
+                if not formatted_data.strip():
+                    return None
+
+                results.append({
+                    "metadata": {"page_number": 1},
+                    "text": formatted_data
+                })
+
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
+            # Save cleaned content to the output file
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted code content saved to '{output_file_path}'")
+            return output_file_path
+
+        except Exception as e:
+            logger.error(f"Code content extraction failed for file '{filename}': {e}")
+            raise Exception(f"Code content extraction failed: {e}")
+
+    def code_format_output(self, code_content: str):
+        return "\n".join(line.strip() for line in code_content.splitlines() if line.strip())
+
 
 
 if __name__ == "__main__":
-    customer_guid = "aa189089-d025-492e-b4bc-e9c4776821f9"
-    filename = "_config.yaml"
+    customer_guid = "58db9100-44d9-489a-a208-305fd945c823"
+    filename = "infobook.c"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
