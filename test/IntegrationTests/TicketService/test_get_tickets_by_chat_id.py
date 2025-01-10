@@ -79,6 +79,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
         self.assertEqual(tickets[0]["ticket_id"], "1", "Ticket ID mismatch")
         self.assertEqual(tickets[0]["title"], "Reset Password", "Title mismatch")
         self.assertEqual(tickets[0]["status"], "open", "Status mismatch")
+        self.assertIn("created_at", tickets[0], "created_at not found")
 
     def test_get_tickets_no_tickets_found_for_valid_chat_id(self):
         """Test retrieving tickets when no tickets exist for a valid chat ID and customer GUID."""
