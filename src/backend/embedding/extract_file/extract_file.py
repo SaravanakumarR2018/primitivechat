@@ -1063,27 +1063,22 @@ class FileExtractor:
         return "\n".join(formatted_output)
 
     def extract_code_file_content(self, customer_guid: str, file_path: str, filename: str):
+
         try:
             results = []
-
             with open(file_path, "r", encoding="utf-8") as file:
                 code_content = file.read()
 
-                # Format code content without line numbers
-                formatted_data = self.code_format_output(code_content)
+            formatted_content = code_content.replace("\t", " ")
 
-                if not formatted_data.strip():
-                    return None
-
-                results.append({
-                    "metadata": {"page_number": 1},
-                    "text": formatted_data
-                })
+            results.append({
+                "metadata": {"page_number": 1},
+                "text": formatted_content
+            })
 
             output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
             os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
 
-            # Save cleaned content to the output file
             with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
                 json.dump(results, raw_content_file, indent=4)
 
@@ -1094,13 +1089,10 @@ class FileExtractor:
             logger.error(f"Code content extraction failed for file '{filename}': {e}")
             raise Exception(f"Code content extraction failed: {e}")
 
-    def code_format_output(self, code_content: str):
-        return "\n".join(line.strip() for line in code_content.splitlines() if line.strip())
-
 
 
 if __name__ == "__main__":
-    customer_guid = "58db9100-44d9-489a-a208-305fd945c823"
+    customer_guid = "e8be1202-590e-4a97-8211-916e0312ed93"
     filename = "infobook.c"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
