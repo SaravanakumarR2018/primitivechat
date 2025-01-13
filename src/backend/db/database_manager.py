@@ -136,8 +136,8 @@ class DatabaseManager:
                 comment TEXT NOT NULL,
                 is_edited BOOLEAN DEFAULT FALSE,
                 comment_uuid VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                 FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
             );
             """
@@ -1253,7 +1253,7 @@ class DatabaseManager:
                 SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at
                 FROM ticket_comments
                 WHERE ticket_id = :ticket_id
-                ORDER BY created_at ASC
+                ORDER BY created_at DESC
                 LIMIT :page_size OFFSET :offset
             """
             results = session.execute(
