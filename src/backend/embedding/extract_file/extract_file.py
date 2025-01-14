@@ -43,7 +43,7 @@ class FileType(Enum):
 
 class CustomShapeType(Enum):
     PICTURE = 13
-    
+
 class UploadFileForChunks:
     def __init__(self):
         self.minio_manager = MinioManager()
@@ -138,12 +138,13 @@ class UploadFileForChunks:
     def extract_html_files(self, customer_guid: str, source_url_link: str, filename: str):
 
         try:
-
+            # Step 1: Fetch the HTML content from the URL
             logger.info(f"Fetching HTML content from URL: {source_url_link}")
             response = requests.get(source_url_link)
-            response.raise_for_status()
+            response.raise_for_status()  # Raise an error for bad HTTP responses (4xx/5xx)
             html_content = response.text
 
+            # Step 2: Save the HTML content locally
             local_path = f"/tmp/{customer_guid}/{filename}"
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             with open(local_path, "w", encoding="utf-8") as html_file:
@@ -196,7 +197,7 @@ class FileExtractor:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
 
-            if file_type=="application/zip":
+            if file_type == "application/zip":
                 if self.is_docx(file_path):
                     return FileType.DOCX
             extension = MIME_TO_EXTENSION.get(file_type)
@@ -208,12 +209,12 @@ class FileExtractor:
             logger.error(f"Error detecting file type for {file_path}: {e}")
             raise Exception(f"File type detection failed: {e}")
 
-    def is_docx(self,file_path: str):
+    def is_docx(self, file_path: str):
         try:
-            with zipfile.ZipFile(file_path,'r')as zip_ref:
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
                 return "word/document.xml" in zip_ref.namelist()
         except zipfile.BadZipfile:
-                return False
+            return False
 
     def format_table_as_text(self, table):
         try:
@@ -341,7 +342,10 @@ class FileExtractor:
 
                     # Append the result for this page (with metadata and content)
                     results.append({
-                        "metadata": {"page_number": page_number},
+                        "metadata": {"page_number": page_number,
+                                     "customer_guid": customer_guid,
+                                     "filename": filename
+                                     },
                         "text": page_text
                     })
 
@@ -385,7 +389,6 @@ class FileExtractor:
                 text = paragraph.text.strip()
                 if text:
                     logger.info(f"Processing paragraph {i + 1}: {text}")
-
 
                     x0 = len(text)
                     y0 = i
@@ -450,12 +453,6 @@ class FileExtractor:
 
                 # Add the page's content to results
                 page_text = " ".join([element["content"] for element in page_elements if element["type"] == "text"])
-                results.append({
-                    "metadata": {"page_number": current_page_number},
-                    "text": page_text
-                })
-
-            logger.info(f"Processed {total_paragraphs} paragraphs and added to results.")
 
             # Extract tables and format them as text
             for table in doc.tables:
@@ -504,7 +501,10 @@ class FileExtractor:
 
             # Append the final content to results
             results.append({
-                "metadata": {"page_number": current_page_number},
+                "metadata": {"page_number": current_page_number,
+                             "customer_guid": customer_guid,
+                             "filename": filename
+                             },
                 "text": page_text
             })
 
@@ -564,7 +564,7 @@ class FileExtractor:
                             "type": "image",
                             "content": ocr_text
                         })
-                        
+
                     if shape.shape_type == MSO_SHAPE_TYPE.CHART:
                         chart = shape.chart
                         table_data = []
@@ -587,12 +587,15 @@ class FileExtractor:
                         slide_elements.append({
                             "type": "chart_table",
                             "content": table_data
-                        })   
+                        })
 
-                # Combine slide elements
+                        # Combine slide elements
                 slide_text = "\n".join(element["content"] for element in slide_elements)
                 results.append({
-                    "metadata": {"page_number": slide_number},
+                    "metadata": {"page_number": slide_number,
+                                 "customer_guid": customer_guid,
+                                 "filename": filename
+                                 },
                     "text": slide_text
                 })
 
@@ -608,7 +611,7 @@ class FileExtractor:
         except Exception as e:
             logger.error(f"Error extracting content from PPT file '{filename}': {e}")
             raise Exception(f"PPTX content extraction failed: {e}")
-            
+
     def extract_excel_content(self, customer_guid: str, file_path: str, filename: str):
         try:
             results = []
@@ -674,7 +677,10 @@ class FileExtractor:
                 )
 
                 results.append({
-                    "metadata": {"page_number": sheet_index},
+                    "metadata": {"page_number": sheet_index,
+                                 "customer_guid": customer_guid,
+                                 "filename": filename
+                                 },
                     "text": combined_text
                 })
 
@@ -836,7 +842,10 @@ class FileExtractor:
 
                 # Append the result for the current page
                 results.append({
-                    "metadata": {"page_number": page_number},
+                    "metadata": {"page_number": page_number,
+                                 "customer_guid": customer_guid,
+                                 "filename": filename
+                                 },
                     "text": " ".join(text_content)
                 })
 
@@ -887,7 +896,10 @@ class FileExtractor:
                 if not formatted_data.strip():
                     return None
                 results.append({
-                    "metadata": {"page_number": 1},
+                    "metadata": {"page_number": 1,
+                                 "customer_guid": customer_guid,
+                                 "filename": filename
+                                 },
                     "text": formatted_data
                 })
             # Save the extracted content to a file
@@ -966,7 +978,10 @@ class FileExtractor:
             results = []
 
             results.append({
-                "metadata": {"page_number": 1},
+                "metadata": {"page_number": 1,
+                             "customer_guid": customer_guid,
+                             "filename": filename
+                             },
                 "text": ocr_text.strip()
             })
 
@@ -994,7 +1009,10 @@ class FileExtractor:
                 if not formatted_data.strip():
                     return None
                 results.append({
-                    "metadata": {"page_number": 1},
+                    "metadata": {"page_number": 1,
+                                 "customer_guid": customer_guid,
+                                 "filename": filename
+                                 },
                     "text": formatted_data
                 })
             # Save the extracted content to a file
@@ -1072,7 +1090,10 @@ class FileExtractor:
             formatted_content = code_content.replace("\t", " ")
 
             results.append({
-                "metadata": {"page_number": 1},
+                "metadata": {"page_number": 1,
+                             "customer_guid": customer_guid,
+                             "filename": filename
+                             },
                 "text": formatted_content
             })
 
