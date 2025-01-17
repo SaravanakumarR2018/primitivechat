@@ -387,7 +387,7 @@ class FileExtractor:
             if total_paragraphs == 0:
                 logger.error("No paragraphs found in the document!")
 
-           for i, paragraph in enumerate(paragraphs):
+            for i, paragraph in enumerate(paragraphs):
                 text = paragraph.text.strip()
                 if text:
                     logger.info(f"Processing paragraph {i + 1}: {text}")
