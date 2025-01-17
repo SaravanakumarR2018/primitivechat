@@ -151,7 +151,7 @@ class UploadFileForChunks:
 
             logger.info(f"HTML content from '{source_url_link}' saved to '{local_path}'")
 
-            output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
+            output_file_path=self.file_extract.extract_html_content(customer_guid, local_path, filename)
             logger.info(f"HTML content from URL '{source_url_link}' extracted successfully.")
 
             self.upload_extracted_content(customer_guid, filename, output_file_path)
@@ -182,7 +182,7 @@ class FileExtractor:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
 
-            if file_type == "application/zip":
+            if file_type=="application/zip":
                 if self.is_docx(file_path):
                     return FileType.DOCX
             extension = MIME_TO_EXTENSION.get(file_type)
@@ -206,7 +206,7 @@ class FileExtractor:
 
     def is_docx(self, file_path: str):
         try:
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            with zipfile.ZipFile(file_path,'r')as zip_ref:
                 return "word/document.xml" in zip_ref.namelist()
         except zipfile.BadZipfile:
             return False
