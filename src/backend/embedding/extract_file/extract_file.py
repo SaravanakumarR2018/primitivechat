@@ -164,7 +164,6 @@ class UploadFileForChunks:
             logger.error(f"Error processing HTML file from URL '{source_url_link}': {e}")
             raise Exception(f"HTML file processing failed: {e}")
 
-
 class FileExtractor:
 
     def detect_file_type(self, file_path: str):
