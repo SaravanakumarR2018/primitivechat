@@ -606,7 +606,7 @@ class FileExtractor:
         except Exception as e:
             logger.error(f"Error extracting content from PPT file '{filename}': {e}")
             raise Exception(f"PPTX content extraction failed: {e}")
-    
+            
     def extract_excel_content(self, customer_guid: str, file_path: str, filename: str):
         try:
             results = []
