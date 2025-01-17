@@ -87,10 +87,10 @@ class UploadFileForChunks:
     def extract_file(self, customer_guid: str, filename: str):
         logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
 
-        # Download and save file locally
+        #Download and save file locally
         local_path = self.download_and_save_file(customer_guid, filename)
 
-        # Verify file type
+        #Verify file type
         try:
             file_type = self.file_extract.detect_file_type(local_path)
             if file_type == FileType.PDF:
@@ -99,7 +99,7 @@ class UploadFileForChunks:
             elif file_type == FileType.DOCX:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
                 output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
-            elif file_type == FileType.PPTX:
+            elif file_type==FileType.PPTX:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
                 output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
             elif file_type == FileType.XLSX:
@@ -122,10 +122,18 @@ class UploadFileForChunks:
                 output_file_path = self.file_extract.extract_code_file_content(customer_guid, local_path, filename)
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
-                raise Exception("Invalid file type: Uploaded file is not valid.")
+                raise Exception("Invalid file type: Uploaded file is not a Valid.")
         except Exception as e:
             logger.error(f"Error extracting file for '{filename}': {e}")
             raise Exception("File extraction failed.")
+
+        #Upload extracted content
+        try:
+            self.upload_extracted_content(customer_guid, filename, output_file_path)
+            return {"message": f"{file_type.name} extracted and uploaded successfully."}
+        except Exception as e:
+            logger.error(f"File upload error: {e}")
+            raise Exception(f"File upload failed.{e}")
 
     def extract_html_files(self, customer_guid: str, source_url_link: str, filename: str):
 
