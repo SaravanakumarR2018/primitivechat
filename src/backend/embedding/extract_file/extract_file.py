@@ -43,7 +43,7 @@ class FileType(Enum):
 
 class CustomShapeType(Enum):
     PICTURE = 13
-
+    
 class UploadFileForChunks:
     def __init__(self):
         self.minio_manager = MinioManager()
