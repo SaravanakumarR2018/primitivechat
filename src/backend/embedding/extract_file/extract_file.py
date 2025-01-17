@@ -193,6 +193,13 @@ class FileExtractor:
             logger.error(f"Error detecting file type for {file_path}: {e}")
             raise Exception(f"File type detection failed: {e}")
 
+    def is_docx(self, file_path: str):
+        try:
+            with zipfile.ZipFile(file_path,'r')as zip_ref:
+                return "word/document.xml" in zip_ref.namelist()
+        except zipfile.BadZipfile:
+                return False
+
     def append_result(self, results, customer_guid, filename, page_number, content):
         results.append({
             "metadata": {
@@ -202,13 +209,6 @@ class FileExtractor:
             },
             "text": content
         })
-
-    def is_docx(self, file_path: str):
-        try:
-            with zipfile.ZipFile(file_path,'r')as zip_ref:
-                return "word/document.xml" in zip_ref.namelist()
-        except zipfile.BadZipfile:
-            return False
 
     def format_table_as_text(self, table):
         try:
