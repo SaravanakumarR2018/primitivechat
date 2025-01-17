@@ -175,7 +175,22 @@ class FileExtractor:
             "text/html": FileType.HTML,
             "application/xhtml+xml": FileType.HTML,
             "application/json": FileType.JSON,
-            "text/json": FileType.JSON
+            "text/json": FileType.JSON,
+            "image/jpeg": FileType.IMAGE,
+            "image/png": FileType.IMAGE,
+            "image/jpg": FileType.IMAGE,
+            "text/x-yaml": FileType.YAML,
+            "application/x-yaml": FileType.YAML,
+            "text/plain": FileType.YAML,
+            "text/x-java-source": FileType.CODE,
+            "text/x-java": FileType.CODE,
+            "text/x-python": FileType.CODE,
+            "text/x-script.python": FileType.CODE,
+            "text/x-c": FileType.CODE,
+            "text/x-c++": FileType.CODE,
+            "text/x-php": FileType.CODE,
+            "application/x-php": FileType.CODE,
+            "application/javascript": FileType.CODE,
         }
         try:
             mime = magic.Magic(mime=True)
@@ -193,7 +208,7 @@ class FileExtractor:
             logger.error(f"Error detecting file type for {file_path}: {e}")
             raise Exception(f"File type detection failed: {e}")
 
-    def is_docx(self, file_path: str):
+    def is_docx(self,file_path: str):
         try:
             with zipfile.ZipFile(file_path,'r')as zip_ref:
                 return "word/document.xml" in zip_ref.namelist()
@@ -376,6 +391,7 @@ class FileExtractor:
                 text = paragraph.text.strip()
                 if text:
                     logger.info(f"Processing paragraph {i + 1}: {text}")
+                    
 
                     x0 = len(text)
                     y0 = i
@@ -542,7 +558,7 @@ class FileExtractor:
                             "type": "image",
                             "content": ocr_text
                         })
-
+                        
                     if shape.shape_type == MSO_SHAPE_TYPE.CHART:
                         chart = shape.chart
                         table_data = []
@@ -565,7 +581,14 @@ class FileExtractor:
                         slide_elements.append({
                             "type": "chart_table",
                             "content": table_data
-                        })
+                        })   
+
+                # Combine slide elements
+                slide_text = "\n".join(element["content"] for element in slide_elements)
+                results.append({
+                    "metadata": {"page_number": slide_number},
+                    "text": slide_text
+                })
 
                         # Combine slide elements
                 slide_text = "\n".join(element["content"] for element in slide_elements)
