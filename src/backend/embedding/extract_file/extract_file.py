@@ -23,6 +23,7 @@ import requests
 from bs4.element import Comment
 from io import BytesIO
 import re
+import yaml
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -36,6 +37,9 @@ class FileType(Enum):
     XLSX = ".xlsx"
     HTML = ".html"
     JSON = ".json"
+    IMAGE = (".jpg", ".jpeg", ".png")
+    YAML = ".yaml"
+    CODE = (".java", ".py", ".cpp", ".c", ".php", ".js")
 
 class CustomShapeType(Enum):
     PICTURE = 13
@@ -91,52 +95,45 @@ class UploadFileForChunks:
             file_type = self.file_extract.detect_file_type(local_path)
             if file_type == FileType.PDF:
                 logger.info(f"Verified file '{filename}' as a valid PDF.")
+                output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
             elif file_type == FileType.DOCX:
                 logger.info(f"Verified file '{filename}' as a valid DOCX")
+                output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
             elif file_type==FileType.PPTX:
                 logger.info(f"Verified file '{filename}' as a valid PPTX.")
+                output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
             elif file_type == FileType.XLSX:
                 logger.info(f"Verified file '{filename}' as a valid XLSX.")
+                output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
             elif file_type == FileType.HTML:
                 logger.info(f"Verified file '{filename}' as a valid HTML")
+                output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
             elif file_type == FileType.JSON:
                 logger.info(f"Verified file '{filename}' as a valid JSON")
+                output_file_path = self.file_extract.extract_json_content(customer_guid, local_path, filename)
+            elif file_type == FileType.IMAGE:
+                logger.info(f"Verified file '{filename}' as a valid JPEG or JPG or PNG")
+                output_file_path = self.file_extract.extract_image_content(customer_guid, local_path, filename)
+            elif file_type == FileType.YAML:
+                logger.info(f"Verified file '{filename}' as a valid YAML or YML")
+                output_file_path = self.file_extract.extract_yaml_content(customer_guid, local_path, filename)
+            elif file_type == FileType.CODE:
+                logger.info(f"Verified file '{filename}' as a valid CODE file.")
+                output_file_path = self.file_extract.extract_code_file_content(customer_guid, local_path, filename)
             else:
                 logger.error(f"File '{filename}' is not a valid file (detected type: {file_type})")
                 raise Exception("Invalid file type: Uploaded file is not a Valid.")
         except Exception as e:
-            logger.error(f"Error detecting file type for '{filename}': {e}")
-            raise Exception("File type detection failed.")
+            logger.error(f"Error extracting file for '{filename}': {e}")
+            raise Exception("File extraction failed.")
 
-        #Extract Files content here
+        #Upload extracted content
         try:
-            if file_type==FileType.PDF:
-                output_file_path = self.file_extract.extract_pdf_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "PDF extracted and uploaded successfully."}
-            elif file_type==FileType.DOCX:
-                output_file_path = self.file_extract.extract_docx_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "Docx extracted and uploaded successfully."}
-            elif file_type==FileType.PPTX:
-                output_file_path = self.file_extract.extract_ppt_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "PPTX extracted and uploaded successfully."}
-            elif file_type == FileType.XLSX:
-                output_file_path = self.file_extract.extract_excel_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "XLSX extracted and uploaded successfully."}
-            elif file_type == FileType.HTML:
-                output_file_path = self.file_extract.extract_html_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "HTML extracted and uploaded successfully."}
-            elif file_type == FileType.JSON:
-                output_file_path = self.file_extract.extract_json_content(customer_guid, local_path, filename)
-                self.upload_extracted_content(customer_guid, filename, output_file_path)
-                return {"message": "JSON extracted and uploaded successfully."}
+            self.upload_extracted_content(customer_guid, filename, output_file_path)
+            return {"message": f"{file_type.name} extracted and uploaded successfully."}
         except Exception as e:
-            logger.error(f"File extraction error: {e}")
-            raise Exception(f"File extraction failed.{e}")
+            logger.error(f"File upload error: {e}")
+            raise Exception(f"File upload failed.{e}")
 
     def extract_html_files(self, customer_guid: str, source_url_link: str, filename: str):
 
@@ -178,7 +175,22 @@ class FileExtractor:
             "text/html": FileType.HTML,
             "application/xhtml+xml": FileType.HTML,
             "application/json": FileType.JSON,
-            "text/json": FileType.JSON
+            "text/json": FileType.JSON,
+            "image/jpeg": FileType.IMAGE,
+            "image/png": FileType.IMAGE,
+            "image/jpg": FileType.IMAGE,
+            "text/x-yaml": FileType.YAML,
+            "application/x-yaml": FileType.YAML,
+            "text/plain": FileType.YAML,
+            "text/x-java-source": FileType.CODE,
+            "text/x-java": FileType.CODE,
+            "text/x-python": FileType.CODE,
+            "text/x-script.python": FileType.CODE,
+            "text/x-c": FileType.CODE,
+            "text/x-c++": FileType.CODE,
+            "text/x-php": FileType.CODE,
+            "application/x-php": FileType.CODE,
+            "application/javascript": FileType.CODE,
         }
         try:
             mime = magic.Magic(mime=True)
@@ -202,6 +214,16 @@ class FileExtractor:
                 return "word/document.xml" in zip_ref.namelist()
         except zipfile.BadZipfile:
                 return False
+
+    def append_result(self, results, customer_guid, filename, page_number, content):
+        results.append({
+            "metadata": {
+                "page_number": page_number,
+                "customer_guid": customer_guid,
+                "filename": filename,
+            },
+            "text": content
+        })
 
     def format_table_as_text(self, table):
         try:
@@ -327,11 +349,7 @@ class FileExtractor:
                     # Join the corrected content
                     page_text = " ".join(corrected_content)
 
-                    # Append the result for this page (with metadata and content)
-                    results.append({
-                        "metadata": {"page_number": page_number},
-                        "text": page_text
-                    })
+                    self.append_result(results,customer_guid,filename,page_number,page_text)
 
                 # Save the extracted content to a file
                 output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
@@ -436,15 +454,6 @@ class FileExtractor:
                     "y0": 0
                 })
 
-                # Add the page's content to results
-                page_text = " ".join([element["content"] for element in page_elements if element["type"] == "text"])
-                results.append({
-                    "metadata": {"page_number": current_page_number},
-                    "text": page_text
-                })
-
-            logger.info(f"Processed {total_paragraphs} paragraphs and added to results.")
-
             # Extract tables and format them as text
             for table in doc.tables:
                 table_data = []
@@ -491,10 +500,7 @@ class FileExtractor:
             page_text = " ".join(corrected_content)
 
             # Append the final content to results
-            results.append({
-                "metadata": {"page_number": current_page_number},
-                "text": page_text
-            })
+            self.append_result(results,customer_guid,filename,current_page_number,page_text)
 
             # Save the extracted content to a file
             output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
@@ -584,6 +590,10 @@ class FileExtractor:
                     "text": slide_text
                 })
 
+                        # Combine slide elements
+                slide_text = "\n".join(element["content"] for element in slide_elements)
+                self.append_result(results,customer_guid,filename,slide_number,slide_text)
+
             # Save results to a file
             output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
             os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
@@ -661,10 +671,7 @@ class FileExtractor:
                     for element in sheet_elements
                 )
 
-                results.append({
-                    "metadata": {"page_number": sheet_index},
-                    "text": combined_text
-                })
+                self.append_result(results,customer_guid,filename,sheet_index,combined_text)
 
             # Save results to a file
             output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
@@ -821,12 +828,9 @@ class FileExtractor:
                                     clean_text = text_element.strip()
                                     if clean_text:
                                         text_content.append(clean_text)
-
+                content = " ".join(text_content)
                 # Append the result for the current page
-                results.append({
-                    "metadata": {"page_number": page_number},
-                    "text": " ".join(text_content)
-                })
+                self.append_result(results,customer_guid,filename,page_number,content)
 
             # Save extracted content
             output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
@@ -874,10 +878,7 @@ class FileExtractor:
                 formatted_data = self.format_output(structured_data)
                 if not formatted_data.strip():
                     return None
-                results.append({
-                    "metadata": {"page_number": 1},
-                    "text": formatted_data
-                })
+                self.append_result(results,customer_guid,filename,page_number=1,content=formatted_data)
             # Save the extracted content to a file
             output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
             os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
@@ -943,10 +944,107 @@ class FileExtractor:
         format_section(extracted_data)
         return "\n".join(formatted_output)
 
+    def extract_image_content(self, customer_guid: str, image_path: str, filename: str):
+
+        try:
+            logger.info(f"Extracting text from image '{image_path}' for customer '{customer_guid}'")
+            image = Image.open(image_path)
+
+            ocr_text = pytesseract.image_to_string(image)
+
+            results = []
+
+            corrected_code = ocr_text.strip()
+
+            self.append_result(results,customer_guid,filename,page_number=1,content=corrected_code)
+
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
+            # Save the extracted text to a JSON file
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+
+            logger.info(f"Extracted content saved to '{output_file_path}'")
+            return output_file_path
+        except Exception as e:
+            logger.error(f"Error extracting text from image '{filename}': {e}")
+            raise Exception(f"Image extraction failed: {e}")
+
+    def extract_yaml_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+            with open(file_path, 'r', encoding='utf-8') as file:
+                yaml_data = yaml.safe_load(file)  # Parse YAML content
+                formatted_data = self.yaml_format_output(yaml_data)  # Format YAML content
+                if not formatted_data.strip():
+                    return None
+                self.append_result(results,customer_guid,filename,page_number=1,content=formatted_data)
+
+            # Save the extracted content to a file
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+            return output_file_path
+
+        except Exception as e:
+            raise Exception(f"YAML content extraction failed: {e}")
+
+    def yaml_format_output(self, data, indent=0):
+        formatted_output = []
+
+        def format_yaml(data, current_indent):
+            if isinstance(data, dict):
+                for key, value in data.items():
+                    if isinstance(value, (dict, list)):
+                        formatted_output.append(f"{' ' * current_indent}{key}:")
+                        format_yaml(value, current_indent + 2)
+                    else:
+                        # Preserve multiline strings with proper YAML syntax
+                        if isinstance(value, str) and '\n' in value:
+                            formatted_output.append(f"{' ' * current_indent}{key}: |")
+                            for line in value.splitlines():
+                                formatted_output.append(f"{' ' * (current_indent + 2)}{line}")
+                        else:
+                            formatted_output.append(f"{' ' * current_indent}{key}: {value}")
+            elif isinstance(data, list):
+                for item in data:
+                    if isinstance(item, (dict, list)):
+                        formatted_output.append(f"{' ' * current_indent}-")
+                        format_yaml(item, current_indent + 2)
+                    else:
+                        formatted_output.append(f"{' ' * current_indent}- {item}")
+            else:
+                formatted_output.append(f"{' ' * current_indent}{data}")
+
+        format_yaml(data, indent)
+        return "\n".join(formatted_output)
+
+    def extract_code_file_content(self, customer_guid: str, file_path: str, filename: str):
+        try:
+            results = []
+            # Read the file content
+            with open(file_path, "r", encoding="utf-8") as file:
+                code_content = file.read()
+
+            self.append_result(results,customer_guid,filename,page_number=1,content=code_content)
+
+            # Save the extracted content to a file
+            output_file_path = f"/tmp/{customer_guid}/{filename}.rawcontent"
+            os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+            with open(output_file_path, "w", encoding="utf-8") as raw_content_file:
+                json.dump(results, raw_content_file, indent=4)
+            logger.info(f"Extracted code content saved to '{output_file_path}'")
+            return output_file_path
+
+        except Exception as e:
+            logger.error(f"Code content extraction failed for file '{filename}': {e}")
+            raise Exception(f"Code content extraction failed: {e}")
 
 
 if __name__ == "__main__":
-    customer_guid = "0ed13e14-326e-43f4-a7a0-39e0903a542f"
-    filename = "SingleJsonFile.json"
+    customer_guid = "264d71be-b07c-4c18-849d-4ce13bab4029"
+    filename = "extract_file.py"
     upload_file_for_chunks = UploadFileForChunks()
     upload_file_for_chunks.extract_file(customer_guid, filename)
