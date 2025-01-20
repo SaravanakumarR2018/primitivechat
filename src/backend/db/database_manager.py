@@ -1184,6 +1184,17 @@ class DatabaseManager:
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
+            # Check if the ticket_id exists in the tickets table
+            logger.debug(f"Checking existence of ticket_id: {ticket_id}")
+            ticket_exists = session.execute(
+                text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
+                {"ticket_id": ticket_id}
+            ).fetchone()
+
+            logger.debug(f"Ticket existence check result: {ticket_exists}")
+            if not ticket_exists:
+                raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
+
             # Retrieve comment details
             comment_query = '''
             SELECT comment_id, ticket_id, posted_by, comment, is_edited, created_at, updated_at
@@ -1334,8 +1345,7 @@ class DatabaseManager:
                 query = """
                     UPDATE ticket_comments
                     SET comment = :comment,
-                        is_edited = true,
-                        updated_at = CURRENT_TIMESTAMP
+                        is_edited = true
                     WHERE ticket_id = :ticket_id AND comment_id = :comment_id
                 """
                 session.execute(
