@@ -532,7 +532,7 @@ async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     except HTTPException as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail=f"Comment with comment_id {comment_id} not found for customer {customer_guid}")
+                            detail=f"Comment with comment_id {comment_id} not found for ticket id {ticket_id}")
     except Exception as e:
         if "Database connectivity issue" in str(e):
             logger.error(f"Database error: {e}")
