@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class TestUpdateCommentAPI(unittest.TestCase):
 
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def setUp(self):
         """Set up test environment by creating a customer, ticket, and comment."""
@@ -83,6 +83,7 @@ class TestUpdateCommentAPI(unittest.TestCase):
         comment_before_update = comment_before_update_response.json()
 
         # Store initial values for comparison
+        initial_created_at=comment_before_update.get("created_at")
         initial_updated_at = comment_before_update.get("updated_at")
         initial_is_edited = comment_before_update.get("is_edited")
 
@@ -105,6 +106,9 @@ class TestUpdateCommentAPI(unittest.TestCase):
         self.assertEqual(updated_comment["comment"], "This is an updated comment", "Comment text was not updated")
         self.assertEqual(updated_comment["comment_id"], self.valid_comment_id, "Comment ID mismatch")
         self.assertEqual(updated_comment["posted_by"], "test_user", "posted_by does not match")
+
+        #Verify the 'created_at' remains same
+        self.assertEqual(updated_comment['created_at'], initial_created_at, "The 'created_at' should not changed")
 
         # Verify the 'updated_at' has changed
         self.assertNotEqual(updated_comment["updated_at"], initial_updated_at,
