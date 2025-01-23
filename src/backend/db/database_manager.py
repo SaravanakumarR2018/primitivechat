@@ -54,6 +54,56 @@ class DatabaseManager:
         DatabaseManager._session_factory = sessionmaker(bind=engine)
         logger.info("Session factory initialized")
 
+    def validate_customer_guid(self, customer_db_name, session, raise_exception=True):
+        logger.debug(f"Checking if database {customer_db_name} exists")
+
+        try:
+            result = session.execute(
+                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
+                {"db_name": customer_db_name}
+            ).fetchone()
+        except OperationalError as e:
+            logger.error(f"Database connectivity issue during schema check: {e}")
+            return {"status": "db_unreachable",
+                    "reason": "Database is currently unreachable"} if not raise_exception else None
+        except DatabaseError as e:
+            logger.error(f"Database connectivity issue during schema check: {e}")
+            return {"status": "db_unreachable",
+                    "reason": "Database is currently unreachable"} if not raise_exception else None
+
+        if not result:
+            if raise_exception:
+                raise ValueError(f"Database {customer_db_name} does not exist")
+            else:
+                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+
+        return None  # Success case when `raise_exception=True`
+
+    def validate_chat_id(self, chat_id, session):
+        # Check if the chat_id exists in the chat_messages table
+        chat_exists = session.execute(
+            text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+            {"chat_id": chat_id}
+        ).fetchone()
+        if not chat_exists:
+            logger.error(f"Invalid chat_id: {chat_id}")
+            raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
+
+    def validate_ticket_id(self, session, ticket_id, return_response=False):
+        logger.debug(f"Checking existence of ticket_id: {ticket_id}")
+        ticket_exists = session.execute(
+            text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
+            {"ticket_id": ticket_id}
+        ).fetchone()
+
+        logger.debug(f"Ticket existence check result: {ticket_exists}")
+
+        if not ticket_exists:
+            if return_response:
+                return {"status": "not_found", "reason": f"Invalid Ticket ID. {ticket_id} does not exist."}
+            else:
+                raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
+
     @staticmethod
     def get_customer_db(customer_guid):
         logger.debug(f"Getting database name for customer GUID: {customer_guid}")
@@ -326,15 +376,7 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
@@ -428,15 +470,7 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
@@ -493,18 +527,10 @@ class DatabaseManager:
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            try:
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except OperationalError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-
-            if not result:
-                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+            #Check Database exist or not
+            response = self.validate_customer_guid(customer_db_name, session, raise_exception=False)
+            if response:
+                return response
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             try:
@@ -645,23 +671,13 @@ class DatabaseManager:
             ALLOWED_PRIORITIES = {"low", "medium", "high"}
 
             # Check if database exists
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             # Switch to the customer's database
             session.execute(text(f"USE `{customer_db_name}`"))
 
             # Check chat_id validity
-            chat_exists = session.execute(
-                text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
-                {"chat_id": chat_id}
-            ).fetchone()
-            if not chat_exists:
-                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
+            self.validate_chat_id(chat_id, session)
 
             # Fetch custom field definitions
             field_definitions = {}
@@ -755,15 +771,7 @@ class DatabaseManager:
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
@@ -832,28 +840,12 @@ class DatabaseManager:
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
-            # Check if the chat_id exists in the chat_messages table
-            chat_exists = session.execute(
-                text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
-                {"chat_id": chat_id}
-            ).fetchone()
-
-            if not chat_exists:
-                logger.error(f"Invalid chat_id: {chat_id}")
-                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
+            self.validate_chat_id(chat_id, session)
 
             # Pagination logic
             offset = (page - 1) * page_size
@@ -897,22 +889,10 @@ class DatabaseManager:
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            try:
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except OperationalError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-            except DatabaseError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-
-            if not result:
-                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+            #Check Database exist or not
+            response = self.validate_customer_guid(customer_db_name, session, raise_exception=False)
+            if response:
+                return response
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
@@ -994,19 +974,10 @@ class DatabaseManager:
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            try:
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except OperationalError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-
-            if not result:
-                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+            #Check Database exist or not
+            response = self.validate_customer_guid(customer_db_name, session, raise_exception=False)
+            if response:
+                return response
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             try:
@@ -1080,30 +1051,14 @@ class DatabaseManager:
 
         try:
             # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            logger.debug(f"Database existence check result: {result}")
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             # Switch to the customer database
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
             # Check if the ticket_id exists in the tickets table
-            logger.debug(f"Checking existence of ticket_id: {ticket_id}")
-            ticket_exists = session.execute(
-                text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
-                {"ticket_id": ticket_id}
-            ).fetchone()
-
-            logger.debug(f"Ticket existence check result: {ticket_exists}")
-            if not ticket_exists:
-                raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
+            self.validate_ticket_id(session, ticket_id)
 
             # Begin transaction
             logger.debug("Starting transaction for comment creation")
@@ -1171,29 +1126,13 @@ class DatabaseManager:
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
             # Check if the ticket_id exists in the tickets table
-            logger.debug(f"Checking existence of ticket_id: {ticket_id}")
-            ticket_exists = session.execute(
-                text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
-                {"ticket_id": ticket_id}
-            ).fetchone()
-
-            logger.debug(f"Ticket existence check result: {ticket_exists}")
-            if not ticket_exists:
-                raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
+            self.validate_ticket_id(session, ticket_id)
 
             # Retrieve comment details
             comment_query = '''
@@ -1233,15 +1172,7 @@ class DatabaseManager:
         session = DatabaseManager._session_factory()
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            result = session.execute(
-                text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                {"db_name": customer_db_name}
-            ).fetchone()
-
-            if not result:
-                raise ValueError(f"Database {customer_db_name} does not exist")
+            self.validate_customer_guid(customer_db_name, session)
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
@@ -1299,33 +1230,18 @@ class DatabaseManager:
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            try:
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except (OperationalError, DatabaseError) as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
-
-            if not result:
-                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
+            # Check Database exist or not
+            response = self.validate_customer_guid(customer_db_name, session, raise_exception=False)
+            if response:
+                return response
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
 
             # Check if the ticket_id exists in the tickets table
-            logger.debug(f"Checking existence of ticket_id: {ticket_id}")
-            ticket_exists = session.execute(
-                text("SELECT 1 FROM tickets WHERE ticket_id = :ticket_id LIMIT 1"),
-                {"ticket_id": ticket_id}
-            ).fetchone()
-
-            logger.debug(f"Ticket existence check result: {ticket_exists}")
-            if not ticket_exists:
-                return {"status": "not_found",
-                        "reason": f"Invalid Ticket ID. {ticket_id} does not exist."}
+            result = self.validate_ticket_id(session, ticket_id, return_response=True)
+            if result:
+                return result  # Return JSON response instead of raising an exception
 
             # Check if the comment exists and fetch posted_by field
             result = session.execute(
@@ -1417,26 +1333,21 @@ class DatabaseManager:
             return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
 
         try:
-            # Check if the database exists
-            logger.debug(f"Checking if database {customer_db_name} exists")
-            try:
-                result = session.execute(
-                    text("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :db_name"),
-                    {"db_name": customer_db_name}
-                ).fetchone()
-            except OperationalError as e:
-                logger.error(f"Database connectivity issue during schema check: {e}")
-                return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+            #Check Database exist or not
+            response = self.validate_customer_guid(customer_db_name, session, raise_exception=False)
+            if response:
+                return response
 
-            if not result:
-                return {"status": "unknown_db", "reason": f"Database {customer_db_name} does not exist"}
-
-            logger.debug(f"Switching to customer database: {customer_db_name}")
             try:
                 session.execute(text(f"USE `{customer_db_name}`"))
             except OperationalError as e:
                 logger.error(f"Database connectivity issue during USE statement: {e}")
                 return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+            # Check if the ticket_id exists in the tickets table
+            result = self.validate_ticket_id(session, ticket_id, return_response=True)
+            if result:
+                return result  # Return JSON response instead of raising an exception
 
             # Check if the comment exists
             try:
