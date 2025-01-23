@@ -516,7 +516,7 @@ async def create_comment(comment: CommentRequest):
             detail="An unexpected error occurred"
         )
 
-@app.get("/tickets/{tickets_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
+@app.get("/tickets/{ticket_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
 async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
     """Retrieve a comment by ID"""
     try:
@@ -532,7 +532,7 @@ async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     except HTTPException as e:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail=f"Comment with comment_id {comment_id} not found for customer {customer_guid}")
+                            detail=f"Comment with comment_id {comment_id} not found for ticket id {ticket_id}")
     except Exception as e:
         if "Database connectivity issue" in str(e):
             logger.error(f"Database error: {e}")
