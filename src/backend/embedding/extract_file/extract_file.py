@@ -1015,4 +1015,4 @@ if __name__ == "__main__":
     url="https://www.bookwidgets.com/blog/2016/10/15-education-blogs-every-teacher-should-know-about"
     filename = "bookwidgets.html"
     upload_file_for_chunks = UploadFileForChunks()
-    upload_file_for_chunks.extract_html_files(customer_guid,url,filename)
+    upload_file_for_chunks.extract_html_files(customer_guid,url, filename)
