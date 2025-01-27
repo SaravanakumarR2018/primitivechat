@@ -1,12 +1,12 @@
 import os
 import logging
+from docx import Document
 import magic  # Used to detect file type
 import pytesseract
 from src.backend.minio.minio_manager import MinioManager
 import pdfplumber
 import json
 import io
-from docx import Document
 from PIL import Image
 from enum import Enum
 import zipfile
@@ -1011,7 +1011,8 @@ class FileExtractor:
 
 
 if __name__ == "__main__":
-    customer_guid = "264d71be-b07c-4c18-849d-4ce13bab4029"
-    filename = "extract_file.py"
+    customer_guid = "d3d62569-03b4-41ce-94bf-918a97684763"
+    url="https://www.bookwidgets.com/blog/2016/10/15-education-blogs-every-teacher-should-know-about"
+    filename = "bookwidgets.html"
     upload_file_for_chunks = UploadFileForChunks()
-    upload_file_for_chunks.extract_file(customer_guid, filename)
+    upload_file_for_chunks.extract_html_files(customer_guid,url,filename)

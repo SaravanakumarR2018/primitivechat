@@ -36,9 +36,9 @@ class LocalFileDownloadAndUpload:
 
         try:
             with open(output_file, "rb") as file_pointer:
-                self.minio_manager.upload_file(customer_guid, f"{filename}.rawcontent", file_pointer)
+                self.minio_manager.upload_file(customer_guid, f"{filename}.txt", file_pointer)
 
-            logger.info(f"Raw content file '{filename}.rawcontent' uploaded to MinIO bucket '{customer_guid}'")
+            logger.info(f"Raw content file '{filename}.txt' uploaded to MinIO bucket '{customer_guid}'")
         except Exception as e:
             logger.error(f"Failed to upload raw content: {e}")
             raise Exception(f"File upload failed: {e}")

@@ -39,15 +39,22 @@ class ProcessAndUploadBucket:
             raise Exception(f"Failed to upload file.{e}")
 
 class SemanticChunkProcessor:
-    def __init__(self, model_name='all-MiniLM-L6-v2', max_tokens=400, similarity_threshold=0.2):
+    def __init__(self, model_name='paraphrase-MiniLM-L6-v2', max_tokens=300, similarity_threshold=0.1):
         try:
-            self.model = SentenceTransformer(model_name)
+            self.model = self.load_model(model_name)
             self.max_tokens = max_tokens
             self.similarity_threshold = similarity_threshold
             self.nlp = spacy.load('en_core_web_sm')
         except Exception as e:
             logger.error(f"Error initializing SemanticChunkProcessor: {e}")
             raise Exception(f"Initialization failed: {e}")
+
+    def load_model(self, model_name):
+        try:
+            return SentenceTransformer(model_name)
+        except Exception as e:
+            logger.error(f"Error loading SentenceTransformer model '{model_name}': {e}")
+            raise Exception(f"Model loading failed: {e}")
 
     def generate_chunks(self, pages, customer_guid, filename):
         try:
@@ -77,7 +84,7 @@ class SemanticChunkProcessor:
                     else:
                         similarity = self.similarity_threshold  + 1
 
-                    # Check if new chunk should be created
+                    # Check if new chunziplet.html.txk should be created
                     if (current_tokens + sentence_tokens > self.max_tokens) or (similarity < self.similarity_threshold):
                         if current_chunk["text"]:
                             chunks.append({
@@ -118,7 +125,7 @@ class SemanticChunkProcessor:
 
 
 if __name__ == "__main__":
-    customer_guid = "88c70a90-6b06-474a-ade0-3b7adaa5bbe5"
-    filename = "extract_file.py.txt"
+    customer_guid = "d3d62569-03b4-41ce-94bf-918a97684763"
+    filename = "ziplet.html.txt"
     final_processor=ProcessAndUploadBucket()
     final_processor.process_and_upload(customer_guid, filename)
