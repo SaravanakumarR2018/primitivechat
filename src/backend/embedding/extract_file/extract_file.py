@@ -1,12 +1,12 @@
 import os
 import logging
-from docx import Document
 import magic  # Used to detect file type
 import pytesseract
 from src.backend.minio.minio_manager import MinioManager
 import pdfplumber
 import json
 import io
+from docx import Document
 from PIL import Image
 from enum import Enum
 import zipfile
