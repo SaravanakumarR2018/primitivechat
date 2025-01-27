@@ -659,7 +659,11 @@ async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
             return CommentDeleteResponse(comment_id=comment_id, status="deleted")
 
         elif result["status"] == "not_found":
-            return CommentDeleteResponse(comment_id=comment_id, status="not_found")
+            logger.error(result["reason"])
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=result["reason"]
+            )
 
         elif result["status"] == "unknown_db":
             logger.error("Unknown Database error occurred: " + result["reason"])
