@@ -39,7 +39,7 @@ class ProcessAndUploadBucket:
             raise Exception(f"Failed to upload file.{e}")
 
 class SemanticChunkProcessor:
-    def __init__(self, model_name='paraphrase-MiniLM-L6-v2', max_tokens=300, similarity_threshold=0.4):
+    def __init__(self, model_name='all-mpnet-base-v2', max_tokens=300, similarity_threshold=0.4):
         try:
             self.model = self.load_model(model_name)
             self.max_tokens = max_tokens
