@@ -1,5 +1,5 @@
-fastapi==0.95.2
-pydantic==1.10.8
+fastapi>=0.100.0
+pydantic>=2.8.2
 uvicorn==0.23.2
 requests==2.31.0
 SQLAlchemy==1.4.48
@@ -9,3 +9,5 @@ weaviate==0.1.2
 weaviate-client==2.5.0
 python-multipart==0.0.17
 python-dotenv==1.0.1
+PyJWT
+clerk-backend-api
