@@ -65,3 +65,54 @@ class WeaviateManager:
         except Exception as e:
             logger.error(f"Unexpected error:{e}")
             return f"Unexpected error:{e}"
+
+    def create_schema_per_customer_guid(self, customer_guid):
+        try:
+            schema = self.client.schema.get()
+            class_names = [cls["class"] for cls in schema.get("classes", [])]
+
+            class_name=self.generate_weaviate_class_name(customer_guid)
+
+            if class_name not in class_names:
+                schema_obj = {
+                    "class": class_name,
+                    "description": "Schema for storing semantic chunks of a document.",
+                    "properties":  [
+                        {
+                            "name": "text",
+                            "dataType": ["text"],
+                            "description": "The chunked text content from the document.",
+                            "indexInverted": True
+                        },
+                        {
+                            "name": "chunk_number",
+                            "dataType": ["int"],
+                            "description": "An object containing metadata like chunk number",
+                            "indexInverted": False
+                        },
+                        {
+                            "name": "page_numbers",
+                            "dataType": ["int[]"],
+                            "description": "An object containing metadata like page number",
+                            "indexInverted": False
+                        },
+                        {
+                            "name": "customer_guid",
+                            "dataType": ["text"],
+                            "description": "A unique identifier for the customer (namespace-like isolation).",
+                            "indexInverted": True
+                        },
+                        {
+                            "name": "filename",
+                            "dataType": ["text"],
+                            "description": "The name of the file this chunk originates from.",
+                            "indexInverted": True
+                        }
+                    ]
+                }
+                self.client.schema.create_class(schema_obj)
+                logger.info(f"Schema '{customer_guid}' created successfully!")
+            else:
+                logger.info(f"Schema '{customer_guid}' already exists, skipping creation.")
+        except Exception as e:
+            logger.error(f"Unexpected error creating schema: {e}")
