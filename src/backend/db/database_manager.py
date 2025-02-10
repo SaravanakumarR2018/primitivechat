@@ -105,6 +105,46 @@ class DatabaseManager:
                 raise ValueError(f"Invalid ticket_id: {ticket_id} does not exist.")
 
     @staticmethod
+    def create_customer_file_status_table():
+        logger.debug("Creating customer_file_status table in common_db")
+        session = DatabaseManager._session_factory()
+        try:
+            # Create the common_db database if it doesn't exist
+            create_db_query = "CREATE DATABASE IF NOT EXISTS common_db"
+            session.execute(text(create_db_query))
+
+            use_db_query = "USE common_db"
+            session.execute(text(use_db_query))
+
+            # Create the table if it doesn't exist
+            create_table_query = """
+                   CREATE TABLE IF NOT EXISTS customer_file_status (
+                       id SERIAL PRIMARY KEY,
+                       customer_guid VARCHAR(255),
+                       filename VARCHAR(255),
+                       uploaded_time TIMESTAMP(6),
+                       created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                       status ENUM('todo', 'extracted', 'chunked', 'completed', 'error', 'extract_error', 'chunk_error', 'vectorize_error') DEFAULT 'todo',
+                       errors TEXT,
+                       error_retry INT DEFAULT 0,
+                       completed_time TIMESTAMP(6),
+                       thread INT DEFAULT NULL,
+                       to_be_deleted BOOLEAN DEFAULT FALSE,
+                       delete_request_timestamp TIMESTAMP(6),
+                       delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
+                       final_delete_timestamp TIMESTAMP(6)
+                   );
+                """
+            session.execute(text(create_table_query))
+            session.commit()
+            logger.info("customer_file_status table created successfully in common_db")
+        except SQLAlchemyError as e:
+            logger.error(f"Error creating customer_file_status table: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    @staticmethod
     def get_customer_db(customer_guid):
         logger.debug(f"Getting database name for customer GUID: {customer_guid}")
         return 'customer_' + customer_guid
@@ -123,6 +163,26 @@ class DatabaseManager:
             logger.debug(f"Switching to database: {customer_db_name}")
             use_db_query = f"USE `{customer_db_name}`"
             session.execute(text(use_db_query))
+
+            create_uploadedfile_status_table_query = """
+            CREATE TABLE IF NOT EXISTS uploadedfile_status (
+                id SERIAL PRIMARY KEY,
+                customer_guid VARCHAR(255),
+                filename VARCHAR(255),
+                uploaded_time TIMESTAMP(6),
+                created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                status ENUM('todo', 'extracted', 'chunked', 'completed', 'error', 'extract_error', 'chunk_error', 'vectorize_error') DEFAULT 'todo',
+                errors TEXT,
+                error_retry INT DEFAULT 0,
+                completed_time TIMESTAMP(6),
+                thread INT DEFAULT NULL,
+                to_be_deleted BOOLEAN DEFAULT FALSE,
+                delete_request_timestamp TIMESTAMP(6),
+                delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
+                final_delete_timestamp TIMESTAMP(6)               
+                );
+                """
+            session.execute(text(create_uploadedfile_status_table_query))
 
             # Creating chat_messages table if not exists
             create_chat_messages_table_query = """
@@ -1388,5 +1448,35 @@ class DatabaseManager:
             session.rollback()
             return {"status": "failure", "reason": "Unexpected error occurred"}
 
+        finally:
+            session.close()
+
+    def insert_customer_file_status(self, customer_guid, filename):
+        logger.debug("Inserting record into customer_file_status and uploadedfile_status tables")
+        session = DatabaseManager._session_factory()
+        try:
+            session.execute(text("UPDATE common_db.customer_file_status SET thread = NULL WHERE customer_guid = :customer_guid"), {'customer_guid': customer_guid})
+            customer_db = self.get_customer_db(customer_guid)
+            session.execute(text(f"UPDATE `{customer_db}`.uploadedfile_status SET thread = NULL WHERE customer_guid = :customer_guid"), {'customer_guid': customer_guid})
+
+            insert_common_query = """
+            INSERT INTO common_db.customer_file_status
+            (customer_guid, filename, uploaded_time, created_at, status, errors, error_retry, completed_time, thread, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
+            VALUES (:customer_guid, :filename, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 'todo', NULL, 0, NULL, NULL, FALSE, NULL, 'todo', NULL);
+            """
+            session.execute(text(insert_common_query), {'customer_guid': customer_guid, 'filename': filename})
+
+            insert_customer_query = f"""
+            INSERT INTO `{customer_db}`.uploadedfile_status
+            (customer_guid, filename, uploaded_time, created_at, status, errors, error_retry, completed_time,thread, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
+            VALUES (:customer_guid, :filename, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 'todo', NULL, 0, NULL, NUll, FALSE, NULL, 'todo', NULL);
+            """
+            session.execute(text(insert_customer_query), {'customer_guid': customer_guid, 'filename': filename})
+            session.commit()
+            logger.info(f"File upload record inserted for customer_guid: {customer_guid} with filename: {filename}")
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error inserting file status: {e}")
+            session.rollback()
         finally:
             session.close()
