@@ -76,13 +76,13 @@ class WeaviateManager:
             schema = self.client.schema.get()
             class_names = [cls["class"] for cls in schema.get("classes", [])]
 
-            class_name = self.generate_weaviate_class_name(customer_guid)
+            class_name=self.generate_weaviate_class_name(customer_guid)
 
             if class_name not in class_names:
                 schema_obj = {
                     "class": class_name,
                     "description": "Schema for storing semantic chunks of a customer" + customer_guid,
-                    "properties": [
+                    "properties":  [
                         {
                             "name": "text",
                             "dataType": ["text"],
@@ -125,10 +125,15 @@ class WeaviateManager:
 
     def insert_data(self, customer_guid: str, file_path: str):
         try:
+
+            # Ensure the class schema is created before inserting data
             class_names = self.generate_weaviate_class_name(customer_guid)
 
             self.create_schema_per_customer_guid(customer_guid)
+
             filename = os.path.basename(file_path)
+
+            # Remove embeddings for the file and start fresh embedding
             self.delete_objects_by_customer_and_filename(customer_guid, filename)
 
             # Read and validate data
@@ -141,6 +146,7 @@ class WeaviateManager:
             batch_size = 100
             batch_data = []
 
+            # Process all embeddings first
             texts = [entry["text"].strip() for entry in data if "text" in entry and "metadata" in entry]
             embeddings = self.model.encode(texts).tolist()
 
@@ -156,6 +162,7 @@ class WeaviateManager:
                     "chunk_number": metadata["chunk_number"],
                     "page_numbers": metadata["page_numbers"]
                 }
+
                 batch_data.append((chunk_data, embedding))
 
             self.client.batch.configure(batch_size=batch_size)
@@ -219,6 +226,7 @@ class WeaviateManager:
 
         except Exception as e:
             logger.error(f"Error executing batch deletion for customer_guid: {customer_guid} and filename: {filename} - {str(e)}")
+
 
 if __name__ == "__main__":
     customer_guid = "837da906-13f0-48df-977a-ec20adbcd6d22"
