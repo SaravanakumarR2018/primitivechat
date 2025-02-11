@@ -3,7 +3,9 @@ import os
 import re
 import uuid
 from enum import Enum
+from http import HTTPStatus
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
@@ -24,9 +26,28 @@ class DatabaseManager:
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def __init__(self):
-        logger.debug("Initializing DatabaseManager")
         if DatabaseManager._session_factory is None:
             self._initialize_session_factory()
+        session = self._session_factory()
+        try:
+            # Ensure common_db exists
+            session.execute(text("CREATE DATABASE IF NOT EXISTS common_db"))
+            session.execute(text("USE common_db"))
+
+            # Ensure org_customer_guid_mapping table exists
+            session.execute(text('''
+                CREATE TABLE IF NOT EXISTS org_customer_guid_mapping (
+                    org_id VARCHAR(255) PRIMARY KEY,
+                    customer_guid VARCHAR(255) NOT NULL
+                )
+            '''))
+            session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f"Database initialization error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database initialization failed")
+        finally:
+            session.close()
 
     def _initialize_session_factory(self):
         logger.debug("Initializing session factory")
@@ -1466,5 +1487,43 @@ class DatabaseManager:
             session.rollback()
             return {"status": "failure", "reason": "Unexpected error occurred"}
 
+        finally:
+            session.close()
+
+    def get_customer_guid(self, org_id):
+        """Fetch customer GUID for an organization."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))  # Ensure correct database is used
+
+            # Check if organization exists in mapping table
+            result = session.execute(
+                text("SELECT customer_guid FROM org_customer_guid_mapping WHERE org_id = :org_id"),
+                {"org_id": org_id}
+            ).fetchone()
+
+            return result[0] if result else None  # Return customer GUID if found, else None
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            raise HTTPStatus.INTERNAL_SERVER_ERROR
+        finally:
+            session.close()
+
+    def insert_customer_guid(self, org_id, customer_guid):
+        """Insert a new customer GUID for an organization."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))  # Ensure correct database is used
+
+            session.execute(
+                text("INSERT INTO org_customer_guid_mapping (org_id, customer_guid) VALUES (:org_id, :customer_guid)"),
+                {"org_id": org_id, "customer_guid": customer_guid}
+            )
+            session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            raise HTTPStatus.INTERNAL_SERVER_ERROR
         finally:
             session.close()
