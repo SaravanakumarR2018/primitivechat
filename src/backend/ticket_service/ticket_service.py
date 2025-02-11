@@ -1,10 +1,12 @@
 import logging
+import os
 import re
 from datetime import datetime
 from http import HTTPStatus
 from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, validator
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
@@ -106,6 +108,9 @@ class CommentUpdate(BaseModel):
 class CommentDeleteResponse(BaseModel):
     comment_id:str
     status:str
+
+class CustomerGUIDRequest(BaseModel):
+    org_id: str
 
 # Custom Fields Management APIs
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
@@ -691,3 +696,45 @@ async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while deleting the comment."
         )
+
+async def call_add_customer():
+    """Call external API to create a new customer and return customer GUID."""
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"{BASE_URL}/addcustomer")
+
+    if response.status_code == HTTPStatus.OK:
+        logger.info(f"customer_guid: {response.json()}")
+        return response.json()
+    return None
+
+@app.post("/get_customer_guid", status_code=HTTPStatus.OK)
+async def get_customer_guid(request: CustomerGUIDRequest):
+    """Fetch or create customer GUID for an organization."""
+    try:
+        db_manager = DatabaseManager()
+        customer_guid = db_manager.get_customer_guid(request.org_id)
+
+        if not customer_guid:
+            # Call addcustomer API if customer GUID does not exist
+            response = await call_add_customer()
+
+            customer_guid=response["customer_guid"]
+            logger.info(f"customer_guid: {customer_guid}")
+
+            if customer_guid:
+                # Insert the new customer_guid into the database
+                db_manager.insert_customer_guid(request.org_id, customer_guid)
+            else:
+                raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Failed to add customer")
+
+        return {"customer_guid": customer_guid, "org_id": request.org_id}
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except SQLAlchemyError as e:
+        logger.error(f"Database error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
