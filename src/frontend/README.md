@@ -9,7 +9,7 @@ cd src/frontend
 ### Get the Local Environment File
 Run the script below to retrieve the local environment file:
 ```sh
-./build/get_env_file.sh
+./scripts/get_env_file.sh
 ```
 
 ### Start the Server
