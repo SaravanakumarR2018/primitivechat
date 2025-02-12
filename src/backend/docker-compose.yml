@@ -30,7 +30,7 @@ services:
       test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://localhost:${CHAT_SERVICE_PORT}/ | grep -q '200'"]
       interval: 10s
       timeout: 5s
-      retries: 1000
+      retries: 24
       start_period: 300s
     env_file:
       - .env
