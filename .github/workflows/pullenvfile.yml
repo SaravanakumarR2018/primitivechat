@@ -1,7 +1,6 @@
 name: Pull Environment File
 
-on:
-    workflow_dispatch:
+on: push
 
 jobs:
   pull-env-file:
