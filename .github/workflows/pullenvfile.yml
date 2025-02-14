@@ -10,9 +10,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Print SSH Private Key for Debugging
-      run: echo "${{ secrets.SSH_PRIVATE_KEY }}"
-
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
@@ -24,16 +21,51 @@ jobs:
       run: |
         git clone git@github.com:SaravanakumarR2018/primitivechatenv.git private-repo
 
+    - name: Move contents to src/frontend
+      run: |
+        cp -r private-repo/* src/frontend/
+
     - name: Verify .env.local file
       run: |
-        if [ -f private-repo/.env.local ]; then
+        if [ -f src/frontend/.env.local ]; then
           echo ".env.local file exists"
         else
           echo ".env.local file does not exist"
           exit 1
         fi
 
+    - name: Install dependencies
+      run: |
+        cd src/frontend
+        npm install
+
+    - name: Build the project
+      run: |
+        cd src/frontend
+        npm run build
+
+    - name: Start Next.js server
+      run: |
+        cd src/frontend
+        npm start &
+        sleep 10
+
+    - name: Wait for server to be up
+      run: |
+        for i in {1..18}; do
+          if nc -zv localhost 3000; then
+            echo "Server is listening on port 3000"
+            exit 0
+          else
+            echo "Waiting for server to be up..."
+            sleep 10
+          fi
+        done
+        echo "Server did not start within 3 minutes"
+        exit 1
+
     - name: Secure Cleanup
+      if: always()
       run: |
         rm -rf ~/.ssh/id_ed25519
         echo "✅ SSH key removed after use"
