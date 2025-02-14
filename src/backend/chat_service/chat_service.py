@@ -43,13 +43,12 @@ class DeleteChatsRequest(BaseModel):
 
 class AddCustomerRequest(BaseModel):
     org_id: str
-    org_created_at: str
 
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
 async def add_customer(request: AddCustomerRequest):
     """Create a new customer, set up DBs, and add an entry in the common_db table."""
-    logger.debug(f"Entering add_customer() with org_id: {request.org_id}, org_created_at: {request.org_created_at}")
+    logger.debug(f"Entering add_customer() with org_id: {request.org_id}")
 
     try:
         # Check if customer already exists for the given org_id
@@ -84,7 +83,7 @@ async def add_customer(request: AddCustomerRequest):
 
         # Add extra row in common_db table
         try:
-            db_manager.map_clerk_orgid_with_customer_guid(request.org_id, customer_guid, request.org_created_at)
+            db_manager.map_clerk_orgid_with_customer_guid(request.org_id, customer_guid)
             logger.info(f"Entry added in common_db for org_id: {request.org_id}, customer_guid: {customer_guid}")
         except SQLAlchemyError as e:
             logger.error(f"Database error while inserting into common_db: {e}")
