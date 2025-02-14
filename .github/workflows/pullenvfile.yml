@@ -19,7 +19,7 @@ jobs:
 
     - name: Clone Private Repo
       run: |
-        git clone git@github.com:YourUsername/YourPrivateRepo.git private-repo
+        git clone git@github.com:SaravanakumarR2018/primitivechatenv.git private-repo
 
     - name: Verify .env.local file
       run: |
