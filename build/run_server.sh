@@ -137,7 +137,7 @@ fi
 # Check if the server is up (replace http://localhost:${CHAT_SERVICE_PORT} with the actual URL if needed)
 URL="http://localhost:${CHAT_SERVICE_PORT}"  # Updated URL to localhost
 EXPECTED_OUTPUT='{"message":"The server is up and running!"}'
-MAX_WAIT_TIME=1200  # 20 minutes
+MAX_WAIT_TIME=4300  # 70 minutes
 CHECK_INTERVAL=5    # 5 seconds
 elapsed_time=0
 
