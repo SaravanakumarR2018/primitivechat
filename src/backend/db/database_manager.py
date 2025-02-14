@@ -45,7 +45,6 @@ class DatabaseManager:
                     CREATE TABLE IF NOT EXISTS org_customer_guid_mapping (
                         org_id VARCHAR(255) PRIMARY KEY,  -- Unique identifier for an organization
                         customer_guid VARCHAR(255) NOT NULL,  -- Unique customer GUID
-                        org_id_create_timestamp_in_clerk TIMESTAMP(6) NOT NULL,  -- Obtained from Clerk, so no default value
                         customer_guid_org_id_map_timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),  -- Last mapping update timestamp
                         is_customer_guid_deleted BOOLEAN DEFAULT FALSE,  -- Flag to check if customer GUID is deleted
                         delete_timestamp TIMESTAMP(6) NULL  -- Timestamp when the customer GUID was deleted
@@ -1424,9 +1423,6 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def epoch_to_human(self, epoch_time):
-        return datetime.fromtimestamp(epoch_time/1000).strftime('%Y-%m-%d %H:%M:%S')
-
     def get_customer_guid_from_clerk_orgId(self, org_id):
         """Fetch customer GUID for an organization."""
         session = self._session_factory()
@@ -1451,24 +1447,21 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def map_clerk_orgid_with_customer_guid(self, org_id, customer_guid, org_created_at):
+    def map_clerk_orgid_with_customer_guid(self, org_id, customer_guid):
         """Insert a new customer GUID for an organization."""
         session = self._session_factory()
         try:
             session.execute(text("USE common_db"))  # Ensure correct database is used
 
-            formated_date=self.epoch_to_human(int(org_created_at))
-
             session.execute(
                 text("""
                     INSERT INTO org_customer_guid_mapping 
-                    (org_id, customer_guid, org_id_create_timestamp_in_clerk) 
-                    VALUES (:org_id, :customer_guid, :formated_date)
+                    (org_id, customer_guid) 
+                    VALUES (:org_id, :customer_guid)
                 """),
                 {
                     "org_id": org_id,
-                    "customer_guid": customer_guid,
-                    "formated_date": formated_date
+                    "customer_guid": customer_guid
                 }
             )
 
