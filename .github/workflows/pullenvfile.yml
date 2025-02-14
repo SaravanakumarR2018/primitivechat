@@ -1,15 +1,37 @@
-- name: Setup SSH
-  run: |
-    mkdir -p ~/.ssh
-    echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-    chmod 600 ~/.ssh/id_ed25519
-    ssh-keyscan github.com >> ~/.ssh/known_hosts
+name: Pull Environment File
 
-- name: Clone Private Repo
-  run: |
-    git clone git@github.com:YourUsername/YourPrivateRepo.git private-repo
+on:
+    workflow_dispatch:
 
-- name: Secure Cleanup
-  run: |
-    rm -rf ~/.ssh/id_ed25519
-    echo "✅ SSH key removed after use"
+jobs:
+  pull-env-file:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+    - name: Clone Private Repo
+      run: |
+        git clone git@github.com:YourUsername/YourPrivateRepo.git private-repo
+
+    - name: Verify .env.local file
+      run: |
+        if [ -f private-repo/.env.local ]; then
+          echo ".env.local file exists"
+        else
+          echo ".env.local file does not exist"
+          exit 1
+        fi
+
+    - name: Secure Cleanup
+      run: |
+        rm -rf ~/.ssh/id_ed25519
+        echo "✅ SSH key removed after use"
