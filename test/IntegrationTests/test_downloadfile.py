@@ -17,7 +17,12 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         #Create customer and upload file
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
         self.assertEqual(response.status_code, 200, "Failed to create customer")
 
         customer_guid=response.json().get("customer_guid")
@@ -69,7 +74,12 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         #Create customer
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
         self.assertEqual(response.status_code, 200, "Failed to create customer")
         customer_guid=response.json().get("customer_guid")
 
@@ -96,7 +106,12 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         #Create customer
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
         self.assertEqual(response.status_code, 200, "Failed to create customer")
         customer_guid=response.json().get("customer_guid")
 
@@ -123,7 +138,12 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         #Create a new customer
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_1234",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
 
         #Verify the HTTP response status code for customer creation
         self.assertEqual(response.status_code, 200, "Failed to create customer")

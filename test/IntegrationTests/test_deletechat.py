@@ -21,7 +21,12 @@ class TestDeleteChatAPI(unittest.TestCase):
         add_customer_url = f"{self.BASE_URL}/addcustomer"
         logger.info(f"INPUT: Requesting new customer from: {add_customer_url}")
 
-        customer_response = requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        customer_response = requests.post(add_customer_url, json=payload, headers=headers)
         logger.info(f"OUTPUT: Customer creation response status: {customer_response.status_code}")
 
         self.assertEqual(customer_response.status_code, 200)

@@ -17,13 +17,19 @@ class TestAddCustomerAPI(unittest.TestCase):
         url = f"{self.BASE_URL}/addcustomer"
         logger.info(f"Sending POST request to {url}")
 
-        response = requests.post(url)
+        # Define the payload
+        payload = {
+            "org_id": "test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(url, json=payload, headers=headers)
 
         # Log the response status code
         logger.info(f"Received response status code: {response.status_code} for URL: {url}")
 
         # Check if the response is successful
-        self.assertEqual(response.status_code, 200, "Expected status code 200 but got {response.status_code}")
+        self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
 
         # Check if the response contains customer_guid
         data = response.json()

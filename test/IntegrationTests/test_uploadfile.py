@@ -21,7 +21,12 @@ class TestUploadFileAPI(unittest.TestCase):
         add_customer_url=f"{self.BASE_URL}/addcustomer"
         logger.info(f"Input:Requesting new customer from : {add_customer_url}")
 
-        customer_response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        customer_response = requests.post(add_customer_url, json=payload, headers=headers)
         logger.info(f"Output: Customer creation response status:{customer_response.status_code}")
 
         #Assert the customer creation was successful

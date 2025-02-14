@@ -17,7 +17,12 @@ class TestListFileAPI(unittest.TestCase):
 
         # Create a new customer without uploading any file
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_1",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
         self.assertEqual(response.status_code, 200, "Failed to create customer")
 
         customer_data=response.json()
@@ -45,7 +50,12 @@ class TestListFileAPI(unittest.TestCase):
 
         #Create a new customer to get a valid GUID
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_12",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
         self.assertEqual(response.status_code, 200, "Failed to create customer")
 
         customer_data=response.json()
@@ -103,7 +113,12 @@ class TestListFileAPI(unittest.TestCase):
 
         #Create a customer and upload two files
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "new_test_org_123",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
 
         #Verify the HTTP response status code
         if response.status_code==200:
@@ -155,7 +170,12 @@ class TestListFileAPI(unittest.TestCase):
 
         #Create a new customer
         add_customer_url=f"{self.BASE_URL}/addcustomer"
-        response=requests.post(add_customer_url)
+        payload = {
+            "org_id": "test_org_1234",
+        }
+
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(add_customer_url, json=payload, headers=headers)
 
         #Verify the HTTP response status code for customer creation
         if response.status_code == 200:
