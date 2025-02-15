@@ -1,4 +1,5 @@
 name: Run Frontend Tests
+
 on:
     push:
         branches:
@@ -83,11 +84,15 @@ jobs:
         echo "Server did not start within 3 minutes"
         exit 1
 
+    - name: Stop Next.js server
+      run: |
+        pkill -f 'npm start'
+
     - name: Install and Run Playwright tests
       run: |
         cd src/frontend
         npx playwright install
-        npx playwright test
+        npx playwright test --config=./playwright.config.ts
 
     - name: Secure Cleanup
       if: always()
