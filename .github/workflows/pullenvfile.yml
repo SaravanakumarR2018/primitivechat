@@ -21,6 +21,10 @@ jobs:
       run: |
         git clone git@github.com:SaravanakumarR2018/primitivechatenv.git private-repo
 
+    - name: List contents of private-repo for debugging
+      run: |
+        ls -la private-repo
+
     - name: Verify .env.local file
       run: |
         if [ -f private-repo/.env.local ]; then
