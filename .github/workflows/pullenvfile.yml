@@ -23,10 +23,10 @@ jobs:
 
     - name: Verify .env.local file
       run: |
-        if [ -f src/frontend/.env.local ]; then
-          echo ".env.local file exists"
+        if [ -f private-repo/.env.local ]; then
+          echo ".env.local file exists in private-repo"
         else
-          echo ".env.local file does not exist"
+          echo ".env.local file does not exist in private-repo"
           exit 1
         fi
 
