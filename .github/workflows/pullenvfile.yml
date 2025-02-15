@@ -32,14 +32,14 @@ jobs:
 
     - name: Move contents to src/frontend
       run: |
-        cp -r private-repo/* src/frontend/
+        cp -ra private-repo/* src/frontend/
 
     - name: Verify .env.local file
       run: |
         if [ -f src/frontend/.env.local ]; then
-          echo ".env.local file exists"
+          echo ".env.local file exists in src/frontend"
         else
-          echo ".env.local file does not exist"
+          echo ".env.local file does not exist in src/frontend"
           exit 1
         fi
 
