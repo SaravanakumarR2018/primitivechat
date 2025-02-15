@@ -87,11 +87,13 @@ jobs:
     # - name: Stop Next.js server
     #   run: |
     #     pkill -f 'npm start'
+    
 
     - name: Install and Run Playwright tests
       run: |
         cd src/frontend
-        npx playwright install
+        sudo npx playwright install
+        sudo npx playwright install-deps
         npx playwright test --config=./playwright.config.ts
 
     - name: Secure Cleanup
