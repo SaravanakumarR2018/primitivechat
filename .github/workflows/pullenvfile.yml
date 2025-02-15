@@ -1,6 +1,12 @@
 name: Pull Environment File
 
-on: push
+on:
+    push:
+        branches:
+            - '**'
+    pull_request:
+        branches:
+            - main
 
 jobs:
   pull-env-file:
