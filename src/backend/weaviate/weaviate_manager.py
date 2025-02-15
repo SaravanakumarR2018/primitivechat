@@ -3,7 +3,7 @@ import weaviate
 from weaviate import Client
 import os
 import json
-from sentence_transformers import SentenceTransformer
+#from sentence_transformers import SentenceTransformer
 
 #config logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
@@ -11,15 +11,16 @@ logger = logging.getLogger(__name__)
 
 class WeaviateManager:
     def __init__(self):
+
         try:
-            weaviate_host = os.getenv('WEAVIATE_HOST')  # Get the Weaviate host from environment variable
-            weaviate_port = os.getenv('WEAVIATE_PORT')  # Get the Weaviate port from environment variable
+            weaviate_host = os.getenv('WEAVIATE_HOST','localhost')  # Get the Weaviate host from environment variable
+            weaviate_port = os.getenv('WEAVIATE_PORT','9002')  # Get the Weaviate port from environment variable
+
             if not weaviate_host or not weaviate_port:
                 raise ValueError("WEAVIATE_HOST and WEAVIATE_PORT must be set")
 
             self.client = Client(f"http://{weaviate_host}:{weaviate_port}")
             logger.info("Successfully connected to Weaviate")
-
         except Exception as e:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
@@ -41,29 +42,33 @@ class WeaviateManager:
             logger.error(f"Error loading model: {e}")
             raise e
 
-    def generate_weaviate_class_name(self, customer_guid):
+    def generate_weaviate_class_name(self,customer_guid):
+
         return f"Customer_{customer_guid.replace('-', '_')}"
 
-    def add_weaviate_customer_class(self, customer_guid):
-        valid_class_name = self.generate_weaviate_class_name(customer_guid)
+    def add_weaviate_customer_class(self,customer_guid):
+
+        valid_class_name=self.generate_weaviate_class_name(customer_guid)
         try:
-            schema = self.client.schema.get()
-            class_names = [class_obj['class'] for class_obj in schema.get("classes", [])]
+
+            schema=self.client.schema.get()
+            class_names=[class_obj['class'] for class_obj in schema.get("classes",[])]
+
             if valid_class_name not in class_names:
                 logger.debug(f"Creating Weaviate schema class:{valid_class_name}")
-                class_obj = {
-                    "class": valid_class_name,
-                    "description": "Schema for customer data",
-                    "properties": [
+                class_obj={
+                    "class":valid_class_name,
+                    "description":"Schema for customer data",
+                    "properties":[
                         {
                             "name": "message",
                             "dataType": ["text"],
-                            "description": "Customer message data"
+                            "description":"Customer message data"
                         },
                         {
-                            "name": "timestamp",
-                            "dataType": ["date"],
-                            "description": "Timestamp of the message"
+                            "name":"timestamp",
+                            "dataType":["date"],
+                            "description":"Timestamp of the message"
                         }
                     ]
                 }
@@ -82,13 +87,12 @@ class WeaviateManager:
 
     def create_schema_per_customer_guid(self, customer_guid):
         try:
-
-            schema = self.client.schema.get()
-            class_names = [cls["class"] for cls in schema.get("classes", [])]
-
             class_name = self.generate_weaviate_class_name(customer_guid)
 
-            if class_name not in class_names:
+            # Check if the class exists using a Weaviate query
+            class_exists = self.client.schema.exists(class_name)
+
+            if not class_exists:
                 schema_obj = {
                     "class": class_name,
                     "description": "Schema for storing semantic chunks of a customer" + customer_guid,
@@ -231,7 +235,7 @@ class WeaviateManager:
 
             # Check if objects were found
             if "data" not in objects_to_delete or "Get" not in objects_to_delete["data"]:
-                logger.error("No objects found to delete.")
+                logger.info("No objects found to delete.")
                 return
 
             # Delete each object

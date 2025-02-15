@@ -88,7 +88,6 @@ services:
     restart: on-failure:0
     volumes:
     - ./weaviate_data:/var/lib/weaviate
-    - ./sentence_transformers:/var/lib/sentence_transformers
     healthcheck:
       test: wget --no-verbose --tries=3 --spider http://localhost:${WEAVIATE_PORT}/v1/.well-known/ready || exit 1
       interval: 5s
