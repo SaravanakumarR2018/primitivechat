@@ -36,7 +36,7 @@ jobs:
 
     - name: Move contents to src/frontend
       run: |
-        cp -ra private-repo/* src/frontend/
+        cp -r private-repo/. src/frontend/
 
     - name: Verify .env.local file
       run: |
