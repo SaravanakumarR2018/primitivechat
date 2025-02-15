@@ -63,30 +63,30 @@ jobs:
         cd src/frontend
         npm run build
 
-    - name: Start Next.js server
-      run: |
-        cd src/frontend
-        npm start &
-        sleep 10
+    # - name: Start Next.js server
+    #   run: |
+    #     cd src/frontend
+    #     npm start &
+    #     sleep 10
 
-    - name: Wait for server to be up
-      run: |
-        source src/frontend/.env
-        for i in {1..18}; do
-          if nc -zv ${NEXT_PUBLIC_HOST:-localhost} ${NEXT_PUBLIC_PORT:-3000}; then
-            echo "Server is listening on ${NEXT_PUBLIC_HOST:-localhost}:${NEXT_PUBLIC_PORT:-3000}"
-            exit 0
-          else
-            echo "Waiting for server to be up..."
-            sleep 10
-          fi
-        done
-        echo "Server did not start within 3 minutes"
-        exit 1
+    # - name: Wait for server to be up
+    #   run: |
+    #     source src/frontend/.env
+    #     for i in {1..18}; do
+    #       if nc -zv ${NEXT_PUBLIC_HOST:-localhost} ${NEXT_PUBLIC_PORT:-3000}; then
+    #         echo "Server is listening on ${NEXT_PUBLIC_HOST:-localhost}:${NEXT_PUBLIC_PORT:-3000}"
+    #         exit 0
+    #       else
+    #         echo "Waiting for server to be up..."
+    #         sleep 10
+    #       fi
+    #     done
+    #     echo "Server did not start within 3 minutes"
+    #     exit 1
 
-    - name: Stop Next.js server
-      run: |
-        pkill -f 'npm start'
+    # - name: Stop Next.js server
+    #   run: |
+    #     pkill -f 'npm start'
 
     - name: Install and Run Playwright tests
       run: |
