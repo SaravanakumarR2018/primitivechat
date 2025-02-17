@@ -25,7 +25,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         logger.info("=== Setting up test environment ===")
 
         # Add customer
-        self.valid_customer_guid = add_customer("new_ord_id_123").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_update_ticket_org_id").get("customer_guid")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"
