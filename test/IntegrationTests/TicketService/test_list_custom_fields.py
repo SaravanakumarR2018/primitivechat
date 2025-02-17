@@ -24,7 +24,7 @@ class TestListCustomFieldsAPI(unittest.TestCase):
         logger.info("=== Initializing test setup ===")
 
         # Assuming an endpoint `/addcustomer` to create a new customer
-        self.valid_customer_guid = add_customer("test_org_id_1234").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
         logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         logger.info(f"Starting test: {self._testMethodName}")
@@ -43,7 +43,7 @@ class TestListCustomFieldsAPI(unittest.TestCase):
     def test_list_custom_fields_no_fields(self):
         """Test listing custom fields for a customer with no fields."""
         # Create a new customer without adding custom fields
-        new_customer_guid = add_customer("test_org_id_12345").get("customer_guid")
+        new_customer_guid = add_customer("test_org").get("customer_guid")
 
         url = f"{self.BASE_URL}/custom_fields?customer_guid={new_customer_guid}"
         logger.info(f"Testing customer with no custom fields: {new_customer_guid}")

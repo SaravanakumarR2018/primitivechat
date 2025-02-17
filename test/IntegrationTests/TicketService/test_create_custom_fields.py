@@ -25,7 +25,7 @@ class TestCustomFieldAPI(unittest.TestCase):
         logger.info("=== Initializing test setup ===")
 
         # Assuming an endpoint `/addcustomer` to create a new customer
-        self.valid_customer_guid =  add_customer("test_org_123").get("customer_guid")
+        self.valid_customer_guid =  add_customer("test_org").get("customer_guid")
         logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
         logger.info(f"Starting test: {self._testMethodName}")
 

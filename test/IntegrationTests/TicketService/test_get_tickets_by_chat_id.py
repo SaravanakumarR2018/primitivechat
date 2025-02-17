@@ -27,7 +27,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
         """Set up a valid customer and chat for tests."""
         logger.info("=== Setting up test environment ===")
         # Create a valid customer
-        self.valid_customer_guid = add_customer("_org_id_123").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
 
         # Create a valid chat
         chat_url = f"{self.BASE_URL}/chat"

@@ -25,7 +25,7 @@ class TestGetCommentByIdAPI(unittest.TestCase):
         logger.info("=== Setting up test environment ===")
 
         # Add customer
-        self.valid_customer_guid = add_customer("test_org_123").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
 
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {

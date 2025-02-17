@@ -26,7 +26,7 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         logger.info("=== Initializing test setup ===")
 
         # Step 1: Create a new customer
-        self.valid_customer_guid = add_customer("new_test_org_123").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
         logger.info(f"Customer created with GUID: {self.valid_customer_guid}")
 
         logger.info("Setup complete.")

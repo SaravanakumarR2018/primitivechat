@@ -18,7 +18,7 @@ class TestAddCustomerAPI(unittest.TestCase):
         """Test that a customer can be added successfully."""
         logger.info("Executing test_add_customer: Testing customer addition functionality.")
 
-        data = add_customer("test_org_123")
+        data = add_customer("test_org")
 
         logger.info("Processing response data to check for 'customer_guid'.")
 

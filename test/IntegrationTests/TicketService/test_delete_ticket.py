@@ -27,7 +27,7 @@ class TestDeleteTicketAPI(unittest.TestCase):
         logger.info("=== Initializing test setup for Delete Ticket API ===")
 
         # Step 1: Create a new customer
-        self.valid_customer_guid = add_customer("test_org_123").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
         logger.info(f"Customer created with GUID: {self.valid_customer_guid}")
 
         self.custom_fields = {}

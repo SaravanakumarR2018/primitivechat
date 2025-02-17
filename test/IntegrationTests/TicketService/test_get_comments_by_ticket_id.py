@@ -18,14 +18,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TestGetCommentsByTicketId(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Setup before each test."""
         logger.info("=== Setting up test environment ===")
 
         # Create a valid customer
-        self.valid_customer_guid = add_customer("test_get_comments_ticket_org").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
 
         # Create a valid chat
         chat_url = f"{self.BASE_URL}/chat"
@@ -170,15 +170,13 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         self.assertEqual(error_detail, f"Database customer_{invalid_customer_guid} does not exist",
                          "Unexpected error message for invalid customer_guid")
 
-    def _add_50_comments(self, number_of_comments=50):
+    def _add_50_comments(self, valid_customer_guid, valid_ticket_id, number_of_comments=50):
         comment_url = f"{self.BASE_URL}/add_comment"
-
-        self.valid_customer_guid = add_customer("org_123_for_comments").get("customer_guid")
 
         for i in range(1, number_of_comments + 1):
             comment_data = {
-                "customer_guid": self.valid_customer_guid,
-                "ticket_id": self.valid_ticket_id,
+                "customer_guid": valid_customer_guid,
+                "ticket_id": valid_ticket_id,
                 "posted_by": f"user_{i}",
                 "comment": f"This is test comment number {i}"
             }
@@ -191,8 +189,34 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test pagination for comments retrieved by ticket ID."""
         logger.info("Testing pagination for comments with different page sizes.")
 
+        valid_customer_guid = add_customer("test_org").get("customer_guid")
+
+        chat_url = f"{self.BASE_URL}/chat"
+        chat_data = {
+            "customer_guid": valid_customer_guid,
+            "question": "How can I reset my password?"
+        }
+        response = requests.post(chat_url, json=chat_data)
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
+        valid_chat_id = response.json().get("chat_id")
+
+        # Create a valid ticket
+        ticket_url = f"{self.BASE_URL}/tickets"
+        ticket_data = {
+            "customer_guid": valid_customer_guid,
+            "chat_id": valid_chat_id,
+            "title": "This is title",
+            "description": "Issue with login",
+            "priority": "High",
+            "reported_by": "user@email.com",
+            "assigned": "user@email.com"
+        }
+        response = requests.post(ticket_url, json=ticket_data)
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
+        valid_ticket_id = response.json().get("ticket_id")
+
         # Add 50 comments to the ticket for testing pagination
-        self._add_50_comments()
+        self._add_50_comments(valid_customer_guid, valid_ticket_id)
 
         # Define different page sizes for pagination testing
         page_sizes = [10, 20, 50]
@@ -206,7 +230,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             # Fetch comments page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments?customer_guid={self.valid_customer_guid}&page={page_num}&page_size={per_page}"
+                page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?customer_guid={valid_customer_guid}&page={page_num}&page_size={per_page}"
                 response = requests.get(page_url)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
@@ -272,15 +296,41 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test pagination when page size exceeds the number of available comments."""
         logger.info("Testing pagination for comments with page size greater than the total number of comments.")
 
+        valid_customer_guid = add_customer("test_org").get("customer_guid")
+
+        chat_url = f"{self.BASE_URL}/chat"
+        chat_data = {
+            "customer_guid": valid_customer_guid,
+            "question": "How can I reset my password?"
+        }
+        response = requests.post(chat_url, json=chat_data)
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
+        valid_chat_id = response.json().get("chat_id")
+
+        # Create a valid ticket
+        ticket_url = f"{self.BASE_URL}/tickets"
+        ticket_data = {
+            "customer_guid": valid_customer_guid,
+            "chat_id": valid_chat_id,
+            "title": "This is title",
+            "description": "Issue with login",
+            "priority": "High",
+            "reported_by": "user@email.com",
+            "assigned": "user@email.com"
+        }
+        response = requests.post(ticket_url, json=ticket_data)
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
+        valid_ticket_id = response.json().get("ticket_id")
+
         # Add 50 comments to the ticket for testing pagination
-        self._add_50_comments()
+        self._add_50_comments(valid_customer_guid, valid_ticket_id)
 
         # Set a page size greater than the total number of comments
         large_page_size = 100  # A page size larger than the total number of comments
 
         # Fetch the first page of comments
         page_num = 1
-        page_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments?customer_guid={self.valid_customer_guid}&page={page_num}&page_size={large_page_size}"
+        page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?customer_guid={valid_customer_guid}&page={page_num}&page_size={large_page_size}"
         response = requests.get(page_url)
 
         # Validate the response status
@@ -334,12 +384,12 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
         logger.info(f"Test passed for page_size={large_page_size}, with only 50 comments returned as expected.")
 
-    def _delete_comment(self, ticket_id, comment_id):
+    def _delete_comment(self, ticket_id, comment_id, valid_customer_guid):
         """Delete a specific comment for a ticket."""
         logger.info(f"Deleting comment {comment_id} for ticket {ticket_id}.")
         response = requests.delete(
             f"{self.BASE_URL}/delete_comment",
-            params={"ticket_id": ticket_id, "comment_id": comment_id, "customer_guid": self.valid_customer_guid}
+            params={"ticket_id": ticket_id, "comment_id": comment_id, "customer_guid": valid_customer_guid}
         )
         if response.status_code != HTTPStatus.OK:
             logger.error(f"Failed to delete comment {comment_id} for ticket {ticket_id}. Server response: {response.text}")
@@ -350,8 +400,34 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test pagination for comments retrieved by ticket ID, including comment deletion."""
         logger.info("Testing pagination for comments with different page sizes and deletion.")
 
-        # Add 50 comments to a ticket for testing pagination
-        self._add_50_comments()
+        valid_customer_guid = add_customer("test_org").get("customer_guid")
+
+        chat_url = f"{self.BASE_URL}/chat"
+        chat_data = {
+            "customer_guid": valid_customer_guid,
+            "question": "How can I reset my password?"
+        }
+        response = requests.post(chat_url, json=chat_data)
+        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
+        valid_chat_id = response.json().get("chat_id")
+
+        # Create a valid ticket
+        ticket_url = f"{self.BASE_URL}/tickets"
+        ticket_data = {
+            "customer_guid": valid_customer_guid,
+            "chat_id": valid_chat_id,
+            "title": "This is title",
+            "description": "Issue with login",
+            "priority": "High",
+            "reported_by": "user@email.com",
+            "assigned": "user@email.com"
+        }
+        response = requests.post(ticket_url, json=ticket_data)
+        self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
+        valid_ticket_id = response.json().get("ticket_id")
+
+        # Add 50 comments to the ticket for testing pagination
+        self._add_50_comments(valid_customer_guid, valid_ticket_id)
 
         # Define different page sizes for pagination testing
         page_sizes = [10, 20, 50]
@@ -361,7 +437,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
         # Delete specific comments
         for comment_id in comment_ids_to_delete:
-            self._delete_comment(self.valid_ticket_id, comment_id)
+            self._delete_comment(valid_ticket_id, comment_id, valid_customer_guid)
 
         for per_page in page_sizes:
             logger.info(f"Testing with per_page={per_page}")
@@ -372,7 +448,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             # Fetch comments page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments?customer_guid={self.valid_customer_guid}&page={page_num}&page_size={per_page}"
+                page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?customer_guid={valid_customer_guid}&page={page_num}&page_size={per_page}"
                 response = requests.get(page_url)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:

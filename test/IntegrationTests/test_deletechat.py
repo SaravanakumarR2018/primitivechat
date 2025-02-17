@@ -23,7 +23,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info("=== Starting setUp process ===")
 
         # Get valid customer_guid
-        customer_data = add_customer("test_org_123")
+        customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
         logger.info(f"OUTPUT: Received valid customer_guid: {self.valid_customer_guid}")
 

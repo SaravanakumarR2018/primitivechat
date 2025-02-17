@@ -21,7 +21,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing valid file download")
 
         #Create customer and upload file
-        customer_guid=add_customer("test_org_123").get("customer_guid")
+        customer_guid=add_customer("test_org").get("customer_guid")
         upload_file_url=f"{self.BASE_URL}/uploadFile"
         file_data={"customer_guid":customer_guid}
         files={"file":("testfile.txt",b"Test content","text/plain")}
