@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TestDeleteChatAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"  # Update this to your actual API base URL
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"  # Update this to your actual API base URL
 
     def setUp(self):
         """Setup function to create valid customer_guid"""

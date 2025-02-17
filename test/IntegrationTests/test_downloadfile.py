@@ -15,7 +15,7 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestDownloadFileAPI(unittest.TestCase):
-    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_download_file_valid_customer(self):
         logger.info("Testing valid file download")
@@ -117,7 +117,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing file download, verification, and file name matching after uploading files")
 
         #Create a new customer
-        customer_guid=add_customer("new_test_org_123467")
+        customer_guid=add_customer("new_test_org_1234")
         logger.debug(f"customer guid: {customer_guid}")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
         logger.info(f"Created customer with GUID: {customer_guid}")

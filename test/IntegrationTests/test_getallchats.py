@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TestGetAllChatsAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Setup function to create valid customer_guid"""
