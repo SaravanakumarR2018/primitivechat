@@ -51,22 +51,11 @@ class WeaviateManager:
             
             # Check if the class exists using a Weaviate query
             class_exists = self.client.schema.exists(class_name)
-
             if not class_exists:
                 schema_obj = {
                     "class": class_name,
                     "description": "Schema for storing semantic chunks of a customer" + customer_guid,
                     "properties":[
-                        {
-                            "name": "message",
-                            "dataType": ["text"],
-                            "description":"Customer message data"
-                        },
-                        {
-                            "name":"timestamp",
-                            "dataType":["date"],
-                            "description":"Timestamp of the message"
-                        },
                         {
                             "name": "text",
                             "dataType": ["text"],
