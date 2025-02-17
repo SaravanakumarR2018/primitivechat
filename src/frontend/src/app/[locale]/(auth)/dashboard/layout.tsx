@@ -39,7 +39,7 @@ export default function DashboardLayout(props: { children: React.ReactNode }) {
               },
               {
                 href: '/dashboard/chat',
-                label: t('Chatbot'),
+                label: ('Chatbot'),
               },
               // PRO: Link to the /dashboard/billing page
             ]}
