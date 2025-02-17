@@ -46,10 +46,9 @@ class WeaviateManager:
         return f"Customer_{customer_guid.replace('-', '_')}"
 
     def add_weaviate_customer_class(self,customer_guid):
-
         try:
             class_name = self.generate_weaviate_class_name(customer_guid)
-
+            
             # Check if the class exists using a Weaviate query
             class_exists = self.client.schema.exists(class_name)
 
@@ -57,16 +56,16 @@ class WeaviateManager:
                 schema_obj = {
                     "class": class_name,
                     "description": "Schema for storing semantic chunks of a customer" + customer_guid,
-                    "properties": [
+                    "properties":[
                         {
                             "name": "message",
                             "dataType": ["text"],
-                            "description": "Customer message data"
+                            "description":"Customer message data"
                         },
                         {
-                            "name": "timestamp",
-                            "dataType": ["date"],
-                            "description": "Timestamp of the message"
+                            "name":"timestamp",
+                            "dataType":["date"],
+                            "description":"Timestamp of the message"
                         },
                         {
                             "name": "text",
