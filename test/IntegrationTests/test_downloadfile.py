@@ -21,7 +21,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing valid file download")
 
         #Create customer and upload file
-        customer_guid=add_customer("test_org_123")
+        customer_guid=add_customer("test_org_123").get("customer_guid")
         upload_file_url=f"{self.BASE_URL}/uploadFile"
         file_data={"customer_guid":customer_guid}
         files={"file":("testfile.txt",b"Test content","text/plain")}
@@ -69,7 +69,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing download from an empty bucket")
 
         #Create customer
-        customer_guid=add_customer("test_org_123")
+        customer_guid=add_customer("test_org_123").get("customer_guid")
 
         #Attempt to download a file from an empty bucket
         download_file_url=f"{self.BASE_URL}/downloadfile"
@@ -93,7 +93,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing download request without specifying a filename")
 
         #Create customer
-        customer_guid=add_customer("test_org_123")
+        customer_guid=add_customer("test_org_123").get("customer_guid")
 
         #Send request without filename
         download_file_url=f"{self.BASE_URL}/downloadfile"
@@ -117,7 +117,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing file download, verification, and file name matching after uploading files")
 
         #Create a new customer
-        customer_guid=add_customer("new_test_org_1234")
+        customer_guid=add_customer("new_test_org_1234").get("customer_guid")
         logger.debug(f"customer guid: {customer_guid}")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
         logger.info(f"Created customer with GUID: {customer_guid}")

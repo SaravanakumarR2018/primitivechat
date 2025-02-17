@@ -20,7 +20,7 @@ class TestListFileAPI(unittest.TestCase):
     def test_list_files_no_files_uploaded(self):
         logger.info("Testing file listing with no files uploaded")
 
-        new_customer_guid=add_customer("test_org_1")
+        new_customer_guid=add_customer("test_org_1").get("customer_guid")
 
         list_files_url=f"{self.BASE_URL}/listfiles"
         params={"customer_guid": new_customer_guid}
@@ -44,7 +44,7 @@ class TestListFileAPI(unittest.TestCase):
 
         #Create a new customer to get a valid GUID
 
-        customer_guid=add_customer("test_org_12")
+        customer_guid=add_customer("test_org_12").get("customer_guid")
         logger.info(f"Created new customer with GUID: {customer_guid}")
 
         #Verify the bucket exists but no files are uploaded
@@ -97,7 +97,7 @@ class TestListFileAPI(unittest.TestCase):
         logger.info("Testing file listing after uploading two files")
 
         #Create a customer and upload two files
-        customer_guid=add_customer("test_org_123")
+        customer_guid=add_customer("new_test_org_123").get("customer_guid")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
 
         upload_file_url=f"{self.BASE_URL}/uploadFile"
@@ -138,7 +138,7 @@ class TestListFileAPI(unittest.TestCase):
         logger.info("Testing file listing after uploading three files")
 
         #Create a new customer
-        customer_guid=add_customer("test_org_1234")
+        customer_guid=add_customer("test_org_1234").get("customer_guid")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
         logger.info(f"Created customer with GUID: {customer_guid}")
 
