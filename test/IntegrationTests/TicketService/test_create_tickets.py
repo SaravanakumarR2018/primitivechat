@@ -1,9 +1,14 @@
 import logging
 import os
+import sys
 import unittest
 from http import HTTPStatus
 
 import requests
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+
+from src.backend.utils.api_utils import add_customer
 
 # Configure logging
 logging.basicConfig(
@@ -22,10 +27,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         logger.info("=== Setting up test environment ===")
 
         # Add customer
-        customer_url = f"{self.BASE_URL}/addcustomer"
-        response = requests.post(customer_url)
-        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a customer")
-        self.valid_customer_guid = response.json().get("customer_guid")
+        self.valid_customer_guid =  add_customer("new_test_org_123").get("customer_guid")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"

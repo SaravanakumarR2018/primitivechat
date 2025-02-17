@@ -1,3 +1,4 @@
+import sys
 import time
 import unittest
 import logging
@@ -5,6 +6,10 @@ import requests
 import uuid
 from http import HTTPStatus
 import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+
+from src.backend.utils.api_utils import add_customer
 
 # Configure logging
 logging.basicConfig(
@@ -22,10 +27,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
         """Set up a valid customer and chat for tests."""
         logger.info("=== Setting up test environment ===")
         # Create a valid customer
-        customer_url = f"{self.BASE_URL}/addcustomer"
-        response = requests.post(customer_url)
-        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a customer")
-        self.valid_customer_guid = response.json().get("customer_guid")
+        self.valid_customer_guid = add_customer("_org_id_123").get("customer_guid")
 
         # Create a valid chat
         chat_url = f"{self.BASE_URL}/chat"
