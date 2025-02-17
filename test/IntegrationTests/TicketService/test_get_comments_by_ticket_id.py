@@ -18,14 +18,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TestGetCommentsByTicketId(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def setUp(self):
         """Setup before each test."""
         logger.info("=== Setting up test environment ===")
 
         # Create a valid customer
-        self.valid_customer_guid = add_customer("test_org_123").get("customer_guid")
+        self.valid_customer_guid = add_customer("test_get_comments_ticket_org").get("customer_guid")
 
         # Create a valid chat
         chat_url = f"{self.BASE_URL}/chat"
@@ -155,7 +155,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
     def test_get_comment_wrong_customer_guid(self):
         """Test getting a comment with an invalid customer GUID."""
-        invalid_customer_guid = "a39a3076-f45f-4bb1-9945-700330b5e541"  # Invalid GUID
+        invalid_customer_guid = "a39a3076-f45f-4bb1-9945-700330b5e549"  # Invalid GUID
         response = requests.get(
             f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments",
             params={
@@ -172,6 +172,8 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
     def _add_50_comments(self, number_of_comments=50):
         comment_url = f"{self.BASE_URL}/add_comment"
+
+        self.valid_customer_guid = add_customer("org_123_for_comments").get("customer_guid")
 
         for i in range(1, number_of_comments + 1):
             comment_data = {
