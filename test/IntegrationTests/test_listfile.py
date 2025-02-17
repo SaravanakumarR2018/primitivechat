@@ -1,7 +1,12 @@
+import sys
 import unittest
 import requests
 import logging
 import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from src.backend.utils.api_utils import add_customer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,23 +15,12 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestListFileAPI(unittest.TestCase):
-    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def test_list_files_no_files_uploaded(self):
         logger.info("Testing file listing with no files uploaded")
 
-        # Create a new customer without uploading any file
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_1",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-
-        customer_data=response.json()
-        new_customer_guid=customer_data.get("customer_guid")
+        new_customer_guid=add_customer("test_org_1")
 
         list_files_url=f"{self.BASE_URL}/listfiles"
         params={"customer_guid": new_customer_guid}
@@ -49,17 +43,8 @@ class TestListFileAPI(unittest.TestCase):
         logger.info("Testing file listing for an empty bucket")
 
         #Create a new customer to get a valid GUID
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_12",
-        }
 
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-
-        customer_data=response.json()
-        customer_guid=customer_data.get("customer_guid")
+        customer_guid=add_customer("test_org_12")
         logger.info(f"Created new customer with GUID: {customer_guid}")
 
         #Verify the bucket exists but no files are uploaded
@@ -112,23 +97,7 @@ class TestListFileAPI(unittest.TestCase):
         logger.info("Testing file listing after uploading two files")
 
         #Create a customer and upload two files
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "new_test_org_123",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-
-        #Verify the HTTP response status code
-        if response.status_code==200:
-            logger.info("Successfully created customer. Status code 200 received.")
-        else:
-            logger.error(f"Unexpected status code: {response.status_code}. Expected: 200.")
-            raise AssertionError(f"Expected status code 200 but got {response.status_code}")
-
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-        customer_guid=response.json().get("customer_guid")
+        customer_guid=add_customer("test_org_123")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
 
         upload_file_url=f"{self.BASE_URL}/uploadFile"
@@ -169,23 +138,7 @@ class TestListFileAPI(unittest.TestCase):
         logger.info("Testing file listing after uploading three files")
 
         #Create a new customer
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_1234",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-
-        #Verify the HTTP response status code for customer creation
-        if response.status_code == 200:
-            logger.info("Successfully created customer. Status code 200 received.")
-        else:
-            logger.error(f"Unexpected status code: {response.status_code}. Expected: 200.")
-            raise AssertionError(f"Expected status code 200 but got {response.status_code}")
-
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-        customer_guid=response.json().get("customer_guid")
+        customer_guid=add_customer("test_org_1234")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
         logger.info(f"Created customer with GUID: {customer_guid}")
 
@@ -205,11 +158,11 @@ class TestListFileAPI(unittest.TestCase):
             logger.info(f"Uploaded {filename} successfully.")
 
             #Verify the HTTP response status code for listing files
-            if response.status_code==200:
+            if upload_response.status_code==200:
                 logger.info("Successfully retrieved file list. Status code 200 received.")
             else:
-                logger.error(f"Failed to retrieve file list. Status code: {response.status_code}. Expected: 200.")
-                raise AssertionError(f"Expected status code 200 but got {response.status_code}")
+                logger.error(f"Failed to retrieve file list. Status code: {upload_response.status_code}. Expected: 200.")
+                raise AssertionError(f"Expected status code 200 but got {upload_response.status_code}")
 
         #List files for the customer
         list_files_url=f"{self.BASE_URL}/listfiles"

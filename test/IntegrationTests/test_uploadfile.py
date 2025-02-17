@@ -1,9 +1,14 @@
+import sys
 import unittest
 import requests
 import logging
 import os
 
 from requests import request
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from src.backend.utils.api_utils import add_customer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,26 +17,13 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestUploadFileAPI(unittest.TestCase):
-    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def setUp(self):
         logger.info("===Starting setup process===")
 
         #Get a valid customer_guid
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        logger.info(f"Input:Requesting new customer from : {add_customer_url}")
-
-        payload = {
-            "org_id": "test_org_123",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        customer_response = requests.post(add_customer_url, json=payload, headers=headers)
-        logger.info(f"Output: Customer creation response status:{customer_response.status_code}")
-
-        #Assert the customer creation was successful
-        self.assertEqual(customer_response.status_code,200)
-        customer_data=customer_response.json()
+        customer_data=add_customer("test_org_123")
         self.valid_customer_guid=customer_data["customer_guid"]
         logger.info(f"Output: Received valid customer_guid:{self.valid_customer_guid}")
 

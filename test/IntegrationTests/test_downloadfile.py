@@ -1,7 +1,12 @@
+import sys
 import unittest
 import requests
 import logging
 import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+from src.backend.utils.api_utils import add_customer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,22 +15,13 @@ logging.basicConfig(
 logger=logging.getLogger(__name__)
 
 class TestDownloadFileAPI(unittest.TestCase):
-    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL=f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
 
     def test_download_file_valid_customer(self):
         logger.info("Testing valid file download")
 
         #Create customer and upload file
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_123",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-
-        customer_guid=response.json().get("customer_guid")
+        customer_guid=add_customer("test_org_123")
         upload_file_url=f"{self.BASE_URL}/uploadFile"
         file_data={"customer_guid":customer_guid}
         files={"file":("testfile.txt",b"Test content","text/plain")}
@@ -73,15 +69,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing download from an empty bucket")
 
         #Create customer
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_123",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-        customer_guid=response.json().get("customer_guid")
+        customer_guid=add_customer("test_org_123")
 
         #Attempt to download a file from an empty bucket
         download_file_url=f"{self.BASE_URL}/downloadfile"
@@ -105,15 +93,7 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing download request without specifying a filename")
 
         #Create customer
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_123",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-        customer_guid=response.json().get("customer_guid")
+        customer_guid=add_customer("test_org_123")
 
         #Send request without filename
         download_file_url=f"{self.BASE_URL}/downloadfile"
@@ -137,17 +117,8 @@ class TestDownloadFileAPI(unittest.TestCase):
         logger.info("Testing file download, verification, and file name matching after uploading files")
 
         #Create a new customer
-        add_customer_url=f"{self.BASE_URL}/addcustomer"
-        payload = {
-            "org_id": "test_org_1234",
-        }
-
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(add_customer_url, json=payload, headers=headers)
-
-        #Verify the HTTP response status code for customer creation
-        self.assertEqual(response.status_code, 200, "Failed to create customer")
-        customer_guid=response.json().get("customer_guid")
+        customer_guid=add_customer("new_test_org_123467")
+        logger.debug(f"customer guid: {customer_guid}")
         self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
         logger.info(f"Created customer with GUID: {customer_guid}")
 
