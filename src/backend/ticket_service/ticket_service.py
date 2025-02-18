@@ -695,3 +695,11 @@ async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while deleting the comment."
         )
+def set_log_level(self, log_level: str):
+    logger.debug(f"Setting log level to: {log_level}")
+    if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+        logger.error(f"Invalid log level: {log_level}")
+        raise ValueError("Invalid log level provided")
+
+    logging.getLogger().setLevel(log_level)
+    logger.info(f"Log level changed to {log_level}")
