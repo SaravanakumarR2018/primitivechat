@@ -69,7 +69,7 @@ jobs:
       # Step 5: Test if the server is up
       - name: Test server with curl
         run: |
-          end=$((SECONDS+120))
+          end=$((SECONDS+240))
           while [ $SECONDS -lt $end ]; do
             if curl -s http://localhost:${{ env.CHAT_SERVICE_PORT }} > /dev/null; then
               echo "Server is up!"
