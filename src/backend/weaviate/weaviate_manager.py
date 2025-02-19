@@ -4,6 +4,7 @@ from weaviate import Client
 import os
 import json
 from sentence_transformers import SentenceTransformer
+from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 
 #config logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,6 +23,7 @@ class WeaviateManager:
             self.client = Client(f"http://{weaviate_host}:{weaviate_port}")
             logger.info("Successfully connected to Weaviate")
             self.model = self.load_model()
+            self.download=LocalFileDownloadAndUpload()
         except Exception as e:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
