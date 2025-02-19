@@ -42,3 +42,15 @@ class LocalFileDownloadAndUpload:
         except Exception as e:
             logger.error(f"Failed to upload raw content: {e}")
             raise Exception(f"File upload failed: {e}")
+    
+    def upload_chunked_content(self, customer_guid: str, filename: str, output_file: str):
+
+        try:
+            with open(output_file, "rb") as file_pointer:
+                self.minio_manager.upload_file(customer_guid, f"{filename}.chunked.txt", file_pointer)
+
+            logger.info(f"Raw content file '{filename}.chunked.txt' uploaded to MinIO bucket '{customer_guid}'")
+        except Exception as e:
+            logger.error(f"Failed to upload raw content: {e}")
+            raise Exception(f"File upload failed: {e}")
+        

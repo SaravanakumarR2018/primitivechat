@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.backend.chat_service.chat_service import app as chat_router
 from src.backend.ticket_service.ticket_service import app as ticket_router
+from src.backend.file_vectorizer.file_vectorizer import FileVectorizer
 
 # Create the main FastAPI app
 main_app = FastAPI()
@@ -13,6 +14,9 @@ main_app = FastAPI()
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+#Initialize FileVectorizer (but don't start it yet)
+file_vectorizer = None
 
 # Mount chat_service and ticket_service to different paths
 main_app.include_router(chat_router)
@@ -45,6 +49,23 @@ async def check_server_status(request: Request):
     logger.debug(f"Entering check_server_status() with Correlation ID: {request.state.correlation_id}")
     logger.debug(f"Exiting check_server_status() with Correlation ID: {request.state.correlation_id}")
     return {"message": "The server is up and running!"}
+
+# Startup event to initialize and start the FileVectorizer
+@main_app.on_event("startup")
+async def startup_event():
+    global file_vectorizer
+    logger.info("Starting FileVectorizer...")
+    file_vectorizer = FileVectorizer()  # Initialize the FileVectorizer
+    logger.info("FileVectorizer started successfully.")
+
+# Shutdown event to stop the FileVectorizer gracefully
+@main_app.on_event("shutdown")
+async def shutdown_event():
+    global file_vectorizer
+    if file_vectorizer:
+        logger.info("Stopping FileVectorizer...")
+        file_vectorizer.stop() # Stop the FileVectorizer gracefully
+        logger.info("FileVectorizer stopped successfully.")
 
 # Run this file to start the server
 if __name__ == "__main__":
