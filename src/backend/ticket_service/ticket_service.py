@@ -107,7 +107,6 @@ class CommentDeleteResponse(BaseModel):
     comment_id:str
     status:str
 
-
 # Custom Fields Management APIs
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
 async def add_custom_field(custom_field: CustomField):
