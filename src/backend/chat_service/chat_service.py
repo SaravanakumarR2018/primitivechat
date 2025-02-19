@@ -65,6 +65,14 @@ async def add_customer(request: AddCustomerRequest):
 
         logger.info(f"Customer created with GUID: {customer_guid}")
 
+        # Add extra row in common_db table
+        try:
+            db_manager.map_clerk_orgid_with_customer_guid(request.org_id, customer_guid)
+            logger.info(f"Entry added in common_db for org_id: {request.org_id}, customer_guid: {customer_guid}")
+        except SQLAlchemyError as e:
+            logger.error(f"Database error while inserting into common_db: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
+
         # Create a MinIO bucket
         try:
             minio_manager.add_storage_bucket(customer_guid)
@@ -80,14 +88,6 @@ async def add_customer(request: AddCustomerRequest):
         except Exception as e:
             logger.error(f"Weaviate schema creation failed. Error: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer schema")
-
-        # Add extra row in common_db table
-        try:
-            db_manager.map_clerk_orgid_with_customer_guid(request.org_id, customer_guid)
-            logger.info(f"Entry added in common_db for org_id: {request.org_id}, customer_guid: {customer_guid}")
-        except SQLAlchemyError as e:
-            logger.error(f"Database error while inserting into common_db: {e}")
-            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
 
         logger.debug(f"Exiting add_customer() with Customer GUID: {customer_guid}")
 
