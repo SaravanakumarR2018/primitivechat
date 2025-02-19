@@ -105,13 +105,16 @@ class WeaviateManager:
             # Ensure the class schema is created before inserting data
             class_names = self.generate_weaviate_class_name(customer_guid)
 
-            filename = os.path.basename(file_path)
+            # Download and save file locally
+            local_path = self.download.download_and_save_file(customer_guid, file_path)
+
+            filename = os.path.basename(file_path).replace(".chunked.txt", "")
 
             # Remove embeddings for the file and start fresh embedding
             self.delete_objects_by_customer_and_filename(customer_guid, filename)
 
             # Read and validate data
-            with open(file_path, "r", encoding="utf-8") as file:
+            with open(local_path, "r", encoding="utf-8") as file:
                 data = json.load(file)
 
             if not isinstance(data, list):
@@ -201,6 +204,14 @@ class WeaviateManager:
 
         except Exception as e:
             logger.error(f"Error executing batch deletion for customer_guid: {customer_guid} and filename: {filename} - {str(e)}")
+
+    def processing(self, customer_guid, filename):
+        try:
+            self.insert_data(customer_guid, filename)
+            search_result = self.search_query(customer_guid, "AI first customer support")
+            logger.info(f"Search Result: {json.dumps(search_result, indent=4)}")
+        except Exception as e:
+            logger.error(f"Error in processing function: {str(e)}")
 
 if __name__ == "__main__":
     customer_guid = "c94fdd86-65ec-413e-b3d5-c2c17be8989k"
