@@ -10,6 +10,7 @@ services:
       MYSQL_HOST: ${MYSQL_HOST}
     volumes:
       - "${PROJECT_ROOT}/src:/app/src"  # Always mount the source code
+      - "${PROJECT_ROOT}/src/models:/src/models"
     command: >
       /bin/sh -c "
       pwd &&
@@ -30,7 +31,7 @@ services:
       test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' http://localhost:${CHAT_SERVICE_PORT}/ | grep -q '200'"]
       interval: 10s
       timeout: 5s
-      retries: 24
+      retries: 1000
       start_period: 300s
     env_file:
       - .env
