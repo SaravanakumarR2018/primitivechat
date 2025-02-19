@@ -1,18 +1,15 @@
-import sys
-import unittest
 import logging
 import os
+import unittest
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-from src.backend.utils.api_utils import add_customer
+from utils.api_utils import add_customer
 
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class TestAddCustomerAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_add_customer(self):
         """Test that a customer can be added successfully."""

@@ -1,13 +1,14 @@
+import logging
+import os
 import sys
 import unittest
 from http import HTTPStatus
+
 import requests
-import logging
-import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from src.backend.utils.api_utils import add_customer
+from utils.api_utils import add_customer
 
 # Configure logging
 logging.basicConfig(
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestDeleteTicketAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 

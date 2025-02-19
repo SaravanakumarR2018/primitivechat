@@ -1,13 +1,14 @@
-import sys
-import unittest
-import requests
-from http import HTTPStatus
 import logging
 import os
+import sys
+import unittest
+from http import HTTPStatus
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+import requests
 
-from src.backend.utils.api_utils import add_customer
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+from utils.api_utils import add_customer
 
 # Set up logging
 logging.basicConfig(
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestUpdateTicketEndpoint(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Set up test environment: create customer, chat, and ticket."""
