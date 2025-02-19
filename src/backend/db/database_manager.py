@@ -45,7 +45,7 @@ class DatabaseManager:
                     CREATE TABLE IF NOT EXISTS org_customer_guid_mapping (
                         org_id VARCHAR(255) PRIMARY KEY,  -- Unique identifier for an organization
                         customer_guid VARCHAR(255) NOT NULL,  -- Unique customer GUID
-                        customer_guid_org_id_map_timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),  -- Last mapping update timestamp
+                        customer_guid_org_id_map_timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
                         is_customer_guid_deleted BOOLEAN DEFAULT FALSE,  -- Flag to check if customer GUID is deleted
                         delete_timestamp TIMESTAMP(6) NULL  -- Timestamp when the customer GUID was deleted
                     )
@@ -1434,7 +1434,7 @@ class DatabaseManager:
                 text("""
                     SELECT customer_guid 
                     FROM org_customer_guid_mapping 
-                    WHERE org_id = :org_id AND is_customer_guid_deleted = FALSE
+                    WHERE org_id = :org_id
                 """),
                 {"org_id": org_id}
             ).fetchone()
