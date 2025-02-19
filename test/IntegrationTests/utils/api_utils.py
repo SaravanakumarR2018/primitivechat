@@ -7,7 +7,7 @@ import uuid
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT', 8000)}"
+BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
 def add_customer(org_id: str):
     unique_id = str(uuid.uuid4())  # Generate a UUID
