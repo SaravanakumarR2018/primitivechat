@@ -3,7 +3,10 @@ import os
 import re
 import uuid
 from enum import Enum
+from http import HTTPStatus
+from datetime import datetime
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
@@ -24,9 +27,38 @@ class DatabaseManager:
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def __init__(self):
-        logger.debug("Initializing DatabaseManager")
         if DatabaseManager._session_factory is None:
             self._initialize_session_factory()
+        self.create_common_db()
+
+    @staticmethod
+    def create_common_db():
+        """Create the common_db database and org_customer_guid_mapping table with updated schema."""
+        session = DatabaseManager._session_factory()
+        try:
+            # Ensure common_db exists
+            session.execute(text("CREATE DATABASE IF NOT EXISTS common_db"))
+            session.execute(text("USE common_db"))
+
+            # Ensure org_customer_guid_mapping table exists with updated schema
+            session.execute(text('''
+                    CREATE TABLE IF NOT EXISTS org_customer_guid_mapping (
+                        org_id VARCHAR(255) PRIMARY KEY,  -- Unique identifier for an organization
+                        customer_guid VARCHAR(255) NOT NULL,  -- Unique customer GUID
+                        customer_guid_org_id_map_timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                        is_customer_guid_deleted BOOLEAN DEFAULT FALSE,  -- Flag to check if customer GUID is deleted
+                        delete_timestamp TIMESTAMP(6) NULL  -- Timestamp when the customer GUID was deleted
+                    )
+                '''))
+            session.commit()
+            logger.info("Database and table initialized successfully.")
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database initialization error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database initialization failed")
+        finally:
+            session.close()
 
     def _initialize_session_factory(self):
         logger.debug("Initializing session factory")
@@ -1388,5 +1420,55 @@ class DatabaseManager:
             session.rollback()
             return {"status": "failure", "reason": "Unexpected error occurred"}
 
+        finally:
+            session.close()
+
+    def get_customer_guid_from_clerk_orgId(self, org_id):
+        """Fetch customer GUID for an organization."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))  # Ensure correct database is used
+
+            # Fetch customer GUID if it exists and is not marked as deleted
+            result = session.execute(
+                text("""
+                    SELECT customer_guid 
+                    FROM org_customer_guid_mapping 
+                    WHERE org_id = :org_id
+                """),
+                {"org_id": org_id}
+            ).fetchone()
+
+            return result[0] if result else None  # Return customer GUID if found, else None
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database query failed")
+        finally:
+            session.close()
+
+    def map_clerk_orgid_with_customer_guid(self, org_id, customer_guid):
+        """Insert a new customer GUID for an organization."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))  # Ensure correct database is used
+
+            session.execute(
+                text("""
+                    INSERT INTO org_customer_guid_mapping 
+                    (org_id, customer_guid) 
+                    VALUES (:org_id, :customer_guid)
+                """),
+                {
+                    "org_id": org_id,
+                    "customer_guid": customer_guid
+                }
+            )
+
+            session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to insert mapping")
         finally:
             session.close()

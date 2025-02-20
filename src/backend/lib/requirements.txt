@@ -9,4 +9,5 @@ weaviate==0.1.2
 weaviate-client==3.26.7
 python-multipart==0.0.17
 python-dotenv==1.0.1
+httpx==0.27.0
 sentence-transformers==3.4.1
