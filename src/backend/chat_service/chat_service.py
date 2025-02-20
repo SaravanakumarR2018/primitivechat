@@ -10,7 +10,6 @@ from copy import deepcopy
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse, JSONResponse
-from dotenv import load_dotenv
 from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
@@ -21,7 +20,6 @@ from src.backend.weaviate.weaviate_manager import WeaviateManager
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../frontend/.env.local'))
 
 
 app = APIRouter()
@@ -275,47 +273,3 @@ async def delete_chats(request: Request, delete_chats_request: DeleteChatsReques
     logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
     return {"message": "Chat deleted successfully"}
 
-clerk_client = Clerk(bearer_auth=os.getenv('CLERK_SECRET_KEY'))
-
-@app.get("/checkauth", tags=["Authentication"])
-async def check_auth(request: Request):
-    try:
-        # Remove the Authorization header if it exists
-        # Authenticate the incoming request
-        auth_result = clerk_client.authenticate_request(
-            request,
-            AuthenticateRequestOptions()
-        )
-        logger.info(f"Auth result: {auth_result}")
-        authenticated = False
-        logger.info(f"Auth result.is_signed_in: {auth_result.is_signed_in}")
-        if not auth_result.is_signed_in:
-            authenticated = False
-            return JSONResponse(content={"authenticated": authenticated})
-        else:
-            authenticated = True
-        logger.info("User is authenticated")
-
-        # # Fetch user details using the authenticated user's ID
-        user_details = clerk_client.users.get(user_id=auth_result.payload['sub'])
-
-        if user_details is not None:
-            logger.info(f"User Details found: {user_details}")
-        else:
-            logger.error("Not able to retrieve User Details found")
-        #     raise HTTPException(status_code=404, detail="Not able to retrieve User Details found")
-
-        org_details = clerk_client.organizations.get(organization_id=auth_result.payload['org_id'], include_members_count=False)
-        if org_details is not None:
-            logger.info(f"Organization Details found: {org_details}")
-        else:
-            logger.error("Not able to retrieve Organization Details found") 
-
-        return JSONResponse(content={"authenticated": authenticated, "user_details": user_details.dict(), "org_details": org_details.dict()})
-            
-    except HTTPException as e:
-        logger.error(f"Error in check_auth endpoint: {e}")
-        raise e
-    except Exception as e:
-        logger.error(f"Error in check_auth endpoint: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")

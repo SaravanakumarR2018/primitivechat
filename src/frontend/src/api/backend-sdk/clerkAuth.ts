@@ -1,15 +1,16 @@
 import { auth } from '@clerk/nextjs/server';
 
+const CHAT_SERVICE_HOST = process.env.CHAT_SERVICE_HOST;
+const CHAT_SERVICE_PORT = process.env.CHAT_SERVICE_PORT;
+
 export async function getClerkUser(): Promise<any> {
   try {
     const token = await auth().getToken();
-    console.log('token:', token);
     if (!token) {
-      throw new Error('No auth token found: simple');
+      throw new Error('No auth token found: user is not logged in');
     }
-    // const modifiedToken = token;
-    // const modifiedToken1 = `${modifiedToken.slice(0, -2)}12`;
-    const response = await fetch('http://localhost:8000/checkauth', {
+
+    const response = await fetch(`http://${CHAT_SERVICE_HOST}:${CHAT_SERVICE_PORT}/checkauth`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

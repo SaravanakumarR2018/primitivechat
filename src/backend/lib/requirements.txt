@@ -12,3 +12,4 @@ sentence-transformers==3.4.1
 fastapi==0.115.8
 pydantic==2.10.6
 clerk-backend-api==1.7.2
+PyJWT==2.10.1
