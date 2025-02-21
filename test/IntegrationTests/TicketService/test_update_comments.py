@@ -107,7 +107,7 @@ class TestUpdateCommentAPI(unittest.TestCase):
 
         # Check that the comment text has been updated
         self.assertEqual(updated_comment["comment"], "This is an updated comment", "Comment text was not updated")
-        self.assertEqual(updated_comment["comment_id"], self.valid_comment_id, "Comment ID mismatch")
+        self.assertEqual(str(updated_comment["comment_id"]), str(self.valid_comment_id), "Comment ID mismatch")
         self.assertEqual(updated_comment["posted_by"], "test_user", "posted_by does not match")
 
         #Verify the 'created_at' remains same

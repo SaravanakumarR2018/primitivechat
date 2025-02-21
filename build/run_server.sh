@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Exit on any error
 set -e
@@ -32,6 +32,23 @@ cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Changed directory to src/backend"
 
 $PROJECT_ROOT/build/kill_server.sh
+
+# Check if the kill_server.sh script executed successfully
+if [ $? -ne 0 ]; then
+    echo "kill_server.sh script failed. Exiting..."
+    exit 1
+fi
+
+# Call the get_env_file.sh script from the root of the project
+echo "Calling get_env_file.sh script..."
+$PROJECT_ROOT/src/frontend/scripts/get_env_file.sh
+
+# Check if the get_env_file.sh script executed successfully
+if [ $? -ne 0 ]; then
+    echo "get_env_file.sh script failed. Exiting..."
+    exit 1
+fi
+
 
 # Start Docker containers in detached mode
 echo "Starting Docker containers in detached mode..."

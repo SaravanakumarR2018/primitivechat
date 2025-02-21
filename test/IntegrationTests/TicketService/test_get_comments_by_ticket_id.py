@@ -144,7 +144,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         for i, comment_response in enumerate(comments):
             # Compare against the correct comment text from the comment_data based on reverse order
             expected_comment = comment_data[3 - i]["comment"]  # Reverse order of the original comment data
-            self.assertEqual(comment_response["ticket_id"], str(self.valid_ticket_id), "Incorrect ticket_id")
+            self.assertEqual(str(comment_response["ticket_id"]), str(self.valid_ticket_id), "Incorrect ticket_id")
             self.assertEqual(comment_response["comment"], expected_comment,
                              f"Incorrect comment text for comment {i + 1}")
             self.assertEqual(comment_response["posted_by"], "user@email.com",
@@ -268,7 +268,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
             # Validate comment IDs are in reverse order
             expected_comment_ids = [str(i) for i in range(50, 0, -1)]
-            retrieved_comment_ids = [comment["comment_id"] for comment in all_comments]
+            retrieved_comment_ids = [str(comment["comment_id"]) for comment in all_comments]
 
             self.assertEqual(
                 expected_comment_ids,
@@ -359,7 +359,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
         # Validate that comment IDs are in reverse order
         expected_comment_ids = [str(i) for i in range(50, 0, -1)]
-        retrieved_comment_ids = [comment["comment_id"] for comment in page_data]
+        retrieved_comment_ids = [str(comment["comment_id"]) for comment in page_data]
         self.assertEqual(
             expected_comment_ids,
             retrieved_comment_ids,
@@ -494,7 +494,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
             # Validate comment IDs are in reverse order (excluding deleted ones)
             expected_comment_ids = [str(i) for i in range(50, 0, -1) if i not in comment_ids_to_delete]
-            retrieved_comment_ids = [comment["comment_id"] for comment in all_comments]
+            retrieved_comment_ids = [str(comment["comment_id"]) for comment in all_comments]
 
             self.assertEqual(
                 expected_comment_ids,
