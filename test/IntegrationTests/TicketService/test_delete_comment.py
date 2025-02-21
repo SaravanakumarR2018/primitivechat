@@ -260,7 +260,7 @@ class TestDeleteCommentAPI(unittest.TestCase):
 
             # Validate comment IDs are in reverse order (excluding deleted ones)
             expected_comment_ids = [str(i) for i in range(50, 0, -1) if i not in comment_ids_to_delete]
-            retrieved_comment_ids = [comment["comment_id"] for comment in all_comments]
+            retrieved_comment_ids = [str(comment["comment_id"]) for comment in all_comments]
 
             self.assertEqual(
                 expected_comment_ids,

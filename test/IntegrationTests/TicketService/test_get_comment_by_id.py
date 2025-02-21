@@ -79,7 +79,7 @@ class TestGetCommentByIdAPI(unittest.TestCase):
 
         comment_response = response.json()
         self.assertEqual(str(comment_response["comment_id"]), str(self.valid_comment_id), "Incorrect comment_id")
-        self.assertEqual(comment_response["ticket_id"], str(self.valid_ticket_id), "Incorrect ticket_id")
+        self.assertEqual(str(comment_response["ticket_id"]), str(self.valid_ticket_id), "Incorrect ticket_id")
         self.assertEqual(comment_response["comment"], "This is a test comment", "Incorrect comment text")
         self.assertEqual(comment_response["posted_by"], "test_user", "Incorrect posted_by")
         self.assertIn("created_at", comment_response, "Missing 'created_at' timestamp")
