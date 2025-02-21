@@ -1,19 +1,13 @@
 import logging
 from http import HTTPStatus
-import os
-import requests
-import json
 
 from sqlalchemy.exc import SQLAlchemyError
-from copy import deepcopy
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
-from starlette.responses import StreamingResponse, JSONResponse
-from clerk_backend_api import Clerk
-from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
-from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
-from src.backend.db.database_manager import SenderType
+from starlette.responses import StreamingResponse
+
+from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 
