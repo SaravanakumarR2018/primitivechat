@@ -68,7 +68,7 @@ class TestGetTicketEndpoint(unittest.TestCase):
         # Check if the response is as expected
         self.assertEqual(response.status_code, HTTPStatus.OK, "Expected 200 OK for valid ticket.")
         self.assertEqual(response.json(), {
-            "ticket_id": self.valid_ticket_id,
+            "ticket_id":  int(self.valid_ticket_id),
             "chat_id": self.valid_chat_id,
             "title": "Test Ticket",
             "description": "This is a test ticket.",
@@ -174,7 +174,7 @@ class TestGetTicketEndpoint(unittest.TestCase):
                                                                                                                     ' ')
 
         expected_response = {
-            "ticket_id": valid_ticket_id,
+            "ticket_id": int(valid_ticket_id),
             "chat_id": self.valid_chat_id,
             "title": "Test Ticket with Custom Fields",
             "description": "This is a test ticket with custom fields.",

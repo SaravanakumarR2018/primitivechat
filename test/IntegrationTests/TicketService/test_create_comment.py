@@ -296,7 +296,7 @@ class TestCreateCommentAPI(unittest.TestCase):
 
             # Validate comment IDs are in reverse order
             expected_comment_ids = [str(i) for i in range(50, 0, -1)]
-            retrieved_comment_ids = [comment["comment_id"] for comment in all_comments]
+            retrieved_comment_ids = [str(comment["comment_id"]) for comment in all_comments]
 
             self.assertEqual(
                 expected_comment_ids,

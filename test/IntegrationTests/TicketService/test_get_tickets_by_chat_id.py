@@ -78,7 +78,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
         # Validate the response format and content
         self.assertTrue(isinstance(tickets, list), "Expected a list of tickets")
         self.assertEqual(len(tickets), 1, "Expected at least one ticket")
-        self.assertEqual(tickets[0]["ticket_id"], "1", "Ticket ID mismatch")
+        self.assertEqual(str(tickets[0]["ticket_id"]), "1", "Ticket ID mismatch")
         self.assertEqual(tickets[0]["title"], "Reset Password", "Title mismatch")
         self.assertEqual(tickets[0]["status"], "open", "Status mismatch")
         self.assertIn("created_at", tickets[0], "created_at not found")
@@ -234,7 +234,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
             # Validate ticket IDs are in reverse order
             expected_ticket_ids = [str(i) for i in range(50, 0, -1)]
-            retrieved_ticket_ids = [ticket["ticket_id"] for ticket in all_tickets]
+            retrieved_ticket_ids = [str(ticket["ticket_id"]) for ticket in all_tickets]
 
             self.assertEqual(
                 expected_ticket_ids,
@@ -364,7 +364,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
             # Validate ticket IDs are in reverse order
             expected_ticket_ids = [str(i) for i in range(50, 0, -1)]
-            retrieved_ticket_ids = [ticket["ticket_id"] for ticket in all_tickets]
+            retrieved_ticket_ids = [str(ticket["ticket_id"]) for ticket in all_tickets]
 
             self.assertEqual(
                 expected_ticket_ids,
@@ -471,7 +471,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
             # Validate ticket IDs are in reverse order (excluding deleted ones)
             expected_ticket_ids = [str(i) for i in range(50, 0, -1) if i not in ticket_ids_to_delete]
-            retrieved_ticket_ids = [ticket["ticket_id"] for ticket in all_tickets]
+            retrieved_ticket_ids = [str(ticket["ticket_id"]) for ticket in all_tickets]
 
             self.assertEqual(
                 expected_ticket_ids,
