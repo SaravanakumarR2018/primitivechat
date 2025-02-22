@@ -160,5 +160,7 @@ jobs:
       # Step 14: Shut down Docker Compose (clean up)
       - name: Docker-compose down
         working-directory: src/backend  # Specify working directory here as well
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
         if: always()
         run: docker-compose down
