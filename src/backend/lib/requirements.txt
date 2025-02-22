@@ -6,10 +6,19 @@ minio==7.2.10
 weaviate==0.1.2
 weaviate-client==3.26.7
 python-multipart==0.0.17
-python-dotenv==1.0.1
 httpx==0.28.1
-sentence-transformers==3.4.1
 fastapi==0.115.8
 pydantic==2.10.6
 clerk-backend-api==1.7.2
 PyJWT==2.10.1
+
+# Install CPU-specific PyTorch components
+numpy<2
+torch==2.0.1+cpu
+torchvision==0.15.2+cpu
+torchaudio==2.0.2+cpu
+-f https://download.pytorch.org/whl/torch_stable.html
+
+# Install sentence-transformers after CPU torch is available
+sentence-transformers==3.4.1
+

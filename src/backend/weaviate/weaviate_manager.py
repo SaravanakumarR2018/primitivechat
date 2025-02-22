@@ -26,7 +26,7 @@ class WeaviateManager:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
 
-    def load_model(self, model_path="src/models/all-mini-llm-base-v2", model_name="sentence-transformers/all-MiniLM-L6-v2"):
+    def load_model(self, model_path="/app/src/models/all-mini-llm-base-v2", model_name="sentence-transformers/all-MiniLM-L6-v2"):
         try:
             if os.path.exists(model_path) and os.listdir(model_path):
                 logger.info(f"Loading model from local directory: {model_path}")

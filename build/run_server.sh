@@ -49,6 +49,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+#Start Docker build command
+echo "Building Docker image chat_service_image"
+docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT}
+if [ $? -ne 0 ]; then
+  echo "Docker build failed. Exiting..."
+  exit 1
+fi
 
 # Start Docker containers in detached mode
 echo "Starting Docker containers in detached mode..."

@@ -3,7 +3,6 @@ import os
 import json
 import jwt
 from fastapi import APIRouter, Request, HTTPException
-from dotenv import load_dotenv
 from starlette.responses import JSONResponse
 from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
@@ -13,8 +12,6 @@ from src.backend.lib.auth_utils import get_decoded_token  # Import the new utili
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../frontend/.env.local'))
-
 
 # Create a new router for authentication
 app = APIRouter()
