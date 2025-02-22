@@ -7,14 +7,12 @@ from functools import wraps
 from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
 import os
-from dotenv import load_dotenv
 import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Clerk client
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../frontend/.env.local'))
 clerk_client = Clerk(bearer_auth=os.getenv('CLERK_SECRET_KEY'))
 
 # Retrieve the JWKS URL from environment variables

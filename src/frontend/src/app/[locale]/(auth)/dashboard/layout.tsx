@@ -37,6 +37,10 @@ export default function DashboardLayout(props: { children: React.ReactNode }) {
                 href: '/dashboard/organization-profile',
                 label: t('settings'),
               },
+              {
+                href: '/dashboard/checkclerk',
+                label: 'Checkclerk',
+              },
               // PRO: Link to the /dashboard/billing page
             ]}
           />
