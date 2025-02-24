@@ -4,6 +4,7 @@ from weaviate import Client
 import os
 import json
 from sentence_transformers import SentenceTransformer
+from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 
 #config logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,6 +23,7 @@ class WeaviateManager:
             self.client = Client(f"http://{weaviate_host}:{weaviate_port}")
             logger.info("Successfully connected to Weaviate")
             self.model = self.load_model()
+            self.download = LocalFileDownloadAndUpload()
         except Exception as e:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
@@ -204,14 +206,6 @@ class WeaviateManager:
 
         except Exception as e:
             logger.error(f"Error executing batch deletion for customer_guid: {customer_guid} and filename: {filename} - {str(e)}")
-
-    def processing(self, customer_guid, filename):
-        try:
-            self.insert_data(customer_guid, filename)
-            search_result = self.search_query(customer_guid, "AI first customer support")
-            logger.info(f"Search Result: {json.dumps(search_result, indent=4)}")
-        except Exception as e:
-            logger.error(f"Error in processing function: {str(e)}")
 
 if __name__ == "__main__":
     customer_guid = "c94fdd86-65ec-413e-b3d5-c2c17be8989k"

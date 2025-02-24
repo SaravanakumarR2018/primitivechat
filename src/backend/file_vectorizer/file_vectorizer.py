@@ -6,18 +6,19 @@ from src.backend.db.database_manager import DatabaseManager
 from src.backend.embedding.extract_file.extract_file import UploadFileForChunks
 from src.backend.embedding.semantic_chunk.semantic_chunk import ProcessAndUploadBucket
 from src.backend.weaviate.weaviate_manager import WeaviateManager
+from src.backend.minio.minio_manager import MinioManager
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Initialize DatabaseManager instance
 db_manager = DatabaseManager()
 
 class FileVectorizer:
 
-    def __init__(self, max_workers=5, polling_interval=10):
+    def __init__(self, max_workers=5, polling_interval=2):
         logger.info("Initializing FileVectorizer...")
+        self.max_threads=max_workers
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.polling_interval = polling_interval
         self.shutdown_event = threading.Event()
@@ -25,6 +26,7 @@ class FileVectorizer:
         self.worker_thread.start()
 
         # Initialize components
+        self.minio=MinioManager()
         self.extracted = UploadFileForChunks()
         self.chunked = ProcessAndUploadBucket()
         self.vectorizer= WeaviateManager()
@@ -54,7 +56,7 @@ class FileVectorizer:
         vectorize_filename = f"{filename}.chunked.txt"
         logger.info(f"Vectorizing file: {vectorize_filename} for customer: {customer_guid}")
         try:
-            self.vectorizer.processing(customer_guid,vectorize_filename)
+            self.vectorizer.insert_data(customer_guid,vectorize_filename)
             return True
         except Exception as e:
             logger.error(f"Error during vectorizing of {filename}: {e}")
@@ -71,9 +73,11 @@ class FileVectorizer:
 
             if status in ["todo","extract_error"]:
                 if self.extract_file(customer_guid, filename):
-                    db_manager.update_status(customer_guid, filename, "extracted")
+                    db_manager.update_status(customer_guid, filename, "extracted", error=None)
                 else:
                     db_manager.update_status(customer_guid, filename, "extract_error", error_retry + 1)
+                    if error_retry>=7:
+                        db_manager.remove_from_common_db(customer_guid, filename, error=True)
                     return
 
             file_record = db_manager.get_file_status(customer_guid, filename)
@@ -81,9 +85,11 @@ class FileVectorizer:
 
             if status in ["extracted", "chunk_error"]:
                 if self.chunk_file(customer_guid, filename):
-                    db_manager.update_status(customer_guid, filename, "chunked")
+                    db_manager.update_status(customer_guid, filename, "chunked", error=None)
                 else:
                     db_manager.update_status(customer_guid, filename, "chunk_error", error_retry + 1)
+                    if error_retry>=7:
+                        db_manager.remove_from_common_db(customer_guid, filename, error=True)
                     return
 
             file_record = db_manager.get_file_status(customer_guid, filename)
@@ -91,14 +97,24 @@ class FileVectorizer:
 
             if status in ["chunked", "vectorize_error"]:
                 if self.vectorize_file(customer_guid,filename):
-                    db_manager.update_status(customer_guid, filename, "completed")
+                    db_manager.update_status(customer_guid, filename, "completed", error=None)
+                    # Delete extracted and chunked files from MinIO
+                    extracted_file = f"{filename}.txt"
+                    chunked_file = f"{filename}.chunked.txt"
+                    try:
+                        self.minio.delete_file(customer_guid, extracted_file)
+                        self.minio.delete_file(customer_guid, chunked_file)
+                        logger.info(f"Deleted extracted and chunked files for {filename} from MinIO.")
+                    except Exception as e:
+                        logger.error(f"Error deleting extracted and chunked files from MinIO: {e}")
+
+                    # Remove file from common_db (since it's successfully processed)
+                    db_manager.remove_from_common_db(customer_guid, filename, error=False)
                 else:
                     db_manager.update_status(customer_guid, filename, "vectorize_error", error_retry + 1)
+                    if error_retry>=7:
+                        db_manager.remove_from_common_db(customer_guid, filename, error=True)
                     return
-
-            if error_retry >= 7:
-                db_manager.remove_from_common_db(customer_guid, filename)
-
         except Exception as e:
             logger.error(f"Error processing {filename}: {e}")
 
@@ -107,7 +123,7 @@ class FileVectorizer:
         while not self.shutdown_event.is_set():
             try:
                 logger.info("Checking for 'todo','extracted' and 'chunked' files...")
-                pending_files = db_manager.get_todo_files()
+                pending_files = db_manager.get_todo_files(self.max_threads)
 
                 if not pending_files:
                     logger.info("No files to process. Sleeping...")
@@ -138,4 +154,7 @@ class FileVectorizer:
 #testing
 if __name__ == "__main__":
     worker = FileVectorizer()
-    worker.worker_loop()  # Start worker loop
+    try:
+        worker.worker_loop()
+    except KeyboardInterrupt:
+        worker.stop()
