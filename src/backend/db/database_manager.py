@@ -1474,9 +1474,6 @@ class DatabaseManager:
             session.rollback()
             return {"status": "failure", "reason": "Unexpected error occurred"}
 
-        finally:
-            session.close()
-
     def insert_customer_file_status(self, customer_guid, filename):
         logger.debug("Inserting record into customer_file_status and uploadedfile_status tables")
         session = DatabaseManager._session_factory()
