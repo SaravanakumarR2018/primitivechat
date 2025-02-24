@@ -1,5 +1,5 @@
 import logging
-from src.backend.file_vectorizer.file_vectorizer import FileVectorizer # Replace with your actual module
+from src.backend.file_vectorizer.file_vectorizer import FileVectorizer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
