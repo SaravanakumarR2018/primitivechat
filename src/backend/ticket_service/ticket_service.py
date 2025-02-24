@@ -87,8 +87,9 @@ class TicketByCustomerId(BaseModel):
     ticket_id: str
     title: str
     status: str
-    description: str
     priority:str
+    reported_by:str
+    assigned:str
     created_at:datetime
 
 #Comments Pydantic Model
