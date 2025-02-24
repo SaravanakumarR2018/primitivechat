@@ -1462,6 +1462,8 @@ class DatabaseManager:
             logger.error(f"Unexpected error during deletion: {e}")
             session.rollback()
             return {"status": "failure", "reason": "Unexpected error occurred"}
+        finally:
+            session.close()    
 
     def get_customer_guid_from_clerk_orgId(self, org_id):
         """Fetch customer GUID for an organization."""
