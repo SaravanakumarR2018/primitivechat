@@ -83,6 +83,15 @@ class TicketByChatId(BaseModel):
     status: str
     created_at: datetime
 
+class TicketByCustomerId(BaseModel):
+    ticket_id: str
+    title: str
+    status: str
+    priority:str
+    reported_by:str
+    assigned:str
+    created_at:datetime
+
 # Comments Pydantic Model
 class Comment(BaseModel):
     comment_id: Union[str, int]
@@ -695,3 +704,44 @@ async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while deleting the comment."
         )
+
+@app.get("/tickets/customer/{customer_guid}", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
+async def get_tickets_by_customer_guid(
+    customer_guid: str,
+    page: int = 1,
+    page_size: int = 10
+):
+    """Retrieve all tickets for a specific customer_guid with pagination"""
+    logger.debug(f"Received customer_guid: {customer_guid}, page: {page}, page_size: {page_size}")
+    try:
+        tickets = db_manager.get_paginated_tickets_by_customer_guid(customer_guid, page, page_size)
+
+        if not tickets:
+            logger.info(f"No tickets found for customer {customer_guid}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"No tickets found for customer {customer_guid}"
+            )
+        return tickets
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    except HTTPException as e:
+        logger.info(f"No tickets found for customer {customer_guid}")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"No tickets found for customer {customer_guid}"
+        )
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while retrieving tickets: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error")
+    except Exception as e:
+        if "Database connectivity issue" in str(e):
+            logger.error(f"Database error: {e}")
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="The database is currently unreachable. Please try again later."
+            )
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")

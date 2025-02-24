@@ -1472,3 +1472,49 @@ class DatabaseManager:
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to insert mapping")
         finally:
             session.close()
+
+    def get_paginated_tickets_by_customer_guid(self, customer_guid, page=1, page_size=10):
+        logger.debug("Entering get_paginated_tickets_by_customer_guid method")
+        customer_db_name = self.get_customer_db(customer_guid)
+
+        try:
+            session = DatabaseManager._session_factory()
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            self.validate_customer_guid(customer_db_name, session)
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(f"Fetching tickets with pagination: page={page}, page_size={page_size}, offset={offset}")
+
+            query = """
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, created_at
+                FROM tickets
+                ORDER BY created_at DESC
+                LIMIT :page_size OFFSET :offset
+            """
+            results = session.execute(
+                text(query),
+                {"page_size": page_size, "offset": offset},
+            ).fetchall()
+            logger.info(f"Retrieved Tickets: {results}")
+            return [
+                {column: value for column, value in zip(row.keys(), row) if
+                 column in ("ticket_id", "chat_id", "title", "status", 'description', 'priority', 'reported_by', 'assigned', "created_at")}
+                for row in results
+            ]
+
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving tickets: {e}")
+            return []
+        finally:
+            session.close()
