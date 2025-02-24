@@ -1,8 +1,14 @@
 import logging
 import os
+import sys
 import unittest
 from http import HTTPStatus
+
 import requests
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+from utils.api_utils import add_customer
 
 # Configure logging
 logging.basicConfig(
@@ -13,17 +19,14 @@ logger = logging.getLogger(__name__)
 
 class TestGetCommentByIdAPI(unittest.TestCase):
 
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Set up test environment by creating a customer, ticket, and a comment."""
         logger.info("=== Setting up test environment ===")
 
         # Add customer
-        customer_url = f"{self.BASE_URL}/addcustomer"
-        response = requests.post(customer_url)
-        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a customer")
-        self.valid_customer_guid = response.json().get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
 
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
@@ -75,8 +78,8 @@ class TestGetCommentByIdAPI(unittest.TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the comment")
 
         comment_response = response.json()
-        self.assertEqual(comment_response["comment_id"], str(self.valid_comment_id), "Incorrect comment_id")
-        self.assertEqual(comment_response["ticket_id"], str(self.valid_ticket_id), "Incorrect ticket_id")
+        self.assertEqual(str(comment_response["comment_id"]), str(self.valid_comment_id), "Incorrect comment_id")
+        self.assertEqual(str(comment_response["ticket_id"]), str(self.valid_ticket_id), "Incorrect ticket_id")
         self.assertEqual(comment_response["comment"], "This is a test comment", "Incorrect comment text")
         self.assertEqual(comment_response["posted_by"], "test_user", "Incorrect posted_by")
         self.assertIn("created_at", comment_response, "Missing 'created_at' timestamp")

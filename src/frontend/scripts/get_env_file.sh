@@ -80,6 +80,41 @@ copy_env_file() {
   fi
 }
 
+append_env_file() {
+    SOURCE_FILE="$GIT_ROOT/src/backend/.env"
+    TARGET_FILE="$GIT_ROOT/src/frontend/.env.local"
+    
+    if [ ! -f "$SOURCE_FILE" ]; then
+        echo "Error: Source file does not exist: $SOURCE_FILE"
+        exit 1
+    fi
+    
+    echo "Processing variables from $SOURCE_FILE..."
+    
+    while IFS='=' read -r key value; do
+        [ -z "$key" ] && continue  # Skip empty lines
+        [ "${key#\#}" != "$key" ] && continue  # Skip commented lines
+                
+        if grep -q "^$key=" "$TARGET_FILE"; then
+            if grep -q "^$key=$value$" "$TARGET_FILE"; then
+                echo "No modification required: $key"
+            else
+                echo "Modified variable: $key"
+                sed -i "s|^$key=.*|$key=$value|" "$TARGET_FILE"
+            fi
+        else
+            echo "Newly added variable: $key"
+            echo "$key=$value" >> "$TARGET_FILE"
+        fi
+    done < "$SOURCE_FILE"
+    
+    if [ $? -eq 0 ]; then
+        echo "Success: Copied from $SOURCE_FILE to $TARGET_FILE"
+    else
+        echo "Error: Failed to copy from $SOURCE_FILE to $TARGET_FILE"
+        exit 1
+    fi
+}
 
 ### 🚀 Main Execution ###
 GIT_ROOT=$(find_git_root)
@@ -93,8 +128,10 @@ if [ ! -d "$FRONTEND_DIR" ]; then
   echo "❌ Error: 'src/frontend' directory not found in the Git root."
   exit 1
 fi
-
+echo "GIT_ROOT: $GIT_ROOT"
+echo "FRONTEND_DIR: $FRONTEND_DIR"
 echo "$HOME/.github_credentials"
 load_credentials
 copy_env_file
+append_env_file
 

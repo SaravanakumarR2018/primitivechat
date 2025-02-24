@@ -15,9 +15,7 @@ services:
       /bin/sh -c "
       pwd &&
       apt-get update && apt-get install -y curl &&
-      apt-get intall -y libmagic1 libmagic-dev tesseract-ocr curl &&
       pip install -r ./src/backend/lib/requirements.txt &&
-      python -m spacy download en_core_web_sm &&
       uvicorn src.backend.main.main:main_app --host 0.0.0.0 --port ${CHAT_SERVICE_PORT}
       "
     ports:

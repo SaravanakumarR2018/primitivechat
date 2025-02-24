@@ -1,8 +1,14 @@
 import logging
 import os
+import sys
 import unittest
 from http import HTTPStatus
+
 import requests
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+from utils.api_utils import add_customer
 
 # Configure logging
 logging.basicConfig(
@@ -13,17 +19,14 @@ logger = logging.getLogger(__name__)
 
 class TestUpdateCommentAPI(unittest.TestCase):
 
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Set up test environment by creating a customer, ticket, and comment."""
         logger.info("=== Setting up test environment ===")
 
         # Add customer
-        customer_url = f"{self.BASE_URL}/addcustomer"
-        response = requests.post(customer_url)
-        self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a customer")
-        self.valid_customer_guid = response.json().get("customer_guid")
+        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"
@@ -104,7 +107,7 @@ class TestUpdateCommentAPI(unittest.TestCase):
 
         # Check that the comment text has been updated
         self.assertEqual(updated_comment["comment"], "This is an updated comment", "Comment text was not updated")
-        self.assertEqual(updated_comment["comment_id"], self.valid_comment_id, "Comment ID mismatch")
+        self.assertEqual(str(updated_comment["comment_id"]), str(self.valid_comment_id), "Comment ID mismatch")
         self.assertEqual(updated_comment["posted_by"], "test_user", "posted_by does not match")
 
         #Verify the 'created_at' remains same

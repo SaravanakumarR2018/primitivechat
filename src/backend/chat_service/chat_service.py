@@ -1,17 +1,20 @@
 import logging
+from http import HTTPStatus
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
-from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
-from src.backend.db.database_manager import SenderType
+from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 app = APIRouter()
 
@@ -39,41 +42,61 @@ class DeleteChatsRequest(BaseModel):
     customer_guid: str
     chat_id: str
 
+class AddCustomerRequest(BaseModel):
+    org_id: str
 
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
-async def add_customer(request: Request):
-    logger.debug(f"Entering add_customer() with Correlation ID: {request.state.correlation_id}")
+async def add_customer(request: AddCustomerRequest):
+    """Create a new customer, set up DBs, and add an entry in the common_db table."""
+    logger.debug(f"Entering add_customer() with org_id: {request.org_id}")
 
-    customer_guid = db_manager.add_customer()
-
-    if customer_guid is None:
-        logger.error("Failed to create customer")
-        raise HTTPException(status_code=500, detail="Failed to create customer")
-
-    logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}")
-
-    #create a MinIO bucket
     try:
-        minio_manager.add_storage_bucket(customer_guid)
-    except Exception as e:
-        logger.error(f"Minio creation failed. Correlation ID: {request.state.correlation_id}, Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create customer")
-    finally:
-        logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}, Customer GUID: {customer_guid}")
+        # Check if customer already exists for the given org_id
+        existing_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(request.org_id)
+        if existing_customer_guid:
+            logger.info(f"Customer already exists for org_id: {request.org_id}, GUID: {existing_customer_guid}")
+            return {"customer_guid": existing_customer_guid}
 
-    #create a Weaviate class
-    try:
-        weaviate_manager.add_weaviate_customer_class(customer_guid)
-    except Exception as e:
-        logger.error(f"Weaviate schema creation failed. Correlation ID: {request.state.correlation_id}, Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create customer")
-    finally:
-        logger.debug(f"Exiting add_customer() with Correlation ID: {request.state.correlation_id}, Customer GUID: {customer_guid}")
+        # Create new customer GUID
+        customer_guid = db_manager.add_customer()
+        if customer_guid is None:
+            logger.error("Failed to create customer")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer")
 
-    return {
-        "customer_guid": customer_guid
-    }
+        logger.info(f"Customer created with GUID: {customer_guid}")
+
+        # Add extra row in common_db table
+        try:
+            db_manager.map_clerk_orgid_with_customer_guid(request.org_id, customer_guid)
+            logger.info(f"Entry added in common_db for org_id: {request.org_id}, customer_guid: {customer_guid}")
+        except SQLAlchemyError as e:
+            logger.error(f"Database error while inserting into common_db: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
+
+        # Create a MinIO bucket
+        try:
+            minio_manager.add_storage_bucket(customer_guid)
+            logger.info(f"MinIO bucket created for customer GUID: {customer_guid}")
+        except Exception as e:
+            logger.error(f"MinIO creation failed. Error: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer storage")
+
+        # Create a Weaviate class
+        try:
+            weaviate_manager.add_weaviate_customer_class(customer_guid)
+            logger.info(f"Weaviate class created for customer GUID: {customer_guid}")
+        except Exception as e:
+            logger.error(f"Weaviate schema creation failed. Error: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer schema")
+
+        logger.debug(f"Exiting add_customer() with Customer GUID: {customer_guid}")
+
+        return {"customer_guid": customer_guid}
+
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 
 #API endpoint for UploadFile api
@@ -244,3 +267,4 @@ async def delete_chats(request: Request, delete_chats_request: DeleteChatsReques
         raise HTTPException(status_code=500, detail="Failed to delete chats")
     logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
     return {"message": "Chat deleted successfully"}
+

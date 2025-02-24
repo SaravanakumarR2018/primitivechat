@@ -1,7 +1,10 @@
-import unittest
-import requests
 import logging
 import os
+import unittest
+
+import requests
+
+from utils.api_utils import add_customer
 
 # Set up logging configuration
 logging.basicConfig(
@@ -12,21 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class TestChatAPI(unittest.TestCase):
-    BASE_URL = f"http://localhost:{os.getenv('CHAT_SERVICE_PORT')}"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Setup function to create valid customer_guid and chat_id"""
         logger.info("=== Starting setUp process ===")
 
         # Get valid customer_guid
-        add_customer_url = f"{self.BASE_URL}/addcustomer"
-        logger.info(f"INPUT: Requesting new customer from: {add_customer_url}")
-
-        customer_response = requests.post(add_customer_url)
-        logger.info(f"OUTPUT: Customer creation response status: {customer_response.status_code}")
-
-        self.assertEqual(customer_response.status_code, 200)
-        customer_data = customer_response.json()
+        customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
         logger.info(f"OUTPUT: Received valid customer_guid: {self.valid_customer_guid}")
 

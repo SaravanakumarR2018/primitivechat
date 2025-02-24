@@ -3,7 +3,10 @@ import os
 import re
 import uuid
 from enum import Enum
+from http import HTTPStatus
+from datetime import datetime
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
@@ -24,9 +27,38 @@ class DatabaseManager:
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
     def __init__(self):
-        logger.debug("Initializing DatabaseManager")
         if DatabaseManager._session_factory is None:
             self._initialize_session_factory()
+        self.create_common_db()
+
+    @staticmethod
+    def create_common_db():
+        """Create the common_db database and org_customer_guid_mapping table with updated schema."""
+        session = DatabaseManager._session_factory()
+        try:
+            # Ensure common_db exists
+            session.execute(text("CREATE DATABASE IF NOT EXISTS common_db"))
+            session.execute(text("USE common_db"))
+
+            # Ensure org_customer_guid_mapping table exists with updated schema
+            session.execute(text('''
+                    CREATE TABLE IF NOT EXISTS org_customer_guid_mapping (
+                        org_id VARCHAR(255) PRIMARY KEY,  -- Unique identifier for an organization
+                        customer_guid VARCHAR(255) NOT NULL,  -- Unique customer GUID
+                        customer_guid_org_id_map_timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+                        is_customer_guid_deleted BOOLEAN DEFAULT FALSE,  -- Flag to check if customer GUID is deleted
+                        delete_timestamp TIMESTAMP(6) NULL  -- Timestamp when the customer GUID was deleted
+                    )
+                '''))
+            session.commit()
+            logger.info("Database and table initialized successfully.")
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database initialization error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database initialization failed")
+        finally:
+            session.close()
 
         # the customer_file_status table is created
         self.create_customer_file_status_table()
@@ -1597,5 +1629,101 @@ class DatabaseManager:
         except SQLAlchemyError as e:
             logger.error(f"Error removing {filename} from database: {e}")
             session.rollback()
+        finally:
+            session.close()
+
+    def get_customer_guid_from_clerk_orgId(self, org_id):
+        """Fetch customer GUID for an organization."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))  # Ensure correct database is used
+
+            # Fetch customer GUID if it exists and is not marked as deleted
+            result = session.execute(
+                text("""
+                    SELECT customer_guid 
+                    FROM org_customer_guid_mapping 
+                    WHERE org_id = :org_id
+                """),
+                {"org_id": org_id}
+            ).fetchone()
+
+            return result[0] if result else None  # Return customer GUID if found, else None
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database query failed")
+        finally:
+            session.close()
+
+    def map_clerk_orgid_with_customer_guid(self, org_id, customer_guid):
+        """Insert a new customer GUID for an organization."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))  # Ensure correct database is used
+
+            session.execute(
+                text("""
+                    INSERT INTO org_customer_guid_mapping 
+                    (org_id, customer_guid) 
+                    VALUES (:org_id, :customer_guid)
+                """),
+                {
+                    "org_id": org_id,
+                    "customer_guid": customer_guid
+                }
+            )
+
+            session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error: {e}")
+            session.rollback()
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to insert mapping")
+        finally:
+            session.close()
+
+    def get_paginated_tickets_by_customer_guid(self, customer_guid, page=1, page_size=10):
+        logger.debug("Entering get_paginated_tickets_by_customer_guid method")
+        customer_db_name = self.get_customer_db(customer_guid)
+
+        try:
+            session = DatabaseManager._session_factory()
+        except OperationalError as e:
+            logger.error(f"Database connection failed: {e}")
+            return {"status": "db_unreachable", "reason": "Database is currently unreachable"}
+
+        try:
+            self.validate_customer_guid(customer_db_name, session)
+
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+
+            # Pagination logic
+            offset = (page - 1) * page_size
+            logger.debug(f"Fetching tickets with pagination: page={page}, page_size={page_size}, offset={offset}")
+
+            query = """
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, created_at
+                FROM tickets
+                ORDER BY created_at DESC
+                LIMIT :page_size OFFSET :offset
+            """
+            results = session.execute(
+                text(query),
+                {"page_size": page_size, "offset": offset},
+            ).fetchall()
+            logger.info(f"Retrieved Tickets: {results}")
+            return [
+                {column: value for column, value in zip(row.keys(), row) if
+                 column in ("ticket_id", "chat_id", "title", "status", 'description', 'priority', 'reported_by', 'assigned', "created_at")}
+                for row in results
+            ]
+
+        except (OperationalError, DatabaseError) as e:
+            logger.error(f"Database error: {e}")
+            raise Exception("Database connectivity issue")
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving tickets: {e}")
+            return []
         finally:
             session.close()
