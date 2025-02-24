@@ -22,7 +22,7 @@ app = APIRouter()
 db_manager = DatabaseManager()
 
 
-#Custom Field Pydantic Model
+# Custom Field Pydantic Model
 class CustomField(BaseModel):
     customer_guid: UUID
     field_name: str
@@ -32,7 +32,7 @@ class CustomField(BaseModel):
     @validator("required", pre=True, always=True)
     def validate_required(cls, value):
         if not isinstance(value, bool):
-            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,detail=f"Invalid value for 'required'. Expected a boolean, got {type(value).__name__}.")
+            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=f"Invalid value for 'required'. Expected a boolean, got {type(value).__name__}.")
         return value
 
 class CustomFieldResponse(BaseModel):
@@ -40,48 +40,48 @@ class CustomFieldResponse(BaseModel):
     field_type: str
     required: bool
 
-#Tickets Pydantic Model
+# Tickets Pydantic Model
 class Ticket(BaseModel):
-    ticket_id: str
+    ticket_id: Union[str, int]
     chat_id: str
     title: str
-    description: str
+    description: Optional[str]
     priority: str
     status: str
-    reported_by: str
-    assigned: str
-    created_at:datetime
-    updated_at:datetime
+    reported_by: Optional[str]
+    assigned: Optional[str]
+    created_at: datetime
+    updated_at: datetime
     custom_fields: Optional[Dict[str, Union[Any, None]]] = None
 
 class TicketRequest(BaseModel):
     customer_guid: str
     chat_id: str
     title: str
-    description: str
+    description: Optional[str]
     priority: str
-    reported_by: str
-    assigned: str
+    reported_by: Optional[str]
+    assigned: Optional[str]
     custom_fields: Optional[Dict[str, Any]] = None
 
 class TicketResponse(BaseModel):
-    ticket_id: str
+    ticket_id: Union[str, int]
     status: str
 
 class TicketUpdate(BaseModel):
     title: Optional[str] = None
-    description: Optional[str]=None
+    description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
     reported_by: Optional[str] = None
     assigned: Optional[str] = None
-    custom_fields: Optional[dict[str, Any]] = None
+    custom_fields: Optional[Dict[str, Any]] = None
 
 class TicketByChatId(BaseModel):
-    ticket_id: str
+    ticket_id: Union[str, int]
     title: str
     status: str
-    created_at:datetime
+    created_at: datetime
 
 class TicketByCustomerId(BaseModel):
     ticket_id: str
@@ -92,29 +92,29 @@ class TicketByCustomerId(BaseModel):
     assigned:str
     created_at:datetime
 
-#Comments Pydantic Model
+# Comments Pydantic Model
 class Comment(BaseModel):
-    comment_id:str
-    ticket_id:str
-    posted_by:str
-    comment:str
+    comment_id: Union[str, int]
+    ticket_id: Union[str, int]
+    posted_by: str
+    comment: str
     is_edited: bool
-    created_at:datetime
-    updated_at:datetime
+    created_at: datetime
+    updated_at: datetime
 
 class CommentRequest(BaseModel):
-    customer_guid:str
-    ticket_id:str
-    posted_by:str
-    comment:str
+    customer_guid: str
+    ticket_id: Union[str, int]
+    posted_by: str
+    comment: str
 
 class CommentUpdate(BaseModel):
     comment: str
-    posted_by:str
+    posted_by: str
 
 class CommentDeleteResponse(BaseModel):
-    comment_id:str
-    status:str
+    comment_id: Union[str, int]
+    status: str
 
 # Custom Fields Management APIs
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
@@ -256,7 +256,7 @@ async def create_ticket(ticket: TicketRequest):
             ticket.custom_fields if ticket.custom_fields else {}
         )
 
-        return TicketResponse(ticket_id=db_response["ticket_id"], status="created")
+        return TicketResponse(ticket_id=str(db_response["ticket_id"]), status="created")
 
     except ValueError as e:
         logger.error(f"Validation error: {e}")
@@ -496,7 +496,7 @@ async def create_comment(comment: CommentRequest):
         )
 
         logger.debug(f"Database response: {db_response}")
-        return Comment(comment_id=db_response["comment_id"], ticket_id=db_response["ticket_id"], posted_by=db_response["posted_by"], comment=db_response["comment"], is_edited=db_response["is_edited"], created_at=db_response["created_at"], updated_at=db_response["updated_at"])
+        return Comment(comment_id=str(db_response["comment_id"]), ticket_id=str(db_response["ticket_id"]), posted_by=str(db_response["posted_by"]), comment=str(db_response["comment"]), is_edited=db_response["is_edited"], created_at=db_response["created_at"], updated_at=db_response["updated_at"])
 
     except ValueError as e:
         logger.error(f"Validation error: {e}")

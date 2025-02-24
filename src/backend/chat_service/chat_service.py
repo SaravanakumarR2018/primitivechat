@@ -1,19 +1,20 @@
 import logging
 from http import HTTPStatus
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
-from sqlalchemy.exc import SQLAlchemyError
 from starlette.responses import StreamingResponse
 
-from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
-from src.backend.db.database_manager import SenderType
+from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 app = APIRouter()
 
@@ -265,3 +266,4 @@ async def delete_chats(request: Request, delete_chats_request: DeleteChatsReques
         raise HTTPException(status_code=500, detail="Failed to delete chats")
     logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
     return {"message": "Chat deleted successfully"}
+

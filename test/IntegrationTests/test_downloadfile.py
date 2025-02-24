@@ -107,7 +107,7 @@ class TestDownloadFileAPI(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422, "Expected 422 for missing filename")
         self.assertIn("detail", response.json(), "'detail' not found in response data")
-        self.assertEqual(response.json()["detail"][0]["msg"], "field required", "Unexpected validation message")
+        self.assertEqual(response.json()["detail"][0]["msg"], "Field required", "Unexpected validation message")
 
         logger.info("Successfully tested download request without specifying a filename")
 
