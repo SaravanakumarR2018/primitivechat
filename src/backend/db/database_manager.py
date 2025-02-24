@@ -1494,7 +1494,7 @@ class DatabaseManager:
             logger.debug(f"Fetching tickets with pagination: page={page}, page_size={page_size}, offset={offset}")
 
             query = """
-                SELECT ticket_id, chat_id, title, description, priority, status, created_at
+                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, created_at
                 FROM tickets
                 ORDER BY created_at DESC
                 LIMIT :page_size OFFSET :offset
@@ -1506,7 +1506,7 @@ class DatabaseManager:
             logger.info(f"Retrieved Tickets: {results}")
             return [
                 {column: value for column, value in zip(row.keys(), row) if
-                 column in ("ticket_id", "chat_id", "title", "status", 'description', 'priority', "created_at")}
+                 column in ("ticket_id", "chat_id", "title", "status", 'description', 'priority', 'reported_by', 'assigned', "created_at")}
                 for row in results
             ]
 
