@@ -7,7 +7,7 @@ import ChatHistory from '@/components/ChatHistory';
 
 export default function Page() {
   const [chatId, setChatId] = useState<string>(() => Date.now().toString());
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // State to control sidebar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleNewChat = () => {
     setChatId(Date.now().toString());
@@ -17,23 +17,27 @@ export default function Page() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  // Function to reset the Chat component's state
+  const resetChat = () => {
+    setChatId(Date.now().toString()); // Reset chatId to force a re-render
+  };
+
   return (
-    <div className="flex h-[100px]">
+    <div className="flex h-screen">
       {/* Sidebar */}
       <div className={`transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'}`}>
         <ChatHistory
           onSelect={setChatId}
           onNewChat={handleNewChat}
-          isSidebarOpen={isSidebarOpen} // Passing isSidebarOpen to ChatHistory component
+          isSidebarOpen={isSidebarOpen}
           onToggleSidebar={toggleSidebar}
+          resetChat={resetChat} // Pass resetChat function
         />
       </div>
 
-      {/* Chat Area - Adjust width dynamically */}
+      {/* Chat Area */}
       <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0'}`}>
         <Chat chatId={chatId} isSidebarOpen={isSidebarOpen} />
-        {' '}
-        {/* Passing isSidebarOpen to Chat */}
       </div>
     </div>
   );

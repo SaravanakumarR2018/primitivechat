@@ -7,122 +7,197 @@ export default function ChatHistory({
   onNewChat,
   isSidebarOpen,
   onToggleSidebar,
+  resetChat,
 }: {
   onSelect: (chatId: string) => void;
   onNewChat: () => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  resetChat: () => void;
 }) {
-  const [chats, setChats] = useState<{ id: string; preview: string }[]>([]);
+  const [chats, setChats] = useState<{ id: string; preview: string; timestamp: number }[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Load chat history from sessionStorage
+  useEffect(() => {
+    // Detect mobile screen width
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize(); // Initial check
+    window.addEventListener('resize', checkScreenSize); // Listen for screen size changes
+
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, []);
+
+  useEffect(() => {
+    // If on mobile, ensure sidebar is closed by default
+    if (isMobile) {
+      onToggleSidebar();
+    }
+  }, [isMobile]); // Run only when isMobile changes
+
   const loadChats = () => {
     const savedChats = Object.keys(sessionStorage)
       .filter(key => key.startsWith('chat-'))
       .map((key) => {
         const messages = JSON.parse(sessionStorage.getItem(key) || '[]');
-        const lastUserMessage = [...messages].reverse().find(msg => msg.sender === 'user');
-        const lastTimestamp = messages.length ? messages[messages.length - 1].timestamp : 0;
+
+        if (messages.length === 0) {
+          return null;
+        }
+
+        // Get the first user message instead of the last
+        const firstUserMessage = messages.find((msg: { sender: string }) => msg.sender === 'user');
+        const firstTimestamp = messages.length ? messages[0].timestamp : 0; // Get first message timestamp
 
         return {
           id: key.replace('chat-', ''),
-          preview: lastUserMessage ? lastUserMessage.text.slice(0, 20) : 'New Chat',
-          timestamp: lastTimestamp,
+          preview: firstUserMessage ? firstUserMessage.text.slice(0, 20) : 'New Chat',
+          timestamp: firstTimestamp, // Use first message timestamp for sorting
         };
       })
-      .sort((a, b) => b.timestamp - a.timestamp);
+      .filter(chat => chat !== null) as { id: string; preview: string; timestamp: number }[];
 
-    setChats(savedChats);
+    const uniqueChats = Array.from(new Map(savedChats.map(chat => [chat.id, chat])).values());
+    const sortedChats = uniqueChats.sort((a, b) => b.timestamp - a.timestamp); // Sort by first message timestamp
+
+    setChats(sortedChats);
   };
 
   useEffect(() => {
-    loadChats(); // Initial load
-    const handleStorageChange = () => {
-      loadChats(); // Load chats when sessionStorage is updated
-    };
+    loadChats();
+    const handleStorageChange = () => loadChats();
     window.addEventListener('storage', handleStorageChange);
-
-    // Cleanup the event listener on unmount
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const handleDeleteChat = (chatId: string) => {
     sessionStorage.removeItem(`chat-${chatId}`);
-    loadChats();
+    setChats(prevChats => prevChats.filter(chat => chat.id !== chatId));
+    resetChat();
+  };
+
+  // Modified function to close the sidebar on mobile when "New Chat" is clicked
+  const handleNewChat = () => {
+    onNewChat();
+    if (isMobile && isSidebarOpen) {
+      onToggleSidebar(); // Close the sidebar only on mobile
+    }
   };
 
   return (
     <>
-      {/* Toggle Button (Only on Mobile) */}
+      {/* Toggle Sidebar Button (Mobile) */}
       {!isSidebarOpen && (
         <button
           type="button"
-          title="Open Chat History"
+          title="ToggleSidebar"
           onClick={onToggleSidebar}
-          className="absolute left-5 top-20 z-50 rounded-lg bg-white p-2 shadow-md hover:bg-gray-300"
+          className="fixed left-2 top-20 z-50 rounded-lg bg-white p-2 shadow-md"
         >
           <svg
+            className="size-7 text-gray-800 dark:text-white"
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
-            className="size-6"
+            width="24"
+            height="24"
             fill="none"
             viewBox="0 0 24 24"
-            stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="m6 10 1.99994 1.9999-1.99994 2M11 5v14m-7 0h16c.5523 0 1-.4477 1-1V6c0-.55228-.4477-1-1-1H4c-.55228 0-1 .44772-1 1v12c0 .5523.44772 1 1 1Z"
+            />
           </svg>
         </button>
       )}
 
-      {/* Chat Sidebar (Drawer on Mobile, Fixed on Desktop) */}
+      {/* Toggle Sidebar Button (Mobile) */}
+      {!isSidebarOpen && (
+        <button
+          type="button"
+          title="NewChat"
+          onClick={handleNewChat}
+          className="fixed left-16 top-20 z-50 rounded-lg bg-white p-2 shadow-md"
+        >
+          <svg
+            className="size-7 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"
+            />
+          </svg>
+        </button>
+      )}
+
+      {/* Sidebar */}
       <div
-        className={`absolute left-0 z-40 h-screen w-80 bg-blue-50 shadow-lg transition-transform duration-300 sm:relative ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full sm:block'
+        className={`fixed inset-y-0 left-0 top-16 z-50 mt-2 w-72 bg-white shadow-lg transition-transform duration-300 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ maxHeight: 'calc(100vh - 4rem)' }} // Prevent overflow
       >
-        {/* Header Section */}
-        <div className="flex items-center justify-between border-b bg-blue-50 px-4 py-3">
-          {/* Left - Pencil Icon (New Chat) */}
-          <button type="button" title="New Chat" onClick={onNewChat} className="rounded-lg p-2 hover:bg-gray-200">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b bg-gray-300 p-3">
+          <button type="button" title="ToggleSidebar" onClick={onToggleSidebar} className="rounded-lg p-2 hover:bg-gray-100">
             <svg
+              className="size-7 text-gray-800 dark:text-white"
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
-              className="size-6"
+              width="24"
+              height="24"
               fill="none"
               viewBox="0 0 24 24"
-              stroke="currentColor"
             >
               <path
+                stroke="currentColor"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                strokeWidth="2"
+                d="M8.99994 10 7 11.9999l1.99994 2M12 5v14M5 4h14c.5523 0 1 .44772 1 1v14c0 .5523-.4477 1-1 1H5c-.55228 0-1-.4477-1-1V5c0-.55228.44772-1 1-1Z"
               />
             </svg>
           </button>
-
-          {/* Center - "Chat History" Title */}
-          <h2 className="text-center text-lg font-semibold text-gray-700">Chat History</h2>
-
-          {/* Right - Close Button (Only on Mobile) */}
-          <button type="button" title="toggle" onClick={onToggleSidebar} className="rounded-lg p-2 hover:bg-gray-200">
+          <h2 className="text-lg font-semibold">Chatbot</h2>
+          <button type="button" title="NewChat" onClick={handleNewChat} className="rounded-lg p-2 hover:bg-gray-100">
             <svg
+              className="size-7 text-gray-800 dark:text-white"
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
-              className="size-6"
+              width="24"
+              height="24"
               fill="none"
               viewBox="0 0 24 24"
-              stroke="currentColor"
             >
               <path
+                stroke="currentColor"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
+                strokeWidth="2"
+                d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"
               />
             </svg>
           </button>
         </div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="h-[calc(100vh-8rem)] overflow-y-auto border-t border-gray-400 bg-gray-300 p-4">
           {chats.length === 0
             ? (
                 <p className="text-center text-gray-500">No chat history</p>
@@ -132,30 +207,38 @@ export default function ChatHistory({
                   {chats.map(chat => (
                     <li
                       key={chat.id}
-                      className="relative mb-2 flex items-center justify-between rounded-lg bg-gray-100 p-3 shadow-lg transition hover:bg-gray-300"
+                      className="mb-2 flex items-center justify-between rounded-lg bg-gray-200 p-2 hover:bg-gray-200"
                     >
-                      <button type="button" title="chat" className="flex-1 text-left text-gray-900" onClick={() => onSelect(chat.id)}>
+                      <button
+                        type="button"
+                        title="Select Chat"
+                        onClick={() => onSelect(chat.id)}
+                        className="text-md flex-1 truncate text-left"
+                      >
                         {chat.preview}
                         ...
                       </button>
                       <button
-                        type="button"
-                        title="Delete Chat"
                         onClick={() => handleDeleteChat(chat.id)}
-                        className="ml-2 text-gray-500 hover:text-red-500"
+                        title="Delete Chat"
+                        type="button"
+                        className="text-gray-500 hover:text-red-500"
                       >
                         <svg
+                          className="size-5"
+                          aria-hidden="true"
                           xmlns="http://www.w3.org/2000/svg"
-                          className="size-6"
+                          width="24"
+                          height="24"
                           fill="none"
                           viewBox="0 0 24 24"
-                          stroke="currentColor"
                         >
                           <path
+                            stroke="currentColor"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth="2"
-                            d="M10 6h4M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2M4 6h16M5 6v14a2 2 0 002 2h10a2 2 0 002-2V6H5z"
+                            d="M5 7h14m-9 3v8m4-8v8M10 3h4a1 1 0 0 1 1 1v3H9V4a1 1 0 0 1 1-1ZM6 7h12v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Z"
                           />
                         </svg>
                       </button>
