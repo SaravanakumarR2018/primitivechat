@@ -147,8 +147,14 @@ class FileVectorizer:
     def stop(self):
         logger.info("Stopping background worker...")
         self.shutdown_event.set()
-        self.worker_thread.join()
-        self.executor.shutdown(wait=True)
+
+        # Give the worker thread some time to exit gracefully
+        self.worker_thread.join(timeout=5)
+
+        if self.worker_thread.is_alive():
+            logger.warning("Worker thread did not terminate in time. Forcing shutdown...")
+
+        self.executor.shutdown(wait=False)  # Shut down executor immediately
         logger.info("Background worker stopped.")
 
 #testing
