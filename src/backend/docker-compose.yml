@@ -5,8 +5,6 @@ services:
     container_name: chat_service
     volumes:
       - "${PROJECT_ROOT}/src:/app/src"  # Absolute path for source code mounting
-      - "${PROJECT_ROOT}/src/models:/app/src/models"
-      - "${PROJECT_ROOT}/src/backend/supervisord.conf:/etc/supervisor/supervisord.conf"
     ports:
       - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"
     depends_on:
@@ -29,18 +27,7 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    command: >
-      /bin/sh -c "
-      echo '--- ENVIRONMENT VARIABLES ---' &&
-      env &&
-      echo '--- INSTALLING DEPENDENCIES ---' &&
-      apt-get update &&
-      apt-get install -y curl libmagic1 libmagic-dev tesseract-ocr &&
-      echo '--- DOWNLOADING SPACY MODEL ---' &&
-      python -m spacy download en_core_web_sm &&
-      echo '--- STARTING SUPERVISORD ---' &&
-      supervisord -c /etc/supervisor/supervisord.conf
-      "
+    command: supervisord -c /etc/supervisor/supervisord.conf
 
   mysql_db:
     image: mysql:8.0
