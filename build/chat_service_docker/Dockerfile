@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install curl and necessary build dependencies for healthcheck and Python packages
 RUN apt-get update && \
-    apt-get install -y curl && libmagic1 libmagic-dev tesseract-ocr \
+    apt-get install -y curl libmagic1 libmagic-dev tesseract-ocr && \
     apt-get clean
 
 # Copy requirements and install dependencies
