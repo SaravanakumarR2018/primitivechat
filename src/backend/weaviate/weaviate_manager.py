@@ -28,17 +28,10 @@ class WeaviateManager:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
 
-    def load_model(self, model_path="/app/src/models/all-mini-llm-base-v2", model_name="sentence-transformers/all-MiniLM-L6-v2"):
+    def load_model(self):
         try:
-            if os.path.exists(model_path) and os.listdir(model_path):
-                logger.info(f"Loading model from local directory: {model_path}")
-                return SentenceTransformer(model_path)
-            else:
-                logger.info("Model not found locally. Downloading from the internet...")
-                model = SentenceTransformer(model_name)
-                model.save(model_path)
-                logger.info(f"Model downloaded and saved to: {model_path}")
-                return model
+            logger.info("Loading pre-downloaded model...")
+            return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
         except Exception as e:
             logger.error(f"Error loading model: {e}")
             raise e
