@@ -1570,15 +1570,15 @@ class DatabaseManager:
 
             insert_common_query = """
             INSERT INTO common_db.customer_file_status
-            (customer_guid, filename, current_activity_updated_time, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
-            VALUES (:customer_guid, :filename, CURRENT_TIMESTAMP(6), 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
+            (customer_guid, filename, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
+            VALUES (:customer_guid, :filename, 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
             """
             session.execute(text(insert_common_query), {'customer_guid': customer_guid, 'filename': filename})
 
             insert_customer_query = f"""
             INSERT INTO `{customer_db}`.uploadedfile_status
-            (customer_guid, filename, current_activity_updated_time, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
-            VALUES (:customer_guid, :filename, CURRENT_TIMESTAMP(6), 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
+            (customer_guid, filename, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
+            VALUES (:customer_guid, :filename, 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
             """
             session.execute(text(insert_customer_query), {'customer_guid': customer_guid, 'filename': filename})
             session.commit()
@@ -1624,7 +1624,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def update_status(self, customer_guid, filename, new_status, error=None, error_retry=0):
+    def update_status(self, customer_guid, filename, new_status, error, error_retry):
         session = self._session_factory()
         try:
             # Update common_db.customer_file_status
@@ -1665,7 +1665,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def remove_from_common_db(self, customer_guid, filename, error=True):
+    def remove_from_common_db(self, customer_guid, filename, error):
         session = self._session_factory()
         try:
             customer_db = self.get_customer_db(customer_guid)
@@ -1673,7 +1673,7 @@ class DatabaseManager:
             if error:
                 update_customer_query = f"""
                     UPDATE `{customer_db}`.uploadedfile_status
-                    SET status = 'error'
+                    SET status = 'file_vectorization_failed'
                     WHERE customer_guid = :customer_guid AND filename = :filename
                 """
                 session.execute(text(update_customer_query), {'customer_guid': customer_guid, 'filename': filename})
@@ -1698,4 +1698,3 @@ class DatabaseManager:
             session.rollback()
         finally:
             session.close()
-
