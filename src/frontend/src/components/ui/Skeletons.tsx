@@ -37,3 +37,59 @@ export const TicketListSkeleton = () => {
     </div>
   );
 };
+
+/* eslint-disable react/no-array-index-key */
+export const TicketDetailSkeleton = () => {
+  return (
+    <div className="mx-auto max-w-2xl rounded-lg bg-white p-6 shadow-md animate-pulse">
+      <div className="h-6 w-40 rounded bg-gray-300 mb-4"></div>
+
+      <div className="space-y-4">
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-20 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div>
+          <div className="h-4 w-20 rounded bg-gray-300 mb-1"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        {/* Custom Fields Placeholder */}
+        <div className="mt-4">
+          <div className="h-5 w-32 rounded bg-gray-300 mb-2"></div>
+          <div className="h-10 w-full rounded bg-gray-300"></div>
+        </div>
+
+        <div className="h-10 w-full rounded bg-gray-300 mt-4"></div>
+      </div>
+
+      <div className="h-5 w-32 rounded bg-gray-300 mt-4"></div>
+    </div>
+  );
+};
