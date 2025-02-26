@@ -30,8 +30,9 @@ class WeaviateManager:
 
     def load_model(self):
         try:
-            logger.info("Loading pre-downloaded model...")
-            return SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            model_dir = os.getenv('MODEL_DIR')  # Get the model path from env variable
+            logger.info(f"Loading model from {model_dir}...")
+            return SentenceTransformer(model_dir)  # Load model from saved path
         except Exception as e:
             logger.error(f"Error loading model: {e}")
             raise e
