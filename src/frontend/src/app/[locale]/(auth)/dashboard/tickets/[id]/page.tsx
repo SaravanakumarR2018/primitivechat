@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
+import { TicketDetailSkeleton } from '@/components/ui/Skeletons';
 
 const TicketDetailPage = () => {
   const params = useParams();
@@ -75,7 +76,7 @@ const TicketDetailPage = () => {
   };
 
   if (loading) {
-    return <p className="text-center text-gray-500">Loading...</p>;
+    return <TicketDetailSkeleton/>;
   }
   if (!ticket) {
     return <p className="text-center text-red-500">Ticket not found</p>;
