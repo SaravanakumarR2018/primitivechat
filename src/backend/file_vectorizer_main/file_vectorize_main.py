@@ -1,4 +1,5 @@
 import logging
+import time
 from src.backend.file_vectorizer.file_vectorizer import FileVectorizer
 
 # Configure logging
@@ -14,6 +15,7 @@ def main():
             logger.info("File vectorization completed successfully.")
         except Exception as e:
             logger.error(f"Error during file vectorization: {e}")
+            time.sleep(2)
 
 if __name__ == "__main__":
     main()
