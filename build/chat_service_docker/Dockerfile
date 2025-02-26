@@ -12,8 +12,14 @@ RUN apt-get update && \
 COPY ./src/backend/lib/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Download and cache the Sentence Transformer model during the build
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+# Set environment variable for model directory
+ENV MODEL_DIR=/models
+
+# Create the model directory
+RUN mkdir -p $MODEL_DIR
+
+# Download and save the Sentence Transformer model in the directory
+RUN python -c "from sentence_transformers import SentenceTransformer; model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); model.save('$MODEL_DIR')"
 
 # Download the Spacy model during the build
 RUN python -m spacy download en_core_web_sm
