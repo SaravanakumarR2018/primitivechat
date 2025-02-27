@@ -128,3 +128,23 @@ class MinioManager:
                 logger.error(f"Unexpected error during file download:{e}")
                 return {"error":f"An error occurred:{e}"}
 
+    def delete_file(self, bucket_name, filename):
+        try:
+            # Check if bucket exists
+            if not self.client.bucket_exists(bucket_name):
+                logger.error(f"Bucket '{bucket_name}' does not exist.")
+                return {"error": f"Bucket '{bucket_name}' does not exist."}
+
+            # Remove the file from the bucket
+            self.client.remove_object(bucket_name, filename)
+            logger.info(f"File '{filename}' deleted successfully from bucket '{bucket_name}'.")
+            return {"message": "File deleted successfully"}
+
+        except S3Error as e:
+            logger.error(f"Error deleting file '{filename}' from bucket '{bucket_name}': {e}")
+            return {"error": f"Failed to delete file: {e}"}
+
+        except Exception as e:
+            logger.error(f"Unexpected error during file deletion: {e}")
+            return {"error": f"An error occurred: {e}"}
+

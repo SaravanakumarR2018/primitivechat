@@ -4,6 +4,7 @@ from weaviate import Client
 import os
 import json
 from sentence_transformers import SentenceTransformer
+from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 
 #config logging
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,21 +23,16 @@ class WeaviateManager:
             self.client = Client(f"http://{weaviate_host}:{weaviate_port}")
             logger.info("Successfully connected to Weaviate")
             self.model = self.load_model()
+            self.download = LocalFileDownloadAndUpload()
         except Exception as e:
             logger.error(f"Failed to initialize Weaviate connection: {e}")
             raise e
 
-    def load_model(self, model_path="/app/src/models/all-mini-llm-base-v2", model_name="sentence-transformers/all-MiniLM-L6-v2"):
+    def load_model(self):
         try:
-            if os.path.exists(model_path) and os.listdir(model_path):
-                logger.info(f"Loading model from local directory: {model_path}")
-                return SentenceTransformer(model_path)
-            else:
-                logger.info("Model not found locally. Downloading from the internet...")
-                model = SentenceTransformer(model_name)
-                model.save(model_path)
-                logger.info(f"Model downloaded and saved to: {model_path}")
-                return model
+            model_dir = os.getenv('MODEL_DIR')  # Get the model path from env variable
+            logger.info(f"Loading model from {model_dir}...")
+            return SentenceTransformer(model_dir)  # Load model from saved path
         except Exception as e:
             logger.error(f"Error loading model: {e}")
             raise e
@@ -105,13 +101,16 @@ class WeaviateManager:
             # Ensure the class schema is created before inserting data
             class_names = self.generate_weaviate_class_name(customer_guid)
 
-            filename = os.path.basename(file_path)
+            # Download and save file locally
+            local_path = self.download.download_and_save_file(customer_guid, file_path)
+
+            filename = os.path.basename(file_path).replace(".chunked.txt", "")
 
             # Remove embeddings for the file and start fresh embedding
             self.delete_objects_by_customer_and_filename(customer_guid, filename)
 
             # Read and validate data
-            with open(file_path, "r", encoding="utf-8") as file:
+            with open(local_path, "r", encoding="utf-8") as file:
                 data = json.load(file)
 
             if not isinstance(data, list):

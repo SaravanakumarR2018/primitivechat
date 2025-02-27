@@ -32,7 +32,7 @@ class ProcessAndUploadBucket:
 
             logger.info(f"Processed file saved as '{local_output_path}'.")
 
-            self.download_and_upload.upload_extracted_content(customer_guid, base_filename, local_output_path)
+            self.download_and_upload.upload_chunked_content(customer_guid, base_filename, local_output_path)
 
         except Exception as e:
             logger.error(f"Error in processing and uploading: {e}")

@@ -116,6 +116,7 @@ async def upload_File(request: Request, customer_guid: str = Form(...), file:Upl
             filename=file.filename,
             file_data=file.file
         )
+        db_manager.insert_customer_file_status(customer_guid=customer_guid, filename=file.filename)
         logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
         return {"message":"File uploaded SuccessFully"}
 
