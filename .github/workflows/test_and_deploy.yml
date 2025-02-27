@@ -1,0 +1,85 @@
+name: Deploy and Test
+
+on:
+  push:
+    branches:
+      - "**"  # Trigger on all branches
+  pull_request:
+    branches:
+      - "**"  # Trigger on PR creation
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: false
+        default: "main"
+
+jobs:
+  test_backend:
+    uses: ./.github/workflows/integrationtests.yml  # Uses backend test workflow
+    with:
+      branch: ${{ github.ref_name }}
+
+  test_frontend:
+    uses: ./.github/workflows/pullenvfile.yml  # Uses frontend test workflow
+    with:
+      branch: ${{ github.ref_name }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test_backend, test_frontend]
+    timeout-minutes: 360  # 6-hour max execution time
+
+    env:
+      CHAT_SERVICE_PORT: 8000
+      FRONTEND_PORT: 3000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Set up ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+          ngrok config add-authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+
+      - name: Start Backend & Frontend Services
+        run: docker-compose up -d --build
+
+      - name: Wait for Services to be Ready
+        run: |
+          timeout 120 bash -c 'until nc -zv localhost ${{ env.CHAT_SERVICE_PORT }} && nc -zv localhost ${{ env.FRONTEND_PORT }}; do sleep 5; done' || {
+            echo "❌ Services did not start in time."; exit 1;
+          }
+          echo "✅ Services are up and running."
+
+      - name: Start ngrok tunnels
+        run: |
+          ngrok http ${{ env.CHAT_SERVICE_PORT }} > backend_ngrok.txt &
+          ngrok http ${{ env.FRONTEND_PORT }} > frontend_ngrok.txt &
+          sleep 10
+          echo "Backend ngrok URL: $(grep -o 'https://[a-zA-Z0-9.-]*.ngrok-free.app' backend_ngrok.txt)"
+          echo "Frontend ngrok URL: $(grep -o 'https://[a-zA-Z0-9.-]*.ngrok-free.app' frontend_ngrok.txt)"
+
+      - name: Display Initial ngrok URLs
+        run: |
+          echo "🔗 Backend URL: $(cat backend_ngrok.txt)"
+          echo "🔗 Frontend URL: $(cat frontend_ngrok.txt)"
+
+      - name: Refresh ngrok links every 1 hour 55 minutes
+        run: |
+          while true; do
+            echo "🔄 Restarting ngrok tunnels..."
+            pkill -f ngrok
+            ngrok http ${{ env.CHAT_SERVICE_PORT }} > backend_ngrok.txt &
+            ngrok http ${{ env.FRONTEND_PORT }} > frontend_ngrok.txt &
+            sleep 10
+            echo "✅ Refreshed ngrok URLs"
+            echo "🔗 Backend: $(cat backend_ngrok.txt)"
+            echo "🔗 Frontend: $(cat frontend_ngrok.txt)"
+            sleep 6900  # 1 hour 55 minutes
+          done
