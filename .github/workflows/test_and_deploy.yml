@@ -177,9 +177,17 @@ jobs:
             exit 1
           fi
 
+          # Download and extract
           curl -fsSL "$LOOPHOLE_URL" -o loophole.tar.gz
-          tar -xzf loophole.tar.gz -C /usr/local/bin
-          chmod +x /usr/local/bin/loophole
+          mkdir loophole_temp
+          tar -xzf loophole.tar.gz -C loophole_temp
+
+          # Move binary to /usr/local/bin
+          sudo mv loophole_temp/loophole /usr/local/bin/loophole
+          sudo chmod +x /usr/local/bin/loophole
+
+          # Clean up
+          rm -rf loophole_temp loophole.tar.gz
 
       - name: Authenticate Loophole and Get Token
         run: |
