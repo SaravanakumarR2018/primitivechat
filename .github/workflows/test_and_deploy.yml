@@ -181,6 +181,7 @@ jobs:
         run: |
           mkdir -p ~/.config/ngrok
           cat > ~/.config/ngrok/ngrok.yml <<EOL
+          version: 2
           authtoken: ${{ secrets.NGROK_SECRET_KEY }}
           tunnels:
             backend:
