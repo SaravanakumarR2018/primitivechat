@@ -47,8 +47,67 @@ jobs:
           fi
           ngrok config add-authtoken ${{ secrets.NGROK_SECRET_KEY }}
 
-      - name: Start Backend Service
-        working-directory: src/backend  # Ensure this is correct
+      # Step 2: Set up SSH for GitHub
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      # Step 3: Clone the private repository using SSH
+      - name: Clone the env repo using SSH
+        run: |
+          git clone git@github.com:SaravanakumarR2018/primitivechatenv.git env_repo
+          ls -la env_repo
+
+      # Step 4: Copy the .env file
+      - name: Copy .env file
+        run: |
+          cp env_repo/.env.local src/frontend/.env.local
+          echo "✅ .env.local copied to src/frontend"
+
+      # Step 5: Install Docker Compose
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      # Step 6: Load environment variables from .env file
+      - name: Load .env and verify
+        working-directory: src/backend
+        run: |
+          echo "Loading .env file..."
+          if [ ! -f .env ]; then
+            echo "Error: .env file not found in $(pwd)"
+            exit 1
+          fi
+          # Export all variables from .env to GitHub Actions environment and print them
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue  # Skip comments and empty lines
+            key=$(echo "$line" | cut -d'=' -f1)
+            value=$(echo "$line" | cut -d'=' -f2-)
+            echo "$key=$value" >> $GITHUB_ENV
+            echo "Exported: $key=$value"
+          done < .env
+          echo "All environment variables have been loaded and exported."
+
+      # Step 7: Build Docker image
+      - name: Build Docker image
+        working-directory: src/backend  # Specify working directory here
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: |
+          echo "Building Docker image chat_service_image"
+          docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT} || {
+            echo "Docker build failed. Exiting..."
+            exit 1
+          }
+          echo "Docker image chat_service_image built successfully."
+
+      # Step 8: Run Docker Compose
+      - name: Run docker-compose up
+        working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
