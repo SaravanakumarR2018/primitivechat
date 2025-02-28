@@ -247,7 +247,7 @@ jobs:
         run: |
           for i in {1..3}; do  # Refresh max 3 times
             echo "⏳ Waiting for 1 hour 55 minutes before refreshing Loophole tunnels..."
-            sleep 50  # 1 hour 55 minutes
+            sleep 6900  # 1 hour 55 minutes
 
             echo "🔄 Restarting Loophole tunnels..."
 
