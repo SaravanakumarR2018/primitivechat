@@ -164,14 +164,17 @@ jobs:
           ' || { echo "❌ Services did not start in time."; exit 1; }
           echo "✅ Services are up and running."
 
-      - name: Install Loophole (ARM64)
+      - name: Install Loophole
         run: |
           ARCH=$(uname -m)
 
           if [[ "$ARCH" == "x86_64" ]]; then
-            LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_amd64.tar.gz"
-          else
+            LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_64bit.tar.gz"
+          elif [[ "$ARCH" == "aarch64" ]]; then
             LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_arm64.tar.gz"
+          else
+            echo "❌ Unsupported architecture: $ARCH"
+            exit 1
           fi
 
           curl -fsSL "$LOOPHOLE_URL" -o loophole.tar.gz
