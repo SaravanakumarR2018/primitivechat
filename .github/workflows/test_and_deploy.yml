@@ -228,19 +228,13 @@ jobs:
 
       - name: Start Loophole tunnels
         run: |
-          nohup loophole http ${{ env.CHAT_SERVICE_PORT }} --name backend > backend_loophole.log 2>&1 &
-          nohup loophole http ${{ env.FRONTEND_PORT }} --name frontend > frontend_loophole.log 2>&1 &
+          nohup loophole http ${{ env.CHAT_SERVICE_PORT }} --hostname backend-tunnel.loophole.site > backend_loophole.log 2>&1 &
+          nohup loophole http ${{ env.FRONTEND_PORT }} --hostname frontend-tunnel.loophole.site > frontend_loophole.log 2>&1 &
           sleep 10  # Give Loophole time to start
 
           # Fetch public Loophole URLs
-          BACKEND_URL=$(grep -oP 'https://.*' backend_loophole.log | head -n 1)
-          FRONTEND_URL=$(grep -oP 'https://.*' frontend_loophole.log | head -n 1)
-
-          if [[ -z "$BACKEND_URL" || -z "$FRONTEND_URL" ]]; then
-            echo "❌ Failed to retrieve Loophole URLs."
-            cat backend_loophole.log frontend_loophole.log
-            exit 1
-          fi
+          BACKEND_URL="https://backend-tunnel.loophole.site"
+          FRONTEND_URL="https://frontend-tunnel.loophole.site"
 
           echo "$BACKEND_URL" > backend_loophole.txt
           echo "$FRONTEND_URL" > frontend_loophole.txt
