@@ -198,13 +198,14 @@ jobs:
           # Fetch ngrok tunnel details
           JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
 
-          # Extract correct URLs based on port numbers
-          BACKEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.config.addr == "${{ env.CHAT_SERVICE_PORT }}") | .public_url')
-          FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.config.addr == "${{ env.FRONTEND_PORT }}") | .public_url')
+          # Extract URLs based on tunnel names
+          BACKEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.name=="backend") | .public_url')
+          FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.name=="frontend") | .public_url')
 
           # Ensure URLs were extracted correctly
           if [[ -z "$BACKEND_URL" || -z "$FRONTEND_URL" ]]; then
             echo "❌ Failed to retrieve ngrok URLs."
+            echo "JSON Response: $JSON_RESPONSE"  # Debugging
             exit 1
           fi
 
