@@ -192,56 +192,57 @@ jobs:
               proto: http
           EOL
 
-          ngrok start --config ~/.config/ngrok/ngrok.yml --all --log=stdout &
-          sleep 10  # Give ngrok time to start
+          # Check if ngrok is already running
+          if pgrep -f ngrok > /dev/null; then
+            echo "⚠️ Ngrok is already running. Skipping startup."
+          else
+            echo "🚀 Starting ngrok..."
+            nohup ngrok start --config ~/.config/ngrok/ngrok.yml --all --log=stdout > ngrok.log 2>&1 &
+            sleep 10
+          fi
 
           # Fetch ngrok tunnel details
           JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
 
-          # Extract URLs based on tunnel names
+          # Extract URLs by tunnel name (not by port)
           BACKEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.name=="backend") | .public_url')
           FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.name=="frontend") | .public_url')
 
-          # Ensure URLs were extracted correctly
           if [[ -z "$BACKEND_URL" || -z "$FRONTEND_URL" ]]; then
             echo "❌ Failed to retrieve ngrok URLs."
-            echo "JSON Response: $JSON_RESPONSE"  # Debugging
+            echo "JSON Response: $JSON_RESPONSE"
             exit 1
           fi
 
-          # Save the URLs
           echo "$BACKEND_URL" > backend_ngrok.txt
           echo "$FRONTEND_URL" > frontend_ngrok.txt
 
-          # Print them for debugging
           echo "✅ Ngrok tunnels started successfully!"
           echo "🔗 Backend: $BACKEND_URL"
           echo "🔗 Frontend: $FRONTEND_URL"
 
       - name: Refresh ngrok links every 1 hour 55 minutes
         run: |
-          for i in {1..3}; do  # Refreshes max 3 times to avoid infinite loop
+          for i in {1..3}; do  # Refresh max 3 times
             echo "⏳ Waiting for 1 hour 55 minutes before refreshing ngrok tunnels..."
             sleep 6900  # 1 hour 55 minutes
 
             echo "🔄 Restarting ngrok tunnels..."
             pkill -f ngrok
+            sleep 5  # Ensure ngrok stops completely
 
-            ngrok start --all --log=stdout &
+            nohup ngrok start --config ~/.config/ngrok/ngrok.yml --all --log=stdout > ngrok.log 2>&1 &
             sleep 10  # Give ngrok time to start
 
-            # Fetch new ngrok URLs
             JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
 
-            # Extract URLs based on correct port numbers
-            BACKEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.config.addr == "${{ env.CHAT_SERVICE_PORT }}") | .public_url')
-            FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.config.addr == "${{ env.FRONTEND_PORT }}") | .public_url')
+            BACKEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.name=="backend") | .public_url')
+            FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.name=="frontend") | .public_url')
 
             echo "✅ Refreshed ngrok URLs"
             echo "🔗 Backend: $BACKEND_URL"
             echo "🔗 Frontend: $FRONTEND_URL"
 
-            # Save them in separate files for further use
             echo "$BACKEND_URL" > backend_ngrok.txt
             echo "$FRONTEND_URL" > frontend_ngrok.txt
           done
