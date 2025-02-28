@@ -29,24 +29,6 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18  # Use the appropriate Node.js version for Next.js
-
-      - name: Install ngrok
-        run: |
-          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install ngrok
-          if [ -z "${{ secrets.NGROK_SECRET_KEY }}" ]; then
-            echo "❌ NGROK_SECRET_KEY is missing!"
-            exit 1
-          else
-            echo "✅ NGROK_SECRET_KEY is set."
-          fi
-          ngrok config add-authtoken ${{ secrets.NGROK_SECRET_KEY }}
-
       # Step 2: Set up SSH for GitHub
       - name: Setup SSH
         run: |
@@ -112,11 +94,65 @@ jobs:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      - name: Start Frontend Service
+      - name: Clone Private Repo
         run: |
-          cd src/frontend  # Change to your Next.js frontend folder
+          git clone git@github.com:SaravanakumarR2018/primitivechatenv.git private-repo
+
+      - name: List contents of private-repo for debugging
+        run: |
+          ls -la private-repo
+
+      - name: Verify .env.local file
+        run: |
+          if [ -f private-repo/.env.local ]; then
+            echo ".env.local file exists in private-repo"
+          else
+            echo ".env.local file does not exist in private-repo"
+            exit 1
+          fi
+
+      - name: Move contents to src/frontend
+        run: |
+          cp -r private-repo/. src/frontend/
+
+      - name: Verify .env.local file
+        run: |
+          if [ -f src/frontend/.env.local ]; then
+            echo ".env.local file exists in src/frontend"
+          else
+            echo ".env.local file does not exist in src/frontend"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: |
+          cd src/frontend
           npm install
-          npm run dev &  # Run Next.js frontend in the background
+
+      - name: Build the project
+        run: |
+          cd src/frontend
+          npm run build
+
+      - name: Start Next.js server
+        run: |
+          cd src/frontend
+          npm start &
+          sleep 10
+
+      - name: Wait for server to be up
+        run: |
+          for i in {1..18}; do
+            if nc -zv localhost 3000; then
+              echo "Server is listening on port 3000"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 10
+            fi
+          done
+          echo "Server did not start within 3 minutes"
+          exit 1
 
       - name: Wait for Services to be Ready
         run: |
@@ -127,6 +163,19 @@ jobs:
             done
           ' || { echo "❌ Services did not start in time."; exit 1; }
           echo "✅ Services are up and running."
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+          if [ -z "${{ secrets.NGROK_SECRET_KEY }}" ]; then
+            echo "❌ NGROK_SECRET_KEY is missing!"
+            exit 1
+          else
+            echo "✅ NGROK_SECRET_KEY is set."
+          fi
+          ngrok config add-authtoken ${{ secrets.NGROK_SECRET_KEY }}
 
       - name: Start ngrok tunnels
         run: |
