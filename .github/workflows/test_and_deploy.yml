@@ -164,16 +164,34 @@ jobs:
           ' || { echo "❌ Services did not start in time."; exit 1; }
           echo "✅ Services are up and running."
 
-      - name: Install Loophole
+      - name: Install Loophole (ARM64)
         run: |
-          curl -fsSL https://github.com/loophole/cli/releases/latest/download/loophole-linux-amd64 -o loophole
-          chmod +x loophole
-          sudo mv loophole /usr/local/bin/
-          loophole --version
+          ARCH=$(uname -m)
 
-      - name: Authenticate Loophole
+          if [[ "$ARCH" == "x86_64" ]]; then
+            LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_amd64.tar.gz"
+          else
+            LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_arm64.tar.gz"
+          fi
+
+          curl -fsSL "$LOOPHOLE_URL" -o loophole.tar.gz
+          tar -xzf loophole.tar.gz -C /usr/local/bin
+          chmod +x /usr/local/bin/loophole
+
+      - name: Authenticate Loophole and Get Token
         run: |
-          echo "${{ secrets.LOOPHOLE_AUTH_TOKEN }}" | loophole account login --with-token
+          # Start authentication process
+          AUTH_RESPONSE=$(loophole account login --json)
+
+          # Extract access token
+          ACCESS_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.token')
+
+          if [[ -z "$ACCESS_TOKEN" ]]; then
+            echo "❌ Failed to retrieve Loophole authentication token."
+            exit 1
+          fi
+
+          echo "✅ Loophole authenticated successfully!"
 
       - name: Start Loophole tunnels
         run: |
