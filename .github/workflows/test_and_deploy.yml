@@ -177,17 +177,42 @@ jobs:
             exit 1
           fi
 
-          # Download and extract
+          # Download and verify file exists
           curl -fsSL "$LOOPHOLE_URL" -o loophole.tar.gz
-          mkdir loophole_temp
+
+          if [[ ! -s loophole.tar.gz ]]; then
+            echo "❌ Download failed or file is empty!"
+            exit 1
+          fi
+
+          # List contents before extracting
+          echo "📂 Archive contents:"
+          tar -tzf loophole.tar.gz || (echo "❌ Tar extraction failed!" && exit 1)
+
+          # Extract the archive
+          mkdir -p loophole_temp
           tar -xzf loophole.tar.gz -C loophole_temp
 
-          # Move binary to /usr/local/bin
-          sudo mv loophole_temp/loophole /usr/local/bin/loophole
+          # Debug: List extracted files
+          echo "📂 Extracted files:"
+          ls -R loophole_temp
+
+          # Locate the Loophole binary
+          LOOPHOLE_BIN=$(find loophole_temp -type f -name "loophole" | head -n 1)
+
+          if [[ -z "$LOOPHOLE_BIN" ]]; then
+            echo "❌ Loophole binary not found in the extracted files!"
+            exit 1
+          fi
+
+          # Move to /usr/local/bin
+          sudo mv "$LOOPHOLE_BIN" /usr/local/bin/loophole
           sudo chmod +x /usr/local/bin/loophole
 
           # Clean up
           rm -rf loophole_temp loophole.tar.gz
+
+          echo "✅ Loophole installed successfully!"
 
       - name: Authenticate Loophole and Get Token
         run: |
