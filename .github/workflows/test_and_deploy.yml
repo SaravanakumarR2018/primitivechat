@@ -179,8 +179,9 @@ jobs:
 
       - name: Start ngrok tunnels
         run: |
-          mkdir -p ~/.ngrok2
-          cat > ~/.ngrok2/ngrok.yml <<EOL
+          mkdir -p ~/.config/ngrok
+          cat > ~/.config/ngrok/ngrok.yml <<EOL
+          authtoken: ${{ secrets.NGROK_SECRET_KEY }}
           tunnels:
             backend:
               addr: ${{ env.CHAT_SERVICE_PORT }}
@@ -190,7 +191,7 @@ jobs:
               proto: http
           EOL
 
-          ngrok start --all --log=stdout &
+          ngrok start --config ~/.config/ngrok/ngrok.yml --all --log=stdout &
           sleep 10
           curl -s http://127.0.0.1:4040/api/tunnels | grep -o 'https://[a-zA-Z0-9.-]*.ngrok-free.app' | tee ngrok_urls.txt
           head -n 1 ngrok_urls.txt > backend_ngrok.txt
