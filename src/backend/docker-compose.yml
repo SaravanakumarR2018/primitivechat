@@ -5,7 +5,6 @@ services:
     container_name: chat_service
     volumes:
       - "${PROJECT_ROOT}/src:/app/src"  # Absolute path for source code mounting
-      - "${PROJECT_ROOT}/src/models:/app/src/models"
     ports:
       - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"
     depends_on:
@@ -28,7 +27,7 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    command: ["sh", "-c", "echo '--- ENVIRONMENT VARIABLES ---' && env && echo '--- STARTING SERVER ---' && uvicorn src.backend.main.main:main_app --host 0.0.0.0 --port ${CHAT_SERVICE_PORT}"]
+    command: supervisord -c /etc/supervisor/supervisord.conf
 
   mysql_db:
     image: mysql:8.0
