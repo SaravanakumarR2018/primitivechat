@@ -83,14 +83,29 @@ jobs:
           PORT=$FRONTEND_PORT npm start &
           sleep 10
 
-      - name: Wait for services to be ready
+      - name: Wait for server to be up
         run: |
-          timeout 120 bash -c '
-            until curl -sSf http://localhost:${{ env.FRONTEND_PORT }}; 
-            do 
-              sleep 5; 
-            done
-          ' || { echo "❌ Services did not start in time."; exit 1; }
+          for i in {1..18}; do
+            if nc -zv localhost ${{ env.FRONTEND_PORT }}; then
+              echo "Server is listening on port 3000"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 10
+            fi
+          done
+          echo "Server did not start within 3 minutes"
+          exit 1
+
+      - name: Wait for Services to be Ready
+        run: |
+            timeout 120 bash -c '
+              until curl -sSf http://localhost:${{ env.CHAT_SERVICE_PORT }} && curl -sSf http://localhost:${{ env.FRONTEND_PORT }}; 
+              do 
+                sleep 5; 
+              done
+            ' || { echo "❌ Services did not start in time."; exit 1; }
+            echo "✅ Services are up and running."
 
       - name: Set ngrok auth token based on user
         id: set-ngrok-auth
