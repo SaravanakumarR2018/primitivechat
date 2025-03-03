@@ -3,7 +3,7 @@ name: Deploy and Test
 on:
   push:
     branches:
-      - "*"
+      - "github_workflow/*"
   workflow_dispatch:
     inputs:
       branch:
