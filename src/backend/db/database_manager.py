@@ -1679,7 +1679,7 @@ class DatabaseManager:
                 session.execute(text(update_customer_query), {'customer_guid': customer_guid, 'filename': filename})
 
                 logger.info(
-                    f"Updated {filename} status to 'error' in uploadedfile_status for customer_guid: {customer_guid}"
+                    f"Updated {filename} status to 'file_vectorization_failed' in uploadedfile_status for customer_guid: {customer_guid}"
                 )
 
             # Remove the record from common_db.customer_file_status
