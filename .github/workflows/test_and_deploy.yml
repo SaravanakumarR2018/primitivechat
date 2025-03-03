@@ -1,0 +1,173 @@
+name: Deploy and Test
+
+on:
+  push:
+    branches:
+      - "github_workflow/*"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: false
+        default: "main"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone the env repo using SSH
+        run: |
+          git clone git@github.com:SaravanakumarR2018/primitivechatenv.git env_repo
+          ls -la env_repo
+
+      - name: Copy .env file
+        run: |
+          cp env_repo/.env.local src/frontend/.env.local
+          echo "✅ .env.local copied to src/frontend"
+
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Load .env and verify
+        working-directory: src/backend
+        run: |
+          if [ ! -f .env ]; then
+            echo "Error: .env file not found"
+            exit 1
+          fi
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+            key=$(echo "$line" | cut -d'=' -f1)
+            value=$(echo "$line" | cut -d'=' -f2-)
+            echo "$key=$value" >> $GITHUB_ENV
+          done < .env
+
+      - name: Build Docker image
+        working-directory: src/backend
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: |
+          docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT}
+
+      - name: Run docker-compose up
+        working-directory: src/backend
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: docker-compose up -d
+
+      - name: Install dependencies and build frontend
+        run: |
+          cd src/frontend
+          npm install
+          npm run build
+
+      - name: Start Next.js server
+        run: |
+          cd src/frontend
+          PORT=$FRONTEND_PORT npm start &
+          sleep 10
+
+      - name: Wait for server to be up
+        run: |
+          for i in {1..18}; do
+            if nc -zv localhost ${{ env.FRONTEND_PORT }}; then
+              echo "Server is listening on port 3000"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 10
+            fi
+          done
+          echo "Server did not start within 3 minutes"
+          exit 1
+
+      - name: Wait for Services to be Ready
+        run: |
+            timeout 120 bash -c '
+              until curl -sSf http://localhost:${{ env.CHAT_SERVICE_PORT }} && curl -sSf http://localhost:${{ env.FRONTEND_PORT }}; 
+              do 
+                sleep 5; 
+              done
+            ' || { echo "❌ Services did not start in time."; exit 1; }
+            echo "✅ Services are up and running."
+
+      - name: Set ngrok auth token based on user
+        id: set-ngrok-auth
+        run: |
+          case "${{ github.actor }}" in
+            "SaravanakumarR2018")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_SARAVANA }}" >> $GITHUB_ENV
+              ;;
+            "Bharani0012")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_BHARANI }}" >> $GITHUB_ENV
+              ;;
+            "Kabilan-16")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_KABILAN }}" >> $GITHUB_ENV
+              ;;
+            "Karthi-47")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_KARTHI }}" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Error: User not recognized or ngrok auth token not set."
+              exit 1
+              ;;
+          esac
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+
+      - name: Authenticate ngrok
+        run: |
+          ngrok config add-authtoken ${{ env.ngrok_auth_token }}
+
+      - name: Start ngrok tunnel
+        run: |
+          ngrok http ${{ env.FRONTEND_PORT }} --log=stdout &
+          sleep 10
+
+      - name: Fetch ngrok URL
+        run: |
+          JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
+          FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.proto=="https") | .public_url')
+          if [[ -z "$FRONTEND_URL" ]]; then
+            echo "JSON Response: $JSON_RESPONSE"
+            exit 1
+          fi
+          echo "$FRONTEND_URL" > frontend_ngrok.txt
+          echo "✅ Ngrok tunnel started successfully!"
+          echo "🔗 Frontend: $FRONTEND_URL"
+
+      - name: Refresh ngrok link every 1 hour 55 minutes
+        run: |
+          for i in {1..3}; do
+            echo "⏳ Waiting for 1 hour 55 minutes before refreshing ngrok tunnel..."
+            sleep 6900
+            echo "🔄 Restarting ngrok tunnel..."
+            pkill -f ngrok
+            ngrok http ${{ env.FRONTEND_PORT }} --log=stdout &
+            sleep 10
+            JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
+            FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.proto=="https") | .public_url')
+            echo "✅ Refreshed ngrok URL"
+            echo "🔗 Frontend: $FRONTEND_URL"
+            echo "$FRONTEND_URL" > frontend_ngrok.txt
+          done
