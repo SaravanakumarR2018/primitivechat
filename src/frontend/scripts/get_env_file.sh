@@ -83,31 +83,40 @@ copy_env_file() {
 append_env_file() {
     SOURCE_FILE="$GIT_ROOT/src/backend/.env"
     TARGET_FILE="$GIT_ROOT/src/frontend/.env.local"
-    
+
     if [ ! -f "$SOURCE_FILE" ]; then
         echo "Error: Source file does not exist: $SOURCE_FILE"
         exit 1
     fi
-    
+
     echo "Processing variables from $SOURCE_FILE..."
-    
+
     while IFS='=' read -r key value; do
-        [ -z "$key" ] && continue  # Skip empty lines
-        [ "${key#\#}" != "$key" ] && continue  # Skip commented lines
-                
-        if grep -q "^$key=" "$TARGET_FILE"; then
-            if grep -q "^$key=$value$" "$TARGET_FILE"; then
-                echo "No modification required: $key"
+        # Skip empty lines or lines without a key
+        if [ -z "$key" ] || [[ "$key" =~ ^# ]]; then
+            continue
+        fi
+
+        # Remove trailing spaces
+        key=$(echo "$key" | tr -d ' ')
+        value=$(echo "$value" | tr -d ' ')
+
+        # Ensure the key is not empty before appending
+        if [ -n "$key" ]; then
+            if grep -q "^$key=" "$TARGET_FILE"; then
+                if grep -q "^$key=$value$" "$TARGET_FILE"; then
+                    echo "No modification required: $key"
+                else
+                    echo "Modified variable: $key"
+                    sed -i "s|^$key=.*|$key=$value|" "$TARGET_FILE"
+                fi
             else
-                echo "Modified variable: $key"
-                sed -i "s|^$key=.*|$key=$value|" "$TARGET_FILE"
+                echo "Newly added variable: $key"
+                echo "$key=$value" >> "$TARGET_FILE"
             fi
-        else
-            echo "Newly added variable: $key"
-            echo "$key=$value" >> "$TARGET_FILE"
         fi
     done < "$SOURCE_FILE"
-    
+
     if [ $? -eq 0 ]; then
         echo "Success: Copied from $SOURCE_FILE to $TARGET_FILE"
     else
