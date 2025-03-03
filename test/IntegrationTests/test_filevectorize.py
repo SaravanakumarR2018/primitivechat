@@ -1,4 +1,5 @@
 import unittest
+import os
 import requests
 import logging
 from utils.api_utils import add_customer
