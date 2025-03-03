@@ -1,12 +1,6 @@
-name: Deploy and Test
+name: Deploy and Test (Manual Only)
 
 on:
-  push:
-    branches:
-      - "**"  # Trigger on all branches
-  pull_request:
-    branches:
-      - "**"  # Trigger on PR creation
   workflow_dispatch:
     inputs:
       branch:
@@ -17,19 +11,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6-hour max execution time
-
+    timeout-minutes: 360
     env:
       CHAT_SERVICE_PORT: 8000
       FRONTEND_PORT: 3000
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
 
-      # Step 2: Set up SSH for GitHub
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -37,101 +28,52 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-      # Step 3: Clone the private repository using SSH
       - name: Clone the env repo using SSH
         run: |
           git clone git@github.com:SaravanakumarR2018/primitivechatenv.git env_repo
           ls -la env_repo
 
-      # Step 4: Copy the .env file
       - name: Copy .env file
         run: |
           cp env_repo/.env.local src/frontend/.env.local
           echo "✅ .env.local copied to src/frontend"
 
-      # Step 5: Install Docker Compose
       - name: Install Docker Compose
         run: |
           sudo apt-get update
           sudo apt-get install -y docker-compose
 
-      # Step 6: Load environment variables from .env file
       - name: Load .env and verify
         working-directory: src/backend
         run: |
-          echo "Loading .env file..."
           if [ ! -f .env ]; then
-            echo "Error: .env file not found in $(pwd)"
+            echo "Error: .env file not found"
             exit 1
           fi
-          # Export all variables from .env to GitHub Actions environment and print them
           while IFS= read -r line || [ -n "$line" ]; do
-            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue  # Skip comments and empty lines
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
             key=$(echo "$line" | cut -d'=' -f1)
             value=$(echo "$line" | cut -d'=' -f2-)
             echo "$key=$value" >> $GITHUB_ENV
-            echo "Exported: $key=$value"
           done < .env
-          echo "All environment variables have been loaded and exported."
 
-      # Step 7: Build Docker image
       - name: Build Docker image
-        working-directory: src/backend  # Specify working directory here
+        working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: |
-          echo "Building Docker image chat_service_image"
-          docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT} || {
-            echo "Docker build failed. Exiting..."
-            exit 1
-          }
-          echo "Docker image chat_service_image built successfully."
+          docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT}
 
-      # Step 8: Run Docker Compose
       - name: Run docker-compose up
-        working-directory: src/backend  # Specify working directory here
+        working-directory: src/backend
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
 
-      - name: Clone Private Repo
-        run: |
-          git clone git@github.com:SaravanakumarR2018/primitivechatenv.git private-repo
-
-      - name: List contents of private-repo for debugging
-        run: |
-          ls -la private-repo
-
-      - name: Verify .env.local file
-        run: |
-          if [ -f private-repo/.env.local ]; then
-            echo ".env.local file exists in private-repo"
-          else
-            echo ".env.local file does not exist in private-repo"
-            exit 1
-          fi
-
-      - name: Move contents to src/frontend
-        run: |
-          cp -r private-repo/. src/frontend/
-
-      - name: Verify .env.local file
-        run: |
-          if [ -f src/frontend/.env.local ]; then
-            echo ".env.local file exists in src/frontend"
-          else
-            echo ".env.local file does not exist in src/frontend"
-            exit 1
-          fi
-
-      - name: Install dependencies
+      - name: Install dependencies and build frontend
         run: |
           cd src/frontend
           npm install
-
-      - name: Build the project
-        run: |
-          cd src/frontend
           npm run build
 
       - name: Start Next.js server
@@ -140,127 +82,76 @@ jobs:
           npm start &
           sleep 10
 
-      - name: Wait for server to be up
-        run: |
-          for i in {1..18}; do
-            if nc -zv localhost 3000; then
-              echo "Server is listening on port 3000"
-              exit 0
-            else
-              echo "Waiting for server to be up..."
-              sleep 10
-            fi
-          done
-          echo "Server did not start within 3 minutes"
-          exit 1
-
-      - name: Wait for Services to be Ready
+      - name: Wait for services to be ready
         run: |
           timeout 120 bash -c '
-            until curl -sSf http://localhost:${{ env.CHAT_SERVICE_PORT }} && curl -sSf http://localhost:${{ env.FRONTEND_PORT }}; 
+            until curl -sSf http://localhost:${{ env.FRONTEND_PORT }}; 
             do 
               sleep 5; 
             done
           ' || { echo "❌ Services did not start in time."; exit 1; }
-          echo "✅ Services are up and running."
 
-      - name: Install Loophole
+      - name: Set ngrok auth token based on user
+        id: set-ngrok-auth
         run: |
-          ARCH=$(uname -m)
+          case "${{ github.actor }}" in
+            "SaravanakumarR2018")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_SARAVANA }}" >> $GITHUB_ENV
+              ;;
+            "Bharani0012")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_BHARANI }}" >> $GITHUB_ENV
+              ;;
+            "Kabilan-16")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_KABILAN }}" >> $GITHUB_ENV
+              ;;
+            "Karthi-47")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_KARTHI }}" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Error: User not recognized or ngrok auth token not set."
+              exit 1
+              ;;
+          esac
 
-          if [[ "$ARCH" == "x86_64" ]]; then
-            LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_64bit.tar.gz"
-          elif [[ "$ARCH" == "aarch64" ]]; then
-            LOOPHOLE_URL="https://github.com/loophole/cli/releases/download/1.0.0-beta.15/loophole-cli_1.0.0-beta.15_linux_arm64.tar.gz"
-          else
-            echo "❌ Unsupported architecture: $ARCH"
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+
+      - name: Authenticate ngrok
+        run: |
+          ngrok config add-authtoken ${{ env.ngrok_auth_token }}
+
+      - name: Start ngrok tunnel
+        run: |
+          ngrok http ${{ env.FRONTEND_PORT }} --log=stdout &
+          sleep 10
+
+      - name: Fetch ngrok URL
+        run: |
+          JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
+          FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.proto=="https") | .public_url')
+          if [[ -z "$FRONTEND_URL" ]]; then
+            echo "JSON Response: $JSON_RESPONSE"
             exit 1
           fi
-
-          # Download and verify file exists
-          curl -fsSL "$LOOPHOLE_URL" -o loophole.tar.gz
-
-          if [[ ! -s loophole.tar.gz ]]; then
-            echo "❌ Download failed or file is empty!"
-            exit 1
-          fi
-
-          # List contents before extracting
-          echo "📂 Archive contents:"
-          tar -tzf loophole.tar.gz || (echo "❌ Tar extraction failed!" && exit 1)
-
-          # Extract the archive
-          mkdir -p loophole_temp
-          tar -xzf loophole.tar.gz -C loophole_temp
-
-          # Debug: List extracted files
-          echo "📂 Extracted files:"
-          ls -R loophole_temp
-
-          # Locate the Loophole binary
-          LOOPHOLE_BIN=$(find loophole_temp -type f -name "loophole" | head -n 1)
-
-          if [[ -z "$LOOPHOLE_BIN" ]]; then
-            echo "❌ Loophole binary not found in the extracted files!"
-            exit 1
-          fi
-
-          # Move to /usr/local/bin
-          sudo mv "$LOOPHOLE_BIN" /usr/local/bin/loophole
-          sudo chmod +x /usr/local/bin/loophole
-
-          # Clean up
-          rm -rf loophole_temp loophole.tar.gz
-
-          echo "✅ Loophole installed successfully!"
-
-      - name: Authenticate Loophole
-        run: |
-          loophole account login || echo "⚠️ Loophole login failed, continuing..."
-          loophole account status
-
-      - name: Start Loophole tunnels
-        run: |
-          nohup loophole http ${{ env.CHAT_SERVICE_PORT }} --hostname backend-tunnel.loophole.site > backend_loophole.log 2>&1 &
-          nohup loophole http ${{ env.FRONTEND_PORT }} --hostname frontend-tunnel.loophole.site > frontend_loophole.log 2>&1 &
-          sleep 10  # Give Loophole time to start
-
-          # Fetch public Loophole URLs
-          BACKEND_URL="https://backend-tunnel.loophole.site"
-          FRONTEND_URL="https://frontend-tunnel.loophole.site"
-
-          echo "$BACKEND_URL" > backend_loophole.txt
-          echo "$FRONTEND_URL" > frontend_loophole.txt
-
-          echo "✅ Loophole tunnels started successfully!"
-          echo "🔗 Backend: $BACKEND_URL"
+          echo "$FRONTEND_URL" > frontend_ngrok.txt
+          echo "✅ Ngrok tunnel started successfully!"
           echo "🔗 Frontend: $FRONTEND_URL"
 
-      - name: Refresh Loophole links every 1 hour 55 minutes
+      - name: Refresh ngrok link every 1 hour 55 minutes
         run: |
-          for i in {1..3}; do  # Refresh max 3 times
-            echo "⏳ Waiting for 1 hour 55 minutes before refreshing Loophole tunnels..."
-            sleep 6900  # 1 hour 55 minutes
-
-            echo "🔄 Restarting Loophole tunnels..."
-
-            # Stop any running Loophole instances
-            pkill -f "loophole" || echo "No existing Loophole process found."
-
-            # Restart tunnels
-            echo "🚀 Starting Loophole tunnels..."
-            nohup loophole http ${{ env.CHAT_SERVICE_PORT }} --hostname backend-tunnel.loophole.site > backend_loophole.log 2>&1 &
-            nohup loophole http ${{ env.FRONTEND_PORT }} --hostname frontend-tunnel.loophole.site > frontend_loophole.log 2>&1 &
-
-            sleep 10  # Give Loophole time to restart
-
-            BACKEND_URL="https://backend-tunnel.loophole.site"
-            FRONTEND_URL="https://frontend-tunnel.loophole.site"
-
-            echo "$BACKEND_URL" > backend_loophole.txt
-            echo "$FRONTEND_URL" > frontend_loophole.txt
-
-            echo "✅ Refreshed Loophole URLs"
-            echo "🔗 Backend: $BACKEND_URL"
+          for i in {1..3}; do
+            echo "⏳ Waiting for 1 hour 55 minutes before refreshing ngrok tunnel..."
+            sleep 6900
+            echo "🔄 Restarting ngrok tunnel..."
+            pkill -f ngrok
+            ngrok http ${{ env.FRONTEND_PORT }} --log=stdout &
+            sleep 10
+            JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
+            FRONTEND_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.proto=="https") | .public_url')
+            echo "✅ Refreshed ngrok URL"
             echo "🔗 Frontend: $FRONTEND_URL"
+            echo "$FRONTEND_URL" > frontend_ngrok.txt
           done
