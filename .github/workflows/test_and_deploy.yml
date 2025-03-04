@@ -37,6 +37,9 @@ jobs:
         with:
           ref: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/merge', github.event.inputs.pr_number) || github.event.inputs.branch }}
 
+      - name: Set PROJECT_ROOT
+        run: echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
+
       - name: Deploy and Test
         run: |
           if [[ -n "${{ github.event.inputs.pr_number }}" ]]; then
