@@ -45,6 +45,11 @@ jobs:
             echo "🚀 Deploying and testing branch: ${{ github.event.inputs.branch }}"
           fi
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
