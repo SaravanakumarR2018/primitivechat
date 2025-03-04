@@ -55,7 +55,7 @@ jobs:
                 echo "CHECKOUT_TYPE=unknown" >> $GITHUB_ENV
               fi
             fi
-
+            
       - name: Set PROJECT_ROOT
         run: echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
 
