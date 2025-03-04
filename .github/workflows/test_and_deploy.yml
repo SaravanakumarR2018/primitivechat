@@ -1,15 +1,20 @@
 name: Deploy and Test
 
 on:
-  push:
-    branches:
-      - "github_workflow/*"
   workflow_dispatch:
     inputs:
       branch:
-        description: "Branch to deploy"
+        description: "Branch to deploy (leave empty if providing PR number)"
         required: false
-        default: "main"
+        default: ""
+      pr_number:
+        description: "Pull Request Number (leave empty if providing branch)"
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-and-test-${{ github.actor }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -17,10 +22,31 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Validate Inputs
+        run: |
+          if [[ -z "${{ github.event.inputs.branch }}" && -z "${{ github.event.inputs.pr_number }}" ]]; then
+          echo "❌ Error: Either 'branch' or 'pr_number' must be provided!"
+          exit 1
+          elif [[ -n "${{ github.event.inputs.branch }}" && -n "${{ github.event.inputs.pr_number }}" ]]; then
+          echo "❌ Error: You must provide only one of 'branch' or 'pr_number', not both!"
+          exit 1
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
+          ref: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/merge', github.event.inputs.pr_number) || github.event.inputs.branch }}
+
+      - name: Set PROJECT_ROOT
+        run: echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
+
+      - name: Deploy and Test
+        run: |
+          if [[ -n "${{ github.event.inputs.pr_number }}" ]]; then
+            echo "🚀 Deploying and testing changes from PR #${{ github.event.inputs.pr_number }}"
+          else
+            echo "🚀 Deploying and testing branch: ${{ github.event.inputs.branch }}"
+          fi
 
       - name: Setup SSH
         run: |
@@ -36,7 +62,7 @@ jobs:
 
       - name: Copy .env file
         run: |
-          cp env_repo/.env.local src/frontend/.env.local
+          cp env_repo/.env.local ${PROJECT_ROOT}/src/frontend/.env.local
           echo "✅ .env.local copied to src/frontend"
 
       - name: Install Docker Compose
