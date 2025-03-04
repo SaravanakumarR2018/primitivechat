@@ -35,7 +35,7 @@ jobs:
       # Step 4: Copy the .env file
       - name: Copy .env file
         run: |
-          cp env_repo/.env.local $(PROJECT_ROOT)/src/frontend/.env.local
+          cp env_repo/.env.local ${PROJECT_ROOT}/src/frontend/.env.local
           echo "✅ .env.local copied to src/frontend"
 
       # Step 5: Install Docker Compose
