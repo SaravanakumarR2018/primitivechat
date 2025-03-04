@@ -26,6 +26,9 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
+      - name: Set PROJECT_ROOT
+        run: echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
+
       # Step 3: Clone the private repository using SSH
       - name: Clone the env repo using SSH
         run: |
