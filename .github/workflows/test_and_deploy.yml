@@ -45,11 +45,6 @@ jobs:
             echo "🚀 Deploying and testing branch: ${{ github.event.inputs.branch }}"
           fi
 
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
-
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -64,7 +59,7 @@ jobs:
 
       - name: Copy .env file
         run: |
-          cp env_repo/.env.local src/frontend/.env.local
+          cp env_repo/.env.local $(PROJECT_ROOT)/src/frontend/.env.local
           echo "✅ .env.local copied to src/frontend"
 
       - name: Install Docker Compose
