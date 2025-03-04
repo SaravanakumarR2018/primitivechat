@@ -37,6 +37,25 @@ jobs:
         with:
           ref: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/merge', github.event.inputs.pr_number) || github.event.inputs.branch }}
 
+      - name: Identify Checkout Type (Branch or PR)
+        run: |
+            if [[ -n "$(git symbolic-ref -q HEAD)" ]]; then
+              BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+              echo "✅ Running from a branch: $BRANCH_NAME"
+              echo "CHECKOUT_TYPE=branch" >> $GITHUB_ENV
+              echo "BRANCH_OR_PR=$BRANCH_NAME" >> $GITHUB_ENV
+            else
+              MERGE_COMMIT=$(git log -1 --format=%P | wc -w)
+              if [[ "$MERGE_COMMIT" -gt 1 ]]; then
+                echo "✅ Running from a Pull Request (merged commit detected)"
+                echo "CHECKOUT_TYPE=pull_request" >> $GITHUB_ENV
+                echo "BRANCH_OR_PR=PR-${{ github.event.inputs.pr_number }}" >> $GITHUB_ENV
+              else
+                echo "⚠️ Unable to determine if it's a PR or branch."
+                echo "CHECKOUT_TYPE=unknown" >> $GITHUB_ENV
+              fi
+            fi
+            
       - name: Set PROJECT_ROOT
         run: echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
 
