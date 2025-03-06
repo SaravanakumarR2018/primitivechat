@@ -9,7 +9,7 @@ from src.backend.weaviate.weaviate_manager import WeaviateManager
 from src.backend.minio.minio_manager import MinioManager
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 db_manager = DatabaseManager()
@@ -135,11 +135,11 @@ class FileVectorizer:
         logger.info("Starting background worker thread...")
         while not self.shutdown_event.is_set():
             try:
-                logger.info("Checking for 'todo','extracted' and 'chunked' files...")
+                logger.debug("Checking for 'todo','extracted' and 'chunked' files...")
                 pending_files = db_manager.get_todo_files(self.max_threads)
 
                 if not pending_files:
-                    logger.info("No files to process. Sleeping...")
+                    logger.debug("No files to process. Sleeping...")
                     time.sleep(self.polling_interval)
                     continue
 

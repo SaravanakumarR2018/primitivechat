@@ -8,6 +8,7 @@ from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
 import os
 import time
+from src.backend.lib.config import TEST_TOKEN_PREFIX, TEST_SECRET, JWKS_URL # Import from config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,9 +17,13 @@ logger = logging.getLogger(__name__)
 clerk_client = Clerk(bearer_auth=os.getenv('CLERK_SECRET_KEY'))
 
 # Retrieve the JWKS URL from environment variables
-JWKS_URL = os.getenv('JWKS_URL')
+# JWKS_URL = os.getenv('JWKS_URL') # moved to config
 if not JWKS_URL:
     raise ValueError("JWKS_URL is not set in the environment variables.")
+
+# Test token configurations (move to a config file if needed)
+# TEST_TOKEN_PREFIX = "test_" # moved to config
+# TEST_SECRET = "test_secret" # moved to config
 
 async def call_backend_and_verify_auth(request: Request, allowed_roles: list, *args, **kwargs):
     try:
@@ -80,6 +85,24 @@ async def jwt_verifier(request: Request, allowed_roles: list, *args, **kwargs):
         if len(token_parts) != 2 or not token_parts[1].strip():
             raise HTTPException(status_code=401, detail="Bearer token missing")
         token = token_parts[1].strip()
+        # Check if it's a test token
+        if token.startswith(TEST_TOKEN_PREFIX):
+            try:
+                logger.debug("Verifying test token")
+                # Remove the test prefix before decoding
+                test_token = token[len(TEST_TOKEN_PREFIX):]
+                logger.debug(f"Decoding test token {test_token}")
+                decoded_token = jwt.decode(test_token, TEST_SECRET, algorithms=["HS256"])  # Use a specific algorithm
+                logger.debug(f"Decoded test token {decoded_token}")
+                user_role = decoded_token.get('org_role')
+                if user_role not in allowed_roles:
+                    raise HTTPException(status_code=403, detail="Forbidden: Insufficient role")
+                logger.info("Test JWT authentication successful")
+                return  # Test token is valid, exit the function
+            except jwt.DecodeError:
+                raise HTTPException(status_code=401, detail="Invalid test token")
+
+        # If not a test token, proceed with JWKS verification
         jwk_client = jwt.PyJWKClient(JWKS_URL)
         signing_key = jwk_client.get_signing_key_from_jwt(token)  # Pass JWT, not JWKS
         public_key = signing_key.key

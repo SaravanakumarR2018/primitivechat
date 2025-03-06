@@ -6,6 +6,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
+from src.backend.lib.auth_utils import get_decoded_token  # Import auth_utils
+from src.backend.lib.auth_decorator import Authenticate_and_check_role
+
 
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
@@ -42,20 +45,25 @@ class DeleteChatsRequest(BaseModel):
     customer_guid: str
     chat_id: str
 
-class AddCustomerRequest(BaseModel):
-    org_id: str
-
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
-async def add_customer(request: AddCustomerRequest):
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
+async def add_customer(request: Request):
     """Create a new customer, set up DBs, and add an entry in the common_db table."""
-    logger.debug(f"Entering add_customer() with org_id: {request.org_id}")
+    logger.debug(f"Entering add_customer()")
 
     try:
+        decoded_token = get_decoded_token(request)
+        org_id = decoded_token.get("org_id")
+        if not org_id:
+            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Org ID not found in token")
+
+        logger.debug(f"Entering add_customer() with org_id from token: {org_id}")
+
         # Check if customer already exists for the given org_id
-        existing_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(request.org_id)
+        existing_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(org_id)
         if existing_customer_guid:
-            logger.info(f"Customer already exists for org_id: {request.org_id}, GUID: {existing_customer_guid}")
+            logger.info(f"Customer already exists for org_id: {org_id}, GUID: {existing_customer_guid}")
             return {"customer_guid": existing_customer_guid}
 
         # Create new customer GUID
@@ -68,8 +76,8 @@ async def add_customer(request: AddCustomerRequest):
 
         # Add extra row in common_db table
         try:
-            db_manager.map_clerk_orgid_with_customer_guid(request.org_id, customer_guid)
-            logger.info(f"Entry added in common_db for org_id: {request.org_id}, customer_guid: {customer_guid}")
+            db_manager.map_clerk_orgid_with_customer_guid(org_id, customer_guid)
+            logger.info(f"Entry added in common_db for org_id: {org_id}, customer_guid: {customer_guid}")
         except SQLAlchemyError as e:
             logger.error(f"Database error while inserting into common_db: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
