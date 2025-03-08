@@ -62,9 +62,9 @@ async def add_customer(request: Request):
 
         # Check if customer already exists for the given org_id
         existing_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(org_id)
-        if existing_customer_guid:
+        if (existing_customer_guid):
             logger.info(f"Customer already exists for org_id: {org_id}, GUID: {existing_customer_guid}")
-            return {"customer_guid": existing_customer_guid}
+            return {"org_id": org_id, "customer_guid": existing_customer_guid}
 
         # Create new customer GUID
         customer_guid = db_manager.add_customer()
@@ -73,14 +73,6 @@ async def add_customer(request: Request):
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer")
 
         logger.info(f"Customer created with GUID: {customer_guid}")
-
-        # Add extra row in common_db table
-        try:
-            db_manager.map_clerk_orgid_with_customer_guid(org_id, customer_guid)
-            logger.info(f"Entry added in common_db for org_id: {org_id}, customer_guid: {customer_guid}")
-        except SQLAlchemyError as e:
-            logger.error(f"Database error while inserting into common_db: {e}")
-            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
 
         # Create a MinIO bucket
         try:
@@ -97,10 +89,19 @@ async def add_customer(request: Request):
         except Exception as e:
             logger.error(f"Weaviate schema creation failed. Error: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer schema")
+        
+        # Add extra row in common_db table
+        try:
+            mapping_result = db_manager.map_clerk_orgid_with_customer_guid(org_id, customer_guid)
+            logger.info(f"Entry added in common_db for org_id: {mapping_result.get('org_id')}, customer_guid: {mapping_result.get('customer_guid')}")
+        except SQLAlchemyError as e:
+            logger.error(f"Database error while inserting into common_db: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
 
-        logger.debug(f"Exiting add_customer() with Customer GUID: {customer_guid}")
 
-        return {"customer_guid": customer_guid}
+        logger.debug(f"Exiting add_customer() with Customer GUID: {mapping_result.get('customer_guid')}")
+
+        return {"org_id": mapping_result['org_id'], "customer_guid": mapping_result['customer_guid']}
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

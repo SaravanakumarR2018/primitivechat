@@ -1492,10 +1492,30 @@ class DatabaseManager:
 
     def map_clerk_orgid_with_customer_guid(self, org_id, customer_guid):
         """Insert a new customer GUID for an organization."""
+        logger.debug(f"Entering map_clerk_orgid_with_customer_guid with org_id: {org_id}, customer_guid: {customer_guid}")
         session = self._session_factory()
         try:
             session.execute(text("USE common_db"))  # Ensure correct database is used
+            logger.debug("Using common_db database")
 
+            # Check if mapping already exists
+            logger.debug(f"Checking for existing mapping for org_id: {org_id}")
+            existing_mapping = session.execute(
+                text("""
+                    SELECT org_id, customer_guid
+                    FROM org_customer_guid_mapping 
+                    WHERE org_id = :org_id
+                """),
+                {"org_id": org_id}
+            ).fetchone()
+
+            if existing_mapping:
+                # Return existing mapping
+                logger.info(f"Mapping already exists for org_id: {org_id}, customer_guid: {existing_mapping[1]}")
+                return {"org_id": existing_mapping[0], "customer_guid": existing_mapping[1]}
+
+            # If no existing mapping, insert the new mapping
+            logger.debug(f"No existing mapping found, inserting new mapping for org_id: {org_id}, customer_guid: {customer_guid}")
             session.execute(
                 text("""
                     INSERT INTO org_customer_guid_mapping 
@@ -1507,13 +1527,17 @@ class DatabaseManager:
                     "customer_guid": customer_guid
                 }
             )
+            session.commit()  # Explicit commit
 
-            session.commit()
+            logger.info(f"Successfully mapped org_id: {org_id} with customer_guid: {customer_guid}")
+            return {"org_id": org_id, "customer_guid": customer_guid}
+
         except SQLAlchemyError as e:
             logger.error(f"Database error: {e}")
             session.rollback()
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to insert mapping")
         finally:
+            logger.debug("Closing database session")
             session.close()
 
     def get_paginated_tickets_by_customer_guid(self, customer_guid, page=1, page_size=10):
