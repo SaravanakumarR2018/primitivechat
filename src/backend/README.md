@@ -30,10 +30,16 @@ npm install
 npm run dev
 ```
 
-### 4. Run Backend Tests
-To execute the backend test cases, run:
+### 4. Run all Backend Tests
+To execute all the backend test cases, run:
 ```sh
 ./build/run_backend_testcases.sh
+```
+
+### 5. Run only a particular Backend Testcase file
+To execute only a particular test file like test_addcustomer.py, run:
+```sh
+./build/run_backend_testcases.sh -f test_addcustomer.py
 ```
 
 ## Additional Notes
