@@ -114,6 +114,8 @@ def add_customer(org_id: str):
         if "customer_guid" not in data:
             raise ValueError("'customer_guid' not found in response data.")
 
+        data["org_id"] = merged_org_id
+
         logger.info(f"Successfully added customer. Received response: {data}")
         return data
 
