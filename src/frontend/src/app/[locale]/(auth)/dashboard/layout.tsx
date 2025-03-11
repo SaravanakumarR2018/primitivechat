@@ -1,6 +1,6 @@
-import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 
+import { getCustomerGuid } from '@/api/backend-sdk/sendToken';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
 
 export async function generateMetadata(props: { params: { locale: string } }) {
@@ -15,8 +15,16 @@ export async function generateMetadata(props: { params: { locale: string } }) {
   };
 }
 
-export default function DashboardLayout(props: { children: React.ReactNode }) {
-  const t = useTranslations('DashboardLayout');
+export default async function DashboardLayout(props: { children: React.ReactNode }) {
+  const t = await getTranslations('DashboardLayout');
+
+  // eslint-disable-next-line no-console
+  console.log('🔹 Fetching user in DashboardLayout...');
+
+  const customerGuid = await getCustomerGuid(); // Now using the cache-based function
+
+  // eslint-disable-next-line no-console
+  console.log('Customer GUID:', customerGuid); // Should log the GUID or null
 
   return (
     <>
