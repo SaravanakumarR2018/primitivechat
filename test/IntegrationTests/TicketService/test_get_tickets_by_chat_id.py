@@ -9,7 +9,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token
 
 # Configure logging
 logging.basicConfig(
@@ -22,20 +22,29 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
-
+    ORG_ROLE = 'org:admin'
     def setUp(self):
         """Set up a valid customer and chat for tests."""
         logger.info("=== Setting up test environment ===")
+
+        self.headers = {}
+
         # Create a valid customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         # Create a valid chat
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "How can I reset my password?"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
         self.custom_fields = {}
@@ -47,7 +56,6 @@ class TestGetTicketsByChatId(unittest.TestCase):
         # Create a ticket linked to the chat
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title": "Reset Password",
             "description": "Unable to reset password",
@@ -55,7 +63,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
             "reported_by": "user1",
             "assigned": "agent1"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
         self.valid_ticket_id = response.json().get("ticket_id")
 
@@ -63,11 +71,10 @@ class TestGetTicketsByChatId(unittest.TestCase):
         response = requests.get(
             f"{self.BASE_URL}/tickets",
             params={
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "page": 1,
                 "page_size": 10
-            }
+            }, headers=self.headers
         )
         # Validate the response status
         self.assertEqual(response.status_code, HTTPStatus.OK, "Expected 200 OK for valid chat ID")
@@ -88,10 +95,9 @@ class TestGetTicketsByChatId(unittest.TestCase):
         # Create a valid chat without adding tickets
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Can I change my subscription plan?"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         new_chat_id = response.json().get("chat_id")
 
@@ -99,11 +105,10 @@ class TestGetTicketsByChatId(unittest.TestCase):
         response = requests.get(
             f"{self.BASE_URL}/tickets",
             params={
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": new_chat_id,
                 "page": 1,
                 "page_size": 10
-            }
+            }, headers=self.headers
         )
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
                          "Expected 404 NOT FOUND for valid chat ID with no tickets")
@@ -119,11 +124,10 @@ class TestGetTicketsByChatId(unittest.TestCase):
         response = requests.get(
             f"{self.BASE_URL}/tickets/",
             params={
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": invalid_chat_id,
                 "page": 1,
                 "page_size": 10
-            }
+            }, headers=self.headers
         )
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 404 NOT FOUND for invalid chat ID")
         self.assertEqual(response.json(), {
@@ -132,19 +136,20 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
     def test_get_tickets_with_invalid_customer_guid(self):
         """Test retrieving tickets with an invalid customer GUID."""
-        invalid_customer_guid = str(uuid.uuid4())
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+
         response = requests.get(
             f"{self.BASE_URL}/tickets/",
             params={
-                "customer_guid": invalid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "page": 1,
                 "page_size": 10
-            }
+            }, headers=headers
         )
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 400 BAD REQUEST for invalid customer GUID")
         self.assertEqual(response.json(), {
-            "detail": f"Database customer_{invalid_customer_guid} does not exist"
+            "detail": f"Database customer_None does not exist"
         })
 
     def _add_50_tickets(self):
@@ -154,7 +159,6 @@ class TestGetTicketsByChatId(unittest.TestCase):
         # Create 50 tickets with unique titles
         tickets = [
             {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "title": f"Ticket {i}",
                 "description": f"Description for ticket {i}",
@@ -167,7 +171,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
         # Add each ticket via POST request
         for ticket in tickets:
-            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket)
+            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket, headers=self.headers)
             if response.status_code != HTTPStatus.CREATED:
                 logger.error(f"Failed to add ticket: {ticket['title']}. Server response: {response.text}")
             self.assertEqual(
@@ -196,8 +200,8 @@ class TestGetTicketsByChatId(unittest.TestCase):
             # Fetch tickets page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets?customer_guid={self.valid_customer_guid}&chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
-                response = requests.get(page_url)
+                page_url = f"{self.BASE_URL}/tickets?chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
+                response = requests.get(page_url, headers=self.headers)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
                     logger.info(f"Reached the end of available pages for per_page={per_page}")
@@ -268,12 +272,11 @@ class TestGetTicketsByChatId(unittest.TestCase):
         for field_type in self.allowed_custom_field_sql_types:
             field_name = f"field_{field_type.split('(')[0].lower()}"
             payload = {
-                "customer_guid": self.valid_customer_guid,
                 "field_name": field_name,
                 "field_type": field_type,
                 "required": False
             }
-            response = requests.post(custom_fields_url, json=payload)
+            response = requests.post(custom_fields_url, json=payload, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
             self.custom_fields[field_name] = field_type
 
@@ -282,7 +285,6 @@ class TestGetTicketsByChatId(unittest.TestCase):
         # Create 50 tickets with custom fields
         tickets = [
             {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "title": f"Ticket {i}",
                 "description": f"Description for ticket {i}",
@@ -296,7 +298,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
 
         # Add each ticket via POST request
         for ticket in tickets:
-            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket)
+            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket, headers=self.headers)
             if response.status_code != HTTPStatus.CREATED:
                 logger.error(f"Failed to add ticket: {ticket['title']}. Server response: {response.text}")
             self.assertEqual(
@@ -326,8 +328,8 @@ class TestGetTicketsByChatId(unittest.TestCase):
             # Fetch tickets page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets?customer_guid={self.valid_customer_guid}&chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
-                response = requests.get(page_url)
+                page_url = f"{self.BASE_URL}/tickets?chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
+                response = requests.get(page_url, headers=self.headers)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
                     logger.info(f"Reached the end of available pages for per_page={per_page}")
@@ -393,7 +395,7 @@ class TestGetTicketsByChatId(unittest.TestCase):
         """Delete a specific ticket."""
         logger.info(f"Deleting ticket {ticket_id}.")
         response = requests.delete(f"{self.BASE_URL}/tickets/{ticket_id}",
-                                   params={"customer_guid": self.valid_customer_guid})
+                                   headers=self.headers)
         if response.status_code != HTTPStatus.OK:
             logger.error(f"Failed to delete ticket {ticket_id}. Server response: {response.text}")
         self.assertEqual(response.status_code, HTTPStatus.OK, f"Failed to delete ticket {ticket_id}")
@@ -425,8 +427,8 @@ class TestGetTicketsByChatId(unittest.TestCase):
             # Fetch tickets page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets?customer_guid={self.valid_customer_guid}&chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
-                response = requests.get(page_url)
+                page_url = f"{self.BASE_URL}/tickets?chat_id={self.valid_chat_id}&page={page_num}&page_size={per_page}"
+                response = requests.get(page_url, headers=self.headers)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
                     logger.info(f"Reached the end of available pages for per_page={per_page}")
