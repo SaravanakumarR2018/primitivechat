@@ -32,27 +32,27 @@ class TestUploadFileAPI(unittest.TestCase):
     def test_upload_file(self):
         logger.info("Executing test_upload_file: Testing file upload functionality")
 
-        url = f"{self.BASE_URL}/uploadFile"
+        url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending Post request to {url}")
 
         # define test data
         test_file = ("testfile.txt", b"Sample file content")
         files = {"file": test_file}
 
-        # make the post request
-        response = requests.post(url, files=files, headers=self.headers)
+        #make the post request
+        response=requests.post(url, files=files, headers=self.headers)
 
-        # Log the response status code
+        #Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
 
-        # check if the response is successful
+        #check if the response is successful
         self.assertEqual(response.status_code, 200, f"Expected status code 200 but got {response.status_code}")
 
-        # check if the response contains the success message
-        data = response.json()
+        #check if the response contains the success message
+        data=response.json()
         logger.info("Processing response data to check for success message")
 
-        self.assertIn("message", data, "'message' not found in response data")
+        self.assertIn("message",data,"'message' not found in response data")
         logger.info("'message' found in response data, verifying its content")
 
         self.assertEqual(data["message"], "File uploaded SuccessFully", "Unexpected message content")
@@ -62,7 +62,7 @@ class TestUploadFileAPI(unittest.TestCase):
     def test_upload_without_file(self):
         logger.info("Executing test_upload_without_file: Testing error handling for missing files")
 
-        url = f"{self.BASE_URL}/uploadFile"
+        url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending post URL request to {url}")
 
         # make post request without file
@@ -71,23 +71,23 @@ class TestUploadFileAPI(unittest.TestCase):
         # Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL :{url}")
 
-        # Assert the correct error code
+        #Assert the correct error code
         self.assertEqual(response.status_code, 422, f"Expected status code 422 but got {response.status_code}")
 
-        # check if the error details are in the response
-        data = response.json()
+        #check if the error details are in the response
+        data=response.json()
         logger.info("Processing response data to check for error details")
 
         self.assertIn("detail", data, "'detail' not found in response data")
         logger.info("Error details found in response data, verifying content")
 
-        self.assertIn("file", data["detail"][0]["loc"], "'file' error not found in response details")
+        self.assertIn("file",data["detail"][0]["loc"],"'file' error not found in response details")
         logger.info("Test completed successfully for test_upload_without_file")
 
     def test_upload_without_token(self):
         logger.info("Executing test_upload_without_token: Testing error handling for missing token")
 
-        url = f"{self.BASE_URL}/uploadFile"
+        url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending POST request to {url}")
 
         # Create a test file
@@ -97,16 +97,15 @@ class TestUploadFileAPI(unittest.TestCase):
         # Make the POST request without a token
         response = requests.post(url, files=files)
 
-        # Log the response status code
+        #Log the response status code
         logger.info(f"Received response status code: {response.status_code} for URL: {url}")
 
-        # Assert the correct error code (401)
-        self.assertIn(response.status_code, [401],
-                      f"Expected status code 401 but got {response.status_code}")
+        #Assert the correct error code (401)
+        self.assertIn(response.status_code, [401],f"Expected status code 401 but got {response.status_code}")
 
         # Check if the error details are in the response
-        data = response.json()
-        logger.info("Processing response data to check for error details")
+        data=response.json()
+        logger.info("processing response data to check for error details")
 
         self.assertIn("detail", data, "'detail' not found in response data")
         logger.info("Error details found in response data, verifying content")
@@ -117,23 +116,23 @@ class TestUploadFileAPI(unittest.TestCase):
     def test_upload_file_with_any_file_type(self):
         logger.info("Executing test_upload_file_with_any_file_type: Testing file upload with various types")
 
-        url = f"{self.BASE_URL}/uploadFile"
+        url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending post request to {url}")
 
-        # define test data
-        file_name = "testfile.pdf"  # sample files
-        file_content = b"%PDF-1.4 sample pdf content"
+        #define test data
+        file_name="testfile.pdf"  #sample files
+        file_content=b"%PDF-1.4 sample pdf content"
 
-        # prepare a file as a tuple of(filename,file content)
-        test_file = (file_name, file_content)
+        #prepare a file as a tuple of(filename,file content)
+        test_file=(file_name,file_content)
 
         # files parameter
-        files = {"file": test_file}
+        files={"file": test_file}
 
-        # Make the post request to upload file
-        response = requests.post(url, files=files, headers=self.headers)
+        #Make the post request to upload file
+        response=requests.post(url, files=files, headers=self.headers)
 
-        # Log the response status code
+        #Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
 
         # Verify the HTTP response status code
@@ -144,30 +143,30 @@ class TestUploadFileAPI(unittest.TestCase):
             logger.error(f"Unexpected status code: {response.status_code}. Expected: 200.")
             raise AssertionError(f"Expected status code 200 but got {response.status_code}")
 
-        data = response.json()
+        data=response.json()
         logger.info(f"Response data: {data}")
 
-        self.assertIn("message", data, "'message' not found in response data")
+        self.assertIn("message",data, "'message' not found in response data")
         logger.info("'message' found in response data, verifying its content")
 
-        self.assertEqual(data["message"], "File uploaded SuccessFully", "Unexpected message content")
+        self.assertEqual(data["message"],"File uploaded SuccessFully", "Unexpected message content")
         logger.info("Test completed successfully for test_upload_file_with_any_file_type")
 
     def test_upload_large_file(self):
         logger.info("Executing test_upload_large_file: Testing large file upload")
 
-        url = f"{self.BASE_URL}/uploadFile"
+        url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending post request to {url}")
 
-        # define large file
-        large_file_content = b"0" * 10 ** 7  # A 10MB File
-        test_file = ("largefile.txt", large_file_content)  # sample file
-        files = {"file": test_file}
+        #define large file
+        large_file_content=b"0" * 10 ** 7 # A 10MB File
+        test_file=("largefile.txt",large_file_content)  # sample file
+        files={"file": test_file}
 
-        # Make the post request
-        response = requests.post(url, files=files, headers=self.headers)
+        #Make the post request
+        response=requests.post(url, files=files, headers=self.headers)
 
-        # Log the response status code
+        #Log the response status code
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
 
         # Verify the HTTP response status code
@@ -178,53 +177,52 @@ class TestUploadFileAPI(unittest.TestCase):
             logger.error(f"Unexpected status code: {response.status_code}. Expected: 200.")
             raise AssertionError(f"Expected status code 200 but got {response.status_code}")
 
-        # Check if the response contains the success message
-        data = response.json()
+        #Check if the response contains the success message
+        data=response.json()
         logger.info("Processing response data to check for success message")
 
-        self.assertIn("message", data, "'message' not found in response data")
+        self.assertIn("message",data,"'message' not found in response data")
         logger.info("'message' found in response data, verifying its content")
 
-        self.assertEqual(data["message"], "File uploaded SuccessFully", "Unexpected message content")
+        self.assertEqual(data["message"],"File uploaded SuccessFully","Unexpected message content")
 
         logger.info("Test completed successfully for test_upload_large_file")
 
     def test_upload_file_with_invalid_customer_guid(self):
-        logger.info(
-            "Executing test_upload_file_with_invalid_customer_guid: Testing file upload with an invalid customer_guid")
+        logger.info("Executing test_upload_file_with_invalid_customer_guid: Testing file upload with an invalid customer_guid")
 
-        url = f"{self.BASE_URL}/uploadFile"
+        url=f"{self.BASE_URL}/uploadFile"
         logger.info(f"Sending POST request to {url} with invalid customer_guid")
 
         # Simulate a token with an invalid or missing customer_guid
         invalid_token = create_test_token(org_id="invalid_org", org_role="org:admin")
         headers = {'Authorization': f'Bearer {invalid_token}'}
 
-        # Define a valid test file
-        file_name = "valid_file.txt"  # Sample file
-        file_content = b"Sample content for a valid file"
-        test_file = (file_name, file_content)
+        #define valid test file
+        file_name="valid_file.txt"  # Sample file
+        file_content=b"Sample content for a valid file"
+        test_file=(file_name, file_content)
 
-        # Request data
-        files = {"file": test_file}
+        #Request data
+        files={"file": test_file}
 
-        # make post to request
-        response = requests.post(url, files=files, headers=headers)
+        #make post to request
+        response=requests.post(url, files=files, headers=headers)
 
-        # log the response
+        #log the response
         logger.info(f"Received response status code:{response.status_code} for URL:{url}")
         logger.info(f"Response content:{response.text}")
 
-        # check for the expected error response code 404
+        #check for the expected error response code 404
         self.assertIn(response.status_code, [404], f"Expected status code 404 but got {response.status_code}")
 
-        data = response.json()
+        data=response.json()
 
-        # verify the response contains error
+        #verify the response contains error
         self.assertIn("detail", data, "'detail' not found in response data")
         logger.info("'detail' found in response data, verifying its content")
 
-        self.assertEqual(data["detail"], "Invalid customer_guid provided", "Unexpected error message content")
+        self.assertEqual(data["detail"],"Invalid customer_guid provided","Unexpected error message content")
 
         logger.info("Test completed successfully for test_upload_file_with_invalid_customer_guid")
 

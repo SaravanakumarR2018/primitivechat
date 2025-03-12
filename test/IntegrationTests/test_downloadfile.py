@@ -115,8 +115,8 @@ class TestDownloadFileAPI(unittest.TestCase):
         download_file_url = f"{self.BASE_URL}/downloadfile"
         response = requests.get(download_file_url, headers=headers)
 
-        # Verify the HTTP response status code for missing filename (should be 422)
-        if response.status_code == 422:
+        #Verify the HTTP response status code for missing filename (should be 422)
+        if response.status_code==422:
             logger.info("Correctly received 422 status code for missing filename.")
         else:
             logger.error(f"Unexpected status code: {response.status_code}. Expected: 422.")
@@ -131,7 +131,7 @@ class TestDownloadFileAPI(unittest.TestCase):
     def test_download_and_verify_uploaded_files(self):
         logger.info("Testing file download, verification, and file name matching after uploading files")
 
-        # Setup: Create a customer and upload multiple files
+        #Setup:Create a customer and upload multiple files
         customer_data = add_customer(TEST_ORG)
         org_id = customer_data.get("org_id")
         token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
@@ -152,41 +152,39 @@ class TestDownloadFileAPI(unittest.TestCase):
             logger.info(f"Uploaded {filename} successfully.")
 
             # Verify the HTTP response status code for file upload
-            if upload_response.status_code == 200:
+            if upload_response.status_code==200:
                 logger.info(f"Uploaded {filename} successfully.")
             else:
-                logger.error(
-                    f"File upload failed for {filename}. Status code: {upload_response.status_code}. Expected: 200.")
+                logger.error(f"File upload failed for {filename}. Status code: {upload_response.status_code}. Expected: 200.")
                 raise AssertionError(f"Expected status code 200 but got {upload_response.status_code}")
 
-            # List files for the customer
+        #List files for the customer
         list_files_url = f"{self.BASE_URL}/listfiles"
         list_response = requests.get(list_files_url, headers=headers)
 
-        # Verify response for file listing
+        #Verify response for file listing
         self.assertEqual(list_response.status_code, 200, "Failed to list files for valid customer_guid")
-        response_data = list_response.json()
+        response_data=list_response.json()
         self.assertIn("files", response_data, "'files' key is missing in the response")
 
-        # Extract listed file names and verify
-        listed_files = response_data.get("files")
+        #Extract listed file names and verify
+        listed_files=response_data.get("files")
         self.assertIsInstance(listed_files, list, "'files' is not a list")
-        expected_file_names = [file[0] for file in files_to_upload]
-        self.assertEqual(set(listed_files), set(expected_file_names),
-                         "File names in response do not match uploaded files")
+        expected_file_names=[file[0] for file in files_to_upload]
+        self.assertEqual(set(listed_files), set(expected_file_names),"File names in response do not match uploaded files")
         logger.info(f"Listed files match the uploaded files: {expected_file_names}")
 
-        # Download and verify each file
-        download_file_url = f"{self.BASE_URL}/downloadfile"
-        for filename, expected_content, _ in files_to_upload:
-            params = {"filename": filename}
-            download_response = requests.get(download_file_url, params=params, headers=headers)
+        #Download and verify each file
+        download_file_url=f"{self.BASE_URL}/downloadfile"
+        for filename,expected_content, _ in files_to_upload:
+            params={"filename": filename}
+            download_response=requests.get(download_file_url, params=params, headers=headers)
 
-            # Verify the HTTP response status code
+            #Verify the HTTP response status code
             self.assertEqual(download_response.status_code, 200, f"Failed to download file {filename}")
             logger.info(f"Downloaded {filename} successfully.")
 
-            # Verify the content of the downloaded file
+            #Verify the content of the downloaded file
             self.assertEqual(download_response.content, expected_content, f"Content mismatch for file {filename}")
             logger.info(f"Verified content of {filename} successfully.")
 

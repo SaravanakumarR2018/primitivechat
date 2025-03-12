@@ -220,48 +220,55 @@ async def download_file(request: Request, filename: str):
 async def chat(request: Request, chat_request: ChatRequest):
     logger.debug(f"Entering chat() with Correlation ID: {request.state.correlation_id}")
 
-    # Get customer_guid from the token
-    customer_guid = customer_service.get_customer_guid_from_token(request)
-    if not customer_guid:
-        raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+    try:
+        # Get customer_guid from the token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-    # Call the add_message function for the user's question
-    user_response = db_manager.add_message(
-        customer_guid,
-        chat_request.question,
-        sender_type=SenderType.CUSTOMER,
-        chat_id=chat_request.chat_id
-    )
+        # Call the add_message function for the user's question
+        user_response = db_manager.add_message(
+            customer_guid,
+            chat_request.question,
+            sender_type=SenderType.CUSTOMER,
+            chat_id=chat_request.chat_id
+        )
 
-    # Check if the response indicates an error
-    if 'error' in user_response:
-        logger.error(
-            f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
-        raise HTTPException(status_code=400, detail=user_response['error'])
+        # Check if the response indicates an error
+        if 'error' in user_response:
+            logger.error(
+                f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
+            raise HTTPException(status_code=400, detail=user_response['error'])
 
-    # Now handle the system response
-    system_response = "You will get the correct answer once AI is integrated."
-    system_response_result = db_manager.add_message(
-        customer_guid,
-        system_response,
-        sender_type=SenderType.SYSTEM,
-        chat_id=user_response['chat_id']  # Use the chat_id returned from user message
-    )
+        # Now handle the system response
+        system_response = "You will get the correct answer once AI is integrated."
+        system_response_result = db_manager.add_message(
+            customer_guid,
+            system_response,
+            sender_type=SenderType.SYSTEM,
+            chat_id=user_response['chat_id']  # Use the chat_id returned from user message
+        )
 
-    # Log if the system message was not added successfully
-    if 'error' in system_response_result:
-        logger.error(
-            f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
-        # Do not raise an exception, just log the error
+        # Log if the system message was not added successfully
+        if 'error' in system_response_result:
+            logger.error(
+                f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
+            # Do not raise an exception, just log the error
 
-    logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
+        logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
 
-    # Return both chat_id and system response, indicating success regardless of the system message status
-    return {
-        "chat_id": user_response['chat_id'],
-        "customer_guid": customer_guid,
-        "answer": system_response
-    }
+        # Return both chat_id and system response, indicating success regardless of the system message status
+        return {
+            "chat_id": user_response['chat_id'],
+            "customer_guid": customer_guid,
+            "answer": system_response
+        }
+    except HTTPException as e:
+        logger.error(f"HTTPException in chat(): {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error in chat(): {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during chat processing")
 
 
 # API endpoint to retrieve chat messages in reverse chronological order (paginated)
@@ -275,20 +282,28 @@ async def get_all_chats(
 ):
     logger.debug(f"Entering get_all_chats() with Correlation ID: {request.state.correlation_id}")
 
-    # Get customer_guid from the token
-    customer_guid = customer_service.get_customer_guid_from_token(request)
-    if not customer_guid:
-        raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+    try:
+        # Get customer_guid from the token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-    # Call the database manager to get paginated chat messages
-    messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page, page_size)
+        # Call the database manager to get paginated chat messages
+        messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page, page_size)
 
-    if not messages:
-        logger.error("No chats found for this customer and chat ID")
-        raise HTTPException(status_code=404, detail="No chats found for this customer and chat ID")
+        if not messages:
+            logger.error("No chats found for this customer and chat ID")
+            raise HTTPException(status_code=404, detail="No chats found for this customer and chat ID")
 
-    logger.debug(f"Exiting get_all_chats() with Correlation ID: {request.state.correlation_id}")
-    return {"messages": messages}
+        logger.debug(f"Exiting get_all_chats() with Correlation ID: {request.state.correlation_id}")
+        return {"messages": messages}
+
+    except HTTPException as e:
+        logger.error(f"HTTPException in get_all_chats(): {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error in get_all_chats(): {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while retrieving chats")
 
 
 # API endpoint to delete a specific chat
@@ -296,14 +311,21 @@ async def get_all_chats(
 @Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def delete_chats(request: Request, delete_chats_request: DeleteChatsRequest):
     logger.debug(f"Entering delete_chats() with Correlation ID: {request.state.correlation_id}")
-    # Get customer_guid from the token
-    customer_guid = customer_service.get_customer_guid_from_token(request)
-    if not customer_guid:
-        raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
-    result = db_manager.delete_chat_messages(customer_guid, delete_chats_request.chat_id)
-    if result is None:
-        logger.error("Failed to delete chats")
-        raise HTTPException(status_code=500, detail="Failed to delete chats")
-    logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
-    return {"message": "Chat deleted successfully"}
+    try:
+        # Get customer_guid from the token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+        result = db_manager.delete_chat_messages(customer_guid, delete_chats_request.chat_id)
+        if result is None:
+            logger.error("Failed to delete chats")
+            raise HTTPException(status_code=500, detail="Failed to delete chats")
+        logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
+        return {"message": "Chat deleted successfully"}
+    except HTTPException as e:
+        logger.error(f"HTTPException in delete_chats(): {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error in delete_chats(): {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while deleting chats")
 
