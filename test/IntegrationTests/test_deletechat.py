@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer,create_test_token
 
 # Set up logging configuration
 logging.basicConfig(
@@ -12,6 +12,10 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Constants
+TEST_ORG = "test_org"
+ORG_ADMIN_ROLE = "org:admin"
 
 class TestDeleteChatAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"  # Update this to your actual API base URL
@@ -23,20 +27,22 @@ class TestDeleteChatAPI(unittest.TestCase):
         # Get valid customer_guid
         customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
+        self.org_id = customer_data.get("org_id")
         logger.info(f"OUTPUT: Received valid customer_guid: {self.valid_customer_guid}")
 
-        logger.info("=== setUp completed successfully ===\n")
+        # Create a test token for authentication
+        self.token = create_test_token(org_id=self.org_id, org_role=ORG_ADMIN_ROLE)
+        self.headers = {'Authorization': f'Bearer {self.token}'}
 
     def create_chat(self):
         """Helper method to create a new chat and return the chat_id"""
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "who is modi?"
         }
         logger.info(f"INPUT: Creating initial chat with data: {str(chat_data)}")
 
-        chat_response = requests.post(chat_url, json=chat_data)
+        chat_response = requests.post(chat_url, json=chat_data, headers=self.headers)
         logger.info(f"OUTPUT: Chat creation response status: {chat_response.status_code}")
 
         self.assertEqual(chat_response.status_code, 200)
@@ -63,11 +69,10 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info(f"Adding messages to chat_id: {local_chat_id}")
         for idx, message in enumerate(messages_to_add, start=1):
             message_data = {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": local_chat_id,
                 "question": message
             }
-            response = requests.post(add_chat_url, json=message_data)
+            response = requests.post(add_chat_url, json=message_data, headers=self.headers)
             logger.info(f"Add Message #{idx}: Response: {response.status_code}, {response.text}")
             self.assertEqual(response.status_code, 200, f"Failed to add message #{idx}")
 
@@ -75,10 +80,10 @@ class TestDeleteChatAPI(unittest.TestCase):
 
         # Step 3: Retrieve chats using GET request
         get_chats_url = f"{self.BASE_URL}/getallchats"  # Define the URL here
-        url = f"{get_chats_url}?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=10"
+        url = f"{get_chats_url}?chat_id={local_chat_id}&page=1&page_size=10"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
         self.assertEqual(response.status_code, 200, "Failed to retrieve chats using GET.")
@@ -89,11 +94,10 @@ class TestDeleteChatAPI(unittest.TestCase):
         # Step 4: Delete the chat
         delete_chat_url = f"{self.BASE_URL}/deletechat"
         delete_data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": local_chat_id
         }
         logger.info(f"Deleting chat with data: {delete_data}")
-        response = requests.post(delete_chat_url, json=delete_data)
+        response = requests.post(delete_chat_url, json=delete_data, headers=self.headers)
         logger.info(f"Delete Chat Response: {response.status_code}, {response.text}")
         self.assertEqual(response.status_code, 200, "Failed to delete the chat.")
 
@@ -105,7 +109,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         # Step 5: Verify that the chat has been deleted
         logger.info("Verifying that the chat has been deleted.")
         # Use the same URL for retrieving chats after deletion
-        response = requests.get(url)  # Use the same URL constructed earlier
+        response = requests.get(url, headers=self.headers)  # Use the same URL constructed earlier
         logger.info(f"Retrieving chats after deletion: {response.status_code}, {response.text}")
         self.assertEqual(response.status_code, 404, "Failed to retrieve chats after deletion.")
 
@@ -120,12 +124,11 @@ class TestDeleteChatAPI(unittest.TestCase):
 
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": ""
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -154,8 +157,9 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-        self.assertEqual(response.status_code, 422)
-        self.assertIn("field required", response.text.lower())
+        self.assertEqual(response.status_code, 401)
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Authentication required")
         logger.info("=== Test Case 3 Completed ===\n")
 
     def test_correct_customer_guid_and_missing_chat_id(self):
@@ -165,11 +169,10 @@ class TestDeleteChatAPI(unittest.TestCase):
         local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": self.valid_customer_guid
         }
         logger.info(f"INPUT : Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -190,7 +193,8 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response content: {response.text}")
 
         self.assertEqual(response.status_code, 422)  # Expecting 422 for missing fields
-        self.assertIn("field required", response.text.lower())  # Check that the response indicates required fields are missing
+        self.assertIn("field required",
+                      response.text.lower())  # Check that the response indicates required fields are missing
 
         logger.info("=== Test Case 5 Completed ===\n")
 
@@ -201,20 +205,19 @@ class TestDeleteChatAPI(unittest.TestCase):
         local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": local_chat_id
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
         # First deletion
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
         self.assertEqual(response.status_code, 200)  # Expecting 200 based on API behavior
 
         # Second deletion attempt
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -225,19 +228,23 @@ class TestDeleteChatAPI(unittest.TestCase):
         """Test case 7: Invalid customer_guid and chat_id"""
         logger.info("=== Starting Test Case 7: Wrong customer_guid and wrong chat_id ===")
 
+        # Simulate a token with an invalid or missing customer_guid
+        invalid_token = create_test_token(org_id="invalid_org_id", org_role="org:admin")
+        headers = {'Authorization': f'Bearer {invalid_token}'}
+
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": "invalid_customer_guid",
             "chat_id": "invalid_chat_id"
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("chat deleted successfully", response.text.lower())
+        self.assertEqual(response.status_code, 404)
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Invalid customer_guid provided")
 
         logger.info("=== Test Case 7 Completed ===\n")
 
@@ -248,12 +255,11 @@ class TestDeleteChatAPI(unittest.TestCase):
         local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": "invalid_chat_id"
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -262,23 +268,27 @@ class TestDeleteChatAPI(unittest.TestCase):
         logger.info("=== Test Case 8 Completed ===\n")
 
     def test_wrong_customer_guid_correct_chat_id(self):
-        """Test case 9: Valid customer_guid but invalid chat_id"""
+        """Test case 9: InValid customer_guid but valid chat_id"""
         logger.info("=== Starting Test Case 9: Correct customer_guid and wrong chat_id ===")
+
+        # Simulate a token with an invalid or missing customer_guid
+        invalid_token = create_test_token(org_id="invalid_org_id", org_role="org:admin")
+        headers = {'Authorization': f'Bearer {invalid_token}'}
 
         local_chat_id = self.create_chat()  # Create a chat to get a valid chat_id
         url = f"{self.BASE_URL}/deletechat"
         data = {
-            "customer_guid": "invalid_customer_guid",
             "chat_id": local_chat_id
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("chat deleted successfully", response.text.lower())
+        self.assertEqual(response.status_code, 404)
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Invalid customer_guid provided")
         logger.info("=== Test Case 9 Completed ===\n")
 
 if __name__ == "__main__":

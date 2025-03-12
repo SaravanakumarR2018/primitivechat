@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer,create_test_token
 
 # Set up logging configuration
 logging.basicConfig(
@@ -13,6 +13,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Constants
+TEST_ORG = "test_org"
+ORG_ADMIN_ROLE = "org:admin"
+INVALID_GUID = "invalid-guid"
 
 class TestChatAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
@@ -24,17 +28,21 @@ class TestChatAPI(unittest.TestCase):
         # Get valid customer_guid
         customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
+        self.org_id = customer_data.get("org_id")
         logger.info(f"OUTPUT: Received valid customer_guid: {self.valid_customer_guid}")
+
+        # Create a test token for authentication
+        self.token = create_test_token(org_id=self.org_id, org_role=ORG_ADMIN_ROLE)
+        self.headers = {'Authorization': f'Bearer {self.token}'}
 
         # Get valid chat_id
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Initial question"
         }
         logger.info(f"INPUT: Creating initial chat with data: {str(chat_data)}")
 
-        chat_response = requests.post(chat_url, json=chat_data)
+        chat_response = requests.post(chat_url, json=chat_data, headers=self.headers)
         logger.info(f"OUTPUT: Chat creation response status: {chat_response.status_code}")
 
         self.assertEqual(chat_response.status_code, 200)
@@ -47,21 +55,23 @@ class TestChatAPI(unittest.TestCase):
         """Test case 1: Invalid customer_guid and chat_id"""
         logger.info("=== Starting Test Case 1: Wrong customer_guid and wrong chat_id ===")
 
+        # Simulate a token with an invalid or missing customer_guid
+        invalid_token = create_test_token(org_id="invalid_ord_id", org_role="org:admin")
+        headers = {'Authorization': f'Bearer {invalid_token}'}
+
         url = f"{self.BASE_URL}/chat"
         data = {
-            "customer_guid": "invalid_customer_guid",
             "chat_id": "invalid_chat_id",
             "question": "Test question"
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("customer_guid is not valid", response.text.lower())
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Invalid customer_guid provided")
         logger.info("=== Test Case 1 Completed ===\n")
 
     def test_correct_customer_guid_wrong_chat_id(self):
@@ -70,16 +80,14 @@ class TestChatAPI(unittest.TestCase):
 
         url = f"{self.BASE_URL}/chat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": "invalid_chat_id",
             "question": "Test question"
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
-
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("chat_id is not valid", response.text.lower())
@@ -91,12 +99,11 @@ class TestChatAPI(unittest.TestCase):
 
         url = f"{self.BASE_URL}/chat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Test question"
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -127,13 +134,12 @@ class TestChatAPI(unittest.TestCase):
 
         url = f"{self.BASE_URL}/chat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "question": "Test question"
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -164,12 +170,11 @@ class TestChatAPI(unittest.TestCase):
 
         url = f"{self.BASE_URL}/chat"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id
         }
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -186,10 +191,9 @@ class TestChatAPI(unittest.TestCase):
         data = {}
         logger.info("INPUT: Sending empty request")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
-
 
         self.assertEqual(response.status_code, 422)
         self.assertIn("field required", response.text.lower())
@@ -210,9 +214,10 @@ class TestChatAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
+        self.assertEqual(response.status_code, 401)
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Authentication required")
 
-        self.assertEqual(response.status_code, 422)
-        self.assertIn("field required", response.text.lower())
         logger.info("=== Test Case 7 Completed ===\n")
 
 

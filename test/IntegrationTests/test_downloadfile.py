@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,31 +12,41 @@ logging.basicConfig(
 )
 logger=logging.getLogger(__name__)
 
+# Constants
+TEST_ORG = "test_org"
+ORG_ADMIN_ROLE = "org:admin"
+INVALID_GUID = "invalid-guid"
+
 class TestDownloadFileAPI(unittest.TestCase):
     BASE_URL=f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def test_download_file_valid_customer(self):
         logger.info("Testing valid file download")
 
-        #Create customer and upload file
-        customer_guid=add_customer("test_org").get("customer_guid")
-        upload_file_url=f"{self.BASE_URL}/uploadFile"
-        file_data={"customer_guid":customer_guid}
-        files={"file":("testfile.txt",b"Test content","text/plain")}
-        upload_response=requests.post(upload_file_url,data=file_data,files=files)
+        # Setup: Create a customer and upload a test file
+        customer_data = add_customer(TEST_ORG)
+        org_id = customer_data.get("org_id")
+        token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
 
-        #Verify the HTTP response status code for file upload
-        if upload_response.status_code==200:
+        # Upload the file
+        upload_file_url = f"{self.BASE_URL}/uploadFile"
+        files = {"file": ("testfile.txt", b"Test content", "text/plain")}
+        upload_response = requests.post(upload_file_url, files=files, headers=headers)
+
+        # Verify the HTTP response status code for file upload
+        if upload_response.status_code == 200:
             logger.info("Successfully uploaded file. Status code 200 received.")
         else:
             logger.error(f"Failed to upload file. Status code: {upload_response.status_code}. Expected: 200.")
             raise AssertionError(f"Expected status code 200 but got {upload_response.status_code}")
         self.assertEqual(upload_response.status_code, 200, "Failed to upload file")
 
-        #Download the file
-        download_file_url=f"{self.BASE_URL}/downloadfile"
-        params={"customer_guid":customer_guid,"filename":"testfile.txt"}
-        response=requests.get(download_file_url,params=params)
+        # Download the file
+        download_file_url = f"{self.BASE_URL}/downloadfile"
+        params = {"filename": "testfile.txt"}
+        response = requests.get(download_file_url, params=params, headers=headers)
+
         self.assertEqual(response.status_code, 200, "Failed to download file")
         self.assertEqual(response.content, b"Test content", "Downloaded content mismatch")
 
@@ -45,13 +55,17 @@ class TestDownloadFileAPI(unittest.TestCase):
     def test_download_file_invalid_customer_guid(self):
         logger.info("Testing download with invalid customer GUID")
 
-        invalid_customer_guid="invalid-guid"
-        download_file_url=f"{self.BASE_URL}/downloadfile"
-        params={"customer_guid":invalid_customer_guid,"filename":"testfile.txt"}
-        response=requests.get(download_file_url,params=params)
+        # Setup: Create a token with an invalid customer GUID
+        token = create_test_token(org_id="invalid_org", org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
 
-        #Verify the HTTP response status code
-        if response.status_code==404:
+        # Test: Attempt to download a file
+        download_file_url = f"{self.BASE_URL}/downloadfile"
+        params = {"filename": "testfile.txt"}
+        response = requests.get(download_file_url, params=params, headers=headers)
+
+        # Verify the HTTP response status code
+        if response.status_code == 404:
             logger.info("Correctly received 404 status code for invalid customer GUID.")
         else:
             logger.error(f"Unexpected status code: {response.status_code}. Expected: 404.")
@@ -61,21 +75,22 @@ class TestDownloadFileAPI(unittest.TestCase):
         self.assertIn("detail", response.json(), "'detail' not found in response data")
         self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
 
-        logger.info("Successfully tested download with invalid customer GUID")
-
     def test_download_file_from_empty_bucket(self):
         logger.info("Testing download from an empty bucket")
 
-        #Create customer
-        customer_guid=add_customer("test_org_123").get("customer_guid")
+        # Setup: Create a new customer with an empty bucket
+        customer_data = add_customer(TEST_ORG)
+        org_id = customer_data.get("org_id")
+        token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
 
-        #Attempt to download a file from an empty bucket
-        download_file_url=f"{self.BASE_URL}/downloadfile"
-        params={"customer_guid": customer_guid, "filename": "file.txt"}
-        response=requests.get(download_file_url, params=params)
+        # Test: Attempt to download a non-existent file
+        download_file_url = f"{self.BASE_URL}/downloadfile"
+        params = {"filename": "file.txt"}
+        response = requests.get(download_file_url, params=params, headers=headers)
 
-        #Verify the HTTP response status code for empty bucket (should be 400)
-        if response.status_code==400:
+        # Verify the HTTP response status code for empty bucket (should be 400)
+        if response.status_code == 400:
             logger.info("Correctly received 400 status code for empty bucket.")
         else:
             logger.error(f"Unexpected status code: {response.status_code}. Expected: 400.")
@@ -90,13 +105,15 @@ class TestDownloadFileAPI(unittest.TestCase):
     def test_download_file_without_filename(self):
         logger.info("Testing download request without specifying a filename")
 
-        #Create customer
-        customer_guid=add_customer("test_org_123").get("customer_guid")
+        # Setup: Create a customer and token
+        customer_data = add_customer(TEST_ORG)
+        org_id = customer_data.get("org_id")
+        token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
 
-        #Send request without filename
-        download_file_url=f"{self.BASE_URL}/downloadfile"
-        params={"customer_guid": customer_guid}
-        response=requests.get(download_file_url, params=params)
+        # Test: Attempt to download without a filename
+        download_file_url = f"{self.BASE_URL}/downloadfile"
+        response = requests.get(download_file_url, headers=headers)
 
         #Verify the HTTP response status code for missing filename (should be 422)
         if response.status_code==422:
@@ -114,24 +131,23 @@ class TestDownloadFileAPI(unittest.TestCase):
     def test_download_and_verify_uploaded_files(self):
         logger.info("Testing file download, verification, and file name matching after uploading files")
 
-        #Create a new customer
-        customer_guid=add_customer("new_test_org_1234").get("customer_guid")
-        logger.debug(f"customer guid: {customer_guid}")
-        self.assertIsNotNone(customer_guid, "Customer GUID is missing in the response")
-        logger.info(f"Created customer with GUID: {customer_guid}")
+        #Setup:Create a customer and upload multiple files
+        customer_data = add_customer(TEST_ORG)
+        org_id = customer_data.get("org_id")
+        token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
 
-        #Upload files for the customer
-        upload_file_url=f"{self.BASE_URL}/uploadFile"
-        files_to_upload=[
+        files_to_upload = [
             ("file1.txt", b"Content of file 1", "text/plain"),
             ("file2.txt", b"Content of file 2", "text/plain"),
             ("file3.txt", b"Content of file 3", "text/plain"),
         ]
 
-        for filename, content, mime_type in files_to_upload:
-            file_data={"customer_guid": customer_guid}
-            files={"file": (filename, content, mime_type)}
-            upload_response=requests.post(upload_file_url, data=file_data, files=files)
+        # Upload files
+        upload_file_url = f"{self.BASE_URL}/uploadFile"
+        for filename, content, _ in files_to_upload:
+            files = {"file": (filename, content, "text/plain")}
+            upload_response = requests.post(upload_file_url, files=files, headers=headers)
             self.assertEqual(upload_response.status_code, 200, f"File upload failed for {filename}")
             logger.info(f"Uploaded {filename} successfully.")
 
@@ -143,9 +159,8 @@ class TestDownloadFileAPI(unittest.TestCase):
                 raise AssertionError(f"Expected status code 200 but got {upload_response.status_code}")
 
         #List files for the customer
-        list_files_url=f"{self.BASE_URL}/listfiles"
-        params={"customer_guid": customer_guid}
-        list_response=requests.get(list_files_url, params=params)
+        list_files_url = f"{self.BASE_URL}/listfiles"
+        list_response = requests.get(list_files_url, headers=headers)
 
         #Verify response for file listing
         self.assertEqual(list_response.status_code, 200, "Failed to list files for valid customer_guid")
@@ -162,8 +177,8 @@ class TestDownloadFileAPI(unittest.TestCase):
         #Download and verify each file
         download_file_url=f"{self.BASE_URL}/downloadfile"
         for filename,expected_content, _ in files_to_upload:
-            params={"customer_guid": customer_guid, "filename": filename}
-            download_response=requests.get(download_file_url, params=params)
+            params={"filename": filename}
+            download_response=requests.get(download_file_url, params=params, headers=headers)
 
             #Verify the HTTP response status code
             self.assertEqual(download_response.status_code, 200, f"Failed to download file {filename}")

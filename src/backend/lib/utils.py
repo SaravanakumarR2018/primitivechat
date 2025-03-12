@@ -14,7 +14,6 @@ class CustomerService:
         self.db_manager = DatabaseManager()
 
     def get_customer_guid_from_token(self, request: Request):
-
         decoded_token = get_decoded_token(request)
         org_id = decoded_token.get("org_id")
         if not org_id:

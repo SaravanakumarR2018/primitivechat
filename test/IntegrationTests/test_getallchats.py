@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer,create_test_token
 
 # Set up logging configuration
 logging.basicConfig(
@@ -12,6 +12,9 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Constants
+ORG_ADMIN_ROLE = "org:admin"
 
 class TestGetAllChatsAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
@@ -23,7 +26,12 @@ class TestGetAllChatsAPI(unittest.TestCase):
         # Get valid customer_guid
         customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
+        self.org_id = customer_data.get("org_id")
         logger.info(f"OUTPUT: Received valid customer_guid: {self.valid_customer_guid}")
+
+        # Create a test token for authentication
+        self.token = create_test_token(org_id=self.org_id, org_role=ORG_ADMIN_ROLE)
+        self.headers = {'Authorization': f'Bearer {self.token}'}
 
         logger.info("=== setUp completed successfully ===\n")
 
@@ -31,12 +39,11 @@ class TestGetAllChatsAPI(unittest.TestCase):
         """Helper method to create a new chat and return the chat_id"""
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "who is modi?"
         }
         logger.info(f"INPUT: Creating initial chat with data: {str(chat_data)}")
 
-        chat_response = requests.post(chat_url, json=chat_data)
+        chat_response = requests.post(chat_url, json=chat_data, headers=self.headers)
         logger.info(f"OUTPUT: Chat creation response status: {chat_response.status_code}")
 
         self.assertEqual(chat_response.status_code, 200)
@@ -49,10 +56,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         """Test case 1: Invalid customer_guid and chat_id"""
         logger.info("=== Starting Test Case 1: Wrong customer_guid and wrong chat_id ===")
 
-        url = f"{self.BASE_URL}/getallchats?customer_guid=invalid_customer_guid&chat_id=invalid_chat_id"
+        url = f"{self.BASE_URL}/getallchats?chat_id=invalid_chat_id"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -69,10 +76,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         """Test case 2: Valid customer_guid but invalid chat_id"""
         logger.info("=== Starting Test Case 2: Correct customer_guid and wrong chat_id ===")
 
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id=invalid_chat_id"
+        url = f"{self.BASE_URL}/getallchats?chat_id=invalid_chat_id"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -91,10 +98,17 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info("=== Starting Test Case 3: Wrong customer_guid and correct chat_id ===")
 
         local_chat_id = self.create_chat()  # Create a new chat and get the chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid=invalid_customer_guid&chat_id={local_chat_id}"
+
+        # Simulate a token with an invalid or missing customer_guid
+        invalid_token = create_test_token(org_id="invalid_org_id", org_role="org:admin")
+        invalid_headers = {'Authorization': f'Bearer {invalid_token}'}
+        logger.info("Simulated invalid token with invalid org_id")
+
+        # Send request with invalid token
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=invalid_headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -102,8 +116,8 @@ class TestGetAllChatsAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 404, "Expected status code 404 for invalid customer_guid.")
 
         # Verify that the response text contains the expected error message
-        self.assertIn("no chats found for this customer and chat id", response.text.lower(),
-                      "Expected error message not found in the response.")
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Invalid customer_guid provided")
 
         logger.info("=== Test Case 3 Completed ===\n")
 
@@ -124,11 +138,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         # Create the first message to initiate the chat and get chat_id
         first_message_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": messages_to_add[0]  # Using the first message to start the chat
         }
         logger.info(f"INPUT: Creating initial message with data: {str(first_message_data)}")
-        first_message_response = requests.post(chat_url, json=first_message_data)
+        first_message_response = requests.post(chat_url, json=first_message_data, headers=self.headers)
         logger.info(f"OUTPUT: Initial message creation response status: {first_message_response.status_code}")
         self.assertEqual(first_message_response.status_code, 200, "Failed to create the initial test message.")
 
@@ -139,20 +152,19 @@ class TestGetAllChatsAPI(unittest.TestCase):
         # Now, send additional messages using the same chat_id
         for message in messages_to_add[1:]:  # Skip the first message as it is already sent
             message_data = {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": local_chat_id,  # Ensure to use the same chat_id for all messages
                 "question": message
             }
             logger.info(f"INPUT: Creating message with data: {str(message_data)}")
-            message_response = requests.post(chat_url, json=message_data)
+            message_response = requests.post(chat_url, json=message_data, headers=self.headers)
             logger.info(f"OUTPUT: Message creation response status: {message_response.status_code}")
             self.assertEqual(message_response.status_code, 200, "Failed to create additional test message.")
 
         # Retrieve all chats using the same chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=10"
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=1&page_size=10"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -173,8 +185,6 @@ class TestGetAllChatsAPI(unittest.TestCase):
             for first_message in messages:
                 self.assertEqual(first_message['chat_id'], local_chat_id,
                                  "Chat ID in response does not match the input chat ID")
-                self.assertEqual(first_message['customer_guid'], self.valid_customer_guid,
-                                 "Customer GUID in response does not match the input customer GUID")
 
                 # Log the first_message to inspect its structure
                 logger.info(f"Inspecting message: {first_message}")
@@ -239,21 +249,21 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         for message in messages_to_add:
             message_data = {
-                "customer_guid": self.valid_customer_guid,
+                # "customer_guid": self.valid_customer_guid,
                 "chat_id": local_chat_id,  # Ensure to use the same chat_id for all messages
                 "question": message
             }
             logger.info(f"INPUT: Creating message with data: {str(message_data)}")
-            message_response = requests.post(chat_url, json=message_data)
+            message_response = requests.post(chat_url, json=message_data, headers=self.headers)
             logger.info(f"OUTPUT: Message creation response status: {message_response.status_code}")
             self.assertEqual(message_response.status_code, 200, "Failed to create additional test message.")
 
         # Now test pagination
         for page in range(1, 4):  # Test first three pages
-            url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page={page}&page_size=5"
+            url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page={page}&page_size=5"
             logger.info(f"INPUT: Sending request to: {url}")
 
-            response = requests.get(url)
+            response = requests.get(url, headers=self.headers)
             logger.info(f"OUTPUT: Response status code: {response.status_code}")
             logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -272,11 +282,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         # Step 1: Create an initial chat and get the chat_id
         initial_chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "What are the store hours?"  # This is the initial question
         }
         chat_url = f"{self.BASE_URL}/chat"
-        chat_response = requests.post(chat_url, json=initial_chat_data)
+        chat_response = requests.post(chat_url, json=initial_chat_data, headers=self.headers)
         self.assertEqual(chat_response.status_code, 200, "Failed to create initial chat.")
 
         # Store chat_id locally
@@ -286,20 +295,19 @@ class TestGetAllChatsAPI(unittest.TestCase):
         # Step 2: Add a chat message to the chat using the same chat_id
         message_to_add = "What are the store hours?"  # This is the expected message
         message_data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": local_chat_id,
             "question": message_to_add  # Ensure this key matches what the API expects
         }
         logger.info(f"INPUT: Creating message with data: {str(message_data)}")
-        message_response = requests.post(chat_url, json=message_data)
+        message_response = requests.post(chat_url, json=message_data, headers=self.headers)
         logger.info(f"OUTPUT: Message creation response status: {message_response.status_code}")
         self.assertEqual(message_response.status_code, 200, "Failed to create test message.")
 
         # Step 3: Now retrieve the chat messages using the same chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=1"
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=1&page_size=1"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -339,12 +347,12 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
-        # Check that the status code is 422 (Unprocessable Entity)
-        self.assertEqual(response.status_code, 422, "Expected status code 422 for missing customer_guid.")
+        # Check that the status code is 401 (Unprocessable Entity)
+        self.assertEqual(response.status_code, 401, "Expected status code 401 for missing customer_guid.")
 
         # Verify that the response text contains the expected error message for missing field
-        self.assertIn("field required", response.text.lower(),
-                      "Expected error message for missing customer_guid not found in the response.")
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Authentication required")
 
         logger.info("=== Test Case 7 Completed ===\n")
 
@@ -353,10 +361,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info("=== Starting Test Case 8: Missing chat_id ===")
 
         local_chat_id = self.create_chat()  # Create a new chat and get the chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}"  # Valid customer GUID, but missing chat_id
+        url = f"{self.BASE_URL}/getallchats"  # Valid customer GUID, but missing chat_id
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -374,10 +382,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info("=== Starting Test Case 9: Invalid Page Number ===")
 
         local_chat_id = self.create_chat()  # Create a new chat and get the chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=0&page_size=10"  # Invalid page number
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=0&page_size=10"  # Invalid page number
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -395,10 +403,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info("=== Starting Test Case 10: Invalid Page Size ===")
 
         local_chat_id = self.create_chat()  # Create a new chat and get the chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=0"  # Invalid page size
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=1&page_size=0"  # Invalid page size
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -428,20 +436,19 @@ class TestGetAllChatsAPI(unittest.TestCase):
         chat_url = f"{self.BASE_URL}/chat"
         for message in messages_to_add:
             message_data = {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": local_chat_id,  # Include the chat_id here
                 "question": message  # Ensure this key matches what the API expects
             }
             logger.info(f"INPUT: Creating message with data: {str(message_data)}")
-            message_response = requests.post(chat_url, json=message_data)
+            message_response = requests.post(chat_url, json=message_data, headers=self.headers)
             logger.info(f"OUTPUT: Message creation response status: {message_response.status_code}")
             self.assertEqual(message_response.status_code, 200, "Failed to create test message.")
 
         # Now retrieve all chats using the correct chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=1000"
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=1&page_size=1000"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -467,10 +474,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info("=== Starting Test case 12: High Page Number ===")
 
         local_chat_id = self.create_chat()  # Create a new chat and get the chat_id
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1000&page_size=10"  # High page number
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=1000&page_size=10"  # High page number
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -479,7 +486,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         # Verify that the response text contains the expected error message
         self.assertIn("no chats found for this customer and chat id", response.text.lower(),
-                  "Expected error message not found in the response.")
+                      "Expected error message not found in the response.")
 
         logger.info("=== Test case 12: High Page Number Completed ===\n")
 
@@ -500,20 +507,19 @@ class TestGetAllChatsAPI(unittest.TestCase):
         chat_url = f"{self.BASE_URL}/chat"
         for message in messages_to_add:
             message_data = {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": local_chat_id,
                 "question": message
             }
             logger.info(f"INPUT: Creating message with data: {str(message_data)}")
-            message_response = requests.post(chat_url, json=message_data)
+            message_response = requests.post(chat_url, json=message_data, headers=self.headers)
             logger.info(f"OUTPUT: Message creation response status: {message_response.status_code}")
             self.assertEqual(message_response.status_code, 200, "Failed to create test message.")
 
         # Retrieve chats with a request for 20 chats
-        url = f"{self.BASE_URL}/getallchats?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=20"
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}&page=1&page_size=20"
         logger.info(f"INPUT: Sending request to: {url}")
 
-        response = requests.get(url)
+        response = requests.get(url, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
@@ -553,10 +559,10 @@ class TestGetAllChatsAPI(unittest.TestCase):
         create_chat_url = f"{self.BASE_URL}/chat"
         initial_question = "How do I contact support?"
         create_chat_data = {
-            "customer_guid": self.valid_customer_guid,
+            # "customer_guid": self.valid_customer_guid,
             "question": initial_question
         }
-        response = requests.post(create_chat_url, json=create_chat_data)
+        response = requests.post(create_chat_url, json=create_chat_data, headers=self.headers)
         logger.info(f"Chat creation response status: {response.status_code}, {response.text}")
         self.assertEqual(response.status_code, 200, "Failed to create a new chat.")
 
@@ -578,11 +584,11 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info(f"Adding 5 messages to chat_id: {local_chat_id}")
         for idx, message in enumerate(messages_to_add):
             message_data = {
-                "customer_guid": self.valid_customer_guid,
+                # "customer_guid": self.valid_customer_guid,
                 "chat_id": local_chat_id,
                 "question": message
             }
-            response = requests.post(add_chat_url, json=message_data)
+            response = requests.post(add_chat_url, json=message_data, headers=self.headers)
             logger.info(f"Add Message #{idx + 1}: Response: {response.status_code}, {response.text}")
             self.assertEqual(response.status_code, 200, f"Failed to add message #{idx + 1}")
 
@@ -591,11 +597,11 @@ class TestGetAllChatsAPI(unittest.TestCase):
         # Step 3: Verify messages immediately after adding
         get_chats_url = f"{self.BASE_URL}/getallchats"
         logger.info(
-            f"Verifying messages with data: customer_guid={self.valid_customer_guid}, chat_id={local_chat_id}, page=1, page_size=5")
+            f"Verifying messages with data: chat_id={local_chat_id}, page=1, page_size=5")
 
         # Use GET method with query parameters
         response_verify = requests.get(
-            f"{get_chats_url}?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=5"
+            f"{get_chats_url}?chat_id={local_chat_id}&page=1&page_size=5", headers=self.headers
         )
         logger.info(f"Verify Messages Response: {response_verify.status_code}, {response_verify.text}")
         self.assertEqual(response_verify.status_code, 200, "Failed to verify added messages.")
@@ -633,7 +639,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         # Page 1 - should return first 2 messages
         response_page_1 = requests.get(
-            f"{get_chats_url}?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=1&page_size=2"
+            f"{get_chats_url}?chat_id={local_chat_id}&page=1&page_size=2", headers=self.headers
         )
         self.assertEqual(response_page_1.status_code, 200, "Failed to retrieve chats for page 1")
         messages_page_1 = response_page_1.json().get("messages", [])
@@ -643,7 +649,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         # Page 2 - should return next 2 messages
         response_page_2 = requests.get(
-            f"{get_chats_url}?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=2&page_size=2"
+            f"{get_chats_url}?chat_id={local_chat_id}&page=2&page_size=2", headers=self.headers
         )
         self.assertEqual(response_page_2.status_code, 200, "Failed to retrieve chats for page 2")
         messages_page_2 = response_page_2.json().get("messages", [])
@@ -653,7 +659,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
 
         # Page 3 - should return last message
         response_page_3 = requests.get(
-            f"{get_chats_url}?customer_guid={self.valid_customer_guid}&chat_id={local_chat_id}&page=3&page_size=1"
+            f"{get_chats_url}?chat_id={local_chat_id}&page=3&page_size=1", headers=self.headers
         )
         self.assertEqual(response_page_3.status_code, 200, "Failed to retrieve chats for page 3")
         messages_page_3 = response_page_3.json().get("messages", [])
