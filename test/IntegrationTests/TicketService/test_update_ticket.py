@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token
 
 # Set up logging
 logging.basicConfig(
@@ -20,28 +20,35 @@ logger = logging.getLogger(__name__)
 
 class TestUpdateTicketEndpoint(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
-
+    ORG_ROLE = 'org:admin'
     def setUp(self):
         """Set up test environment: create customer, chat, and ticket."""
         logger.info("=== Setting up test environment ===")
 
-        # Add customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
+        self.headers = {}
+
+        # Create a valid customer
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Initial question"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
 
         # Add a ticket
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title": "Test Ticket",
             "description": "This is a test ticket.",
@@ -50,7 +57,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             "assigned": "support_agent_1",
             "custom_fields": {}
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
         self.valid_ticket_id = response.json().get("ticket_id")
 
@@ -61,11 +68,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Test updating the ticket title."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         update_data = {"title": "Updated Test Ticket"}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket title.")
 
         # Validate the update
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         self.assertEqual(response.json().get("title"), "Updated Test Ticket", "Ticket title update failed.")
 
@@ -73,11 +80,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Test updating the ticket description."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         update_data = {"description": "Updated description."}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket description.")
 
         # Validate the update
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         self.assertEqual(response.json().get("description"), "Updated description.",
                          "Ticket description update failed.")
@@ -86,11 +93,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Test updating the ticket status."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         update_data = {"status": "closed"}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket status.")
 
         # Validate the update
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         self.assertEqual(response.json().get("status"), "closed", "Ticket status update failed.")
 
@@ -98,11 +105,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Test updating the ticket priority."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         update_data = {"priority": "low"}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket priority.")
 
         # Validate the update
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         self.assertEqual(response.json().get("priority"), "Low", "Ticket priority update failed.")
 
@@ -110,11 +117,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Test updating the ticket reported_by field."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         update_data = {"reported_by": "support_agent_2"}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket reported_by field.")
 
         # Validate the update
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         self.assertEqual(response.json().get("reported_by"), "support_agent_2", "Ticket reported_by update failed.")
 
@@ -122,11 +129,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Test updating the ticket assigned field."""
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         update_data = {"assigned": "support_agent_3"}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the ticket assigned field.")
 
         # Validate the update
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         self.assertEqual(response.json().get("assigned"), "support_agent_3", "Ticket assigned update failed.")
 
@@ -146,12 +153,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         # Step 1: Create custom fields for all allowed SQL types
         for custom_field in allowed_custom_field_sql_types:
             custom_field_data = {
-                "customer_guid": self.valid_customer_guid,
                 "field_name": custom_field["field_name"],
                 "field_type": custom_field["field_type"],
                 "required": True
             }
-            response = requests.post(custom_field_url, json=custom_field_data)
+            response = requests.post(custom_field_url, json=custom_field_data, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field: {custom_field}")
             logger.info(f"Custom field created: {custom_field}")
 
@@ -161,12 +167,12 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             custom_field["field_name"]: custom_field["value"] for custom_field in allowed_custom_field_sql_types
         }
         update_data = {"custom_fields": custom_fields_payload}
-        response = requests.put(update_url, json=update_data, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update ticket with custom fields.")
         logger.info(f"Ticket updated with custom fields: {custom_fields_payload}")
 
         # Step 3: Validate the custom field updates
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         retrieved_custom_fields = response.json().get("custom_fields", {})
 
@@ -182,12 +188,12 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             custom_field["field_name"]: None for custom_field in allowed_custom_field_sql_types
         }
         update_data_null = {"custom_fields": null_custom_fields_payload}
-        response = requests.put(update_url, json=update_data_null, params={"customer_guid": self.valid_customer_guid})
+        response = requests.put(update_url, json=update_data_null, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update ticket with null custom fields.")
         logger.info(f"Ticket updated with null custom fields: {null_custom_fields_payload}")
 
         # Step 5: Validate custom fields are removed from ticket
-        response = requests.get(update_url, params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(update_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to retrieve the updated ticket.")
         retrieved_custom_fields = response.json().get("custom_fields", {})
 
@@ -203,7 +209,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         update_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}"
         invalid_update_data = {"priority": "urgent"}  # Invalid priority value
         response = requests.put(update_url, json=invalid_update_data,
-                                params={"customer_guid": self.valid_customer_guid})
+                                headers=self.headers)
 
         # Assert that the response status is 400 Bad Request
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -223,7 +229,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             }
         }
         response = requests.put(update_url, json=invalid_custom_field_data,
-                                params={"customer_guid": self.valid_customer_guid})
+                                headers=self.headers)
 
         # Assert that the response status is 400 Bad Request
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -238,12 +244,11 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         """Helper method to add a custom field."""
         custom_field_url = f"{self.BASE_URL}/custom_fields"
         custom_field_data = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": field_name,
             "field_type": field_type,
             "required": True
         }
-        response = requests.post(custom_field_url, json=custom_field_data)
+        response = requests.post(custom_field_url, json=custom_field_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to add custom field: {field_name}.")
 
     def test_update_ticket_invalid_int_custom_field_value(self):
@@ -258,7 +263,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             }
         }
         response = requests.put(update_url, json=invalid_int_field_data,
-                                params={"customer_guid": self.valid_customer_guid})
+                                headers=self.headers)
 
         # Assert response status is 409 Conflict
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid INT field did not return 400 Conflict.")
@@ -280,7 +285,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             }
         }
         response = requests.put(update_url, json=invalid_boolean_field_data,
-                                params={"customer_guid": self.valid_customer_guid})
+                                headers=self.headers)
 
         # Assert response status is 409 Conflict
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -303,7 +308,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             }
         }
         response = requests.put(update_url, json=invalid_datetime_field_data,
-                                params={"customer_guid": self.valid_customer_guid})
+                                headers=self.headers)
 
         # Assert response status is 409 Conflict
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -326,7 +331,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
             }
         }
         response = requests.put(update_url, json=invalid_float_field_data,
-                                params={"customer_guid": self.valid_customer_guid})
+                                headers=self.headers)
 
         # Assert response status is 409 Conflict
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid FLOAT field did not return 400 Conflict.")
@@ -336,18 +341,21 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         self.assertEqual(response.json().get("detail"), expected_error_message,
                          "Error message for invalid FLOAT field is incorrect.")
 
-    def test_update_ticket_with_invalid_guid(self):
+    def test_update_ticket_with_invalid_org_id_or_customer_guid(self):
         """Test retrieving a ticket by ID with an invalid GUID."""
-        invalid_customer_guid="34e67372-28aa-48e6-8646-54b2578b90a2" #invalid customer_guid
-        response = requests.get(
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        payload={}
+        response = requests.put(
             f"{self.BASE_URL}/tickets/{self.valid_ticket_id}",
-            params={"customer_guid": invalid_customer_guid}
+            json=payload,
+            headers=headers
         )
 
         # Check for 404 error with the appropriate detail message
-        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 400 NOT FOUND for invalid GUID.")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 400 BAD REQUEST for invalid GUID.")
         self.assertEqual(response.json(), {
-            "detail": f"Database customer_{invalid_customer_guid} does not exist"
+            "detail": f"Database customer_None does not exist"
         })
 
     def test_update_ticket_not_found(self):
@@ -355,7 +363,7 @@ class TestUpdateTicketEndpoint(unittest.TestCase):
         invalid_ticket_id = "nonexistent_ticket_id"
         response = requests.get(
             f"{self.BASE_URL}/tickets/{invalid_ticket_id}",
-            params={"customer_guid": self.valid_customer_guid}
+            headers=self.headers
         )
 
         # Check if the response is as expected for invalid ticket ID

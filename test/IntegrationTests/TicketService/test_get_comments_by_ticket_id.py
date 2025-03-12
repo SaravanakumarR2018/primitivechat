@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token
 
 # Configure logging
 logging.basicConfig(
@@ -19,28 +19,35 @@ logger = logging.getLogger(__name__)
 
 class TestGetCommentsByTicketId(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
-
+    ORG_ROLE = 'org:admin'
     def setUp(self):
         """Setup before each test."""
         logger.info("=== Setting up test environment ===")
 
+        self.headers = {}
+
         # Create a valid customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         # Create a valid chat
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "How can I reset my password?"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
 
         # Create a valid ticket
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title":"This is title",
             "description": "Issue with login",
@@ -48,7 +55,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             "reported_by":"user@email.com",
             "assigned":"user@email.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
         self.valid_ticket_id = response.json().get("ticket_id")
 
@@ -58,12 +65,11 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test retrieving paginated comments with an invalid ticket ID."""
         add_comment_url = f"{self.BASE_URL}/add_comment"
         comment_data = {
-            "customer_guid": self.valid_customer_guid,
             "ticket_id": self.valid_ticket_id,
             "posted_by": "user@email.com",
             "comment": "This is a test comment."
         }
-        response = requests.post(add_comment_url, json=comment_data)
+        response = requests.post(add_comment_url, json=comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Expected 201 Created for valid comment")
         response_data = response.json()
         self.assertEqual(response_data["ticket_id"], self.valid_ticket_id, "Ticket ID mismatch")
@@ -74,10 +80,10 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         response = requests.get(
             f"{self.BASE_URL}/tickets/{invalid_ticket_id}/comments",
             params={
-                "customer_guid": self.valid_customer_guid,
                 "page": 1,
                 "page_size": 10
-            }
+            },
+            headers=self.headers
         )
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND, "Expected 400 BAD REQUEST for invalid ticket ID")
         self.assertEqual(response.json(), {
@@ -90,25 +96,21 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         comment_url = f"{self.BASE_URL}/add_comment"
         comment_data = [
             {
-                "customer_guid": self.valid_customer_guid,
                 "ticket_id": self.valid_ticket_id,
                 "posted_by": "user@email.com",
                 "comment": "This is a test comment.1"
             },
             {
-                "customer_guid": self.valid_customer_guid,
                 "ticket_id": self.valid_ticket_id,
                 "posted_by": "user@email.com",
                 "comment": "This is a test comment.2"
             },
             {
-                "customer_guid": self.valid_customer_guid,
                 "ticket_id": self.valid_ticket_id,
                 "posted_by": "user@email.com",
                 "comment": "This is a test comment.3"
             },
             {
-                "customer_guid": self.valid_customer_guid,
                 "ticket_id": self.valid_ticket_id,
                 "posted_by": "user@email.com",
                 "comment": "This is a test comment.4"
@@ -116,17 +118,17 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         ]
         # Post the comments
         for data in comment_data:
-            response = requests.post(comment_url, json=data)
+            response = requests.post(comment_url, json=data, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create comment: {data['comment']}")
 
         # Retrieve paginated comments for the ticket
         response = requests.get(
             f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments",
             params={
-                "customer_guid": self.valid_customer_guid,
                 "page": 1,
                 "page_size": 2  # Set page size to 2 for pagination
-            }
+            },
+            headers=self.headers
         )
 
         # Validate the response status
@@ -153,35 +155,35 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             self.assertIn("updated_at", comment_response, f"Missing 'updated_at' timestamp for comment {i + 1}")
             self.assertIn("comment_id", comment_response, f"Missing 'comment_id' for comment {i + 1}")
 
-    def test_get_comment_wrong_customer_guid(self):
+    def test_get_comment_wrong_org_id_or_customer_guid(self):
         """Test getting a comment with an invalid customer GUID."""
-        invalid_customer_guid = "a39a3076-f45f-4bb1-9945-700330b5e549"  # Invalid GUID
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
         response = requests.get(
             f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments",
             params={
-                "customer_guid": invalid_customer_guid,
                 "page": 1,
                 "page_size": 2  # Set page size to 2 for pagination
-            }
+            },
+            headers=headers
         )
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 400 for invalid customer_guid")
 
         error_detail = response.json().get("detail")
-        self.assertEqual(error_detail, f"Database customer_{invalid_customer_guid} does not exist",
+        self.assertEqual(error_detail, f"Database customer_None does not exist",
                          "Unexpected error message for invalid customer_guid")
 
-    def _add_50_comments(self, valid_customer_guid, valid_ticket_id, number_of_comments=50):
+    def _add_50_comments(self, headers, valid_ticket_id, number_of_comments=50):
         comment_url = f"{self.BASE_URL}/add_comment"
 
         for i in range(1, number_of_comments + 1):
             comment_data = {
-                "customer_guid": valid_customer_guid,
                 "ticket_id": valid_ticket_id,
                 "posted_by": f"user_{i}",
                 "comment": f"This is test comment number {i}"
             }
 
-            response = requests.post(comment_url, json=comment_data)
+            response = requests.post(comment_url, json=comment_data, headers=headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create comment #{i}")
             logger.info(f"Comment #{i} added successfully")
 
@@ -189,21 +191,29 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test pagination for comments retrieved by ticket ID."""
         logger.info("Testing pagination for comments with different page sizes.")
 
-        valid_customer_guid = add_customer("test_org").get("customer_guid")
+        headers={}
+
+        # Create a valid customer
+        data = add_customer("test_org")
+        valid_customer_guid = data.get("customer_guid")
+        org_id = data.get("org_id")
+
+        # Create Test Token
+        token = create_test_token(org_id=org_id, org_role=self.ORG_ROLE)
+        headers['Authorization'] = f'Bearer {token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": valid_customer_guid,
             "question": "How can I reset my password?"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         valid_chat_id = response.json().get("chat_id")
 
         # Create a valid ticket
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
-            "customer_guid": valid_customer_guid,
             "chat_id": valid_chat_id,
             "title": "This is title",
             "description": "Issue with login",
@@ -211,12 +221,12 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             "reported_by": "user@email.com",
             "assigned": "user@email.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
         valid_ticket_id = response.json().get("ticket_id")
 
         # Add 50 comments to the ticket for testing pagination
-        self._add_50_comments(valid_customer_guid, valid_ticket_id)
+        self._add_50_comments(headers, valid_ticket_id)
 
         # Define different page sizes for pagination testing
         page_sizes = [10, 20, 50]
@@ -230,8 +240,8 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             # Fetch comments page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?customer_guid={valid_customer_guid}&page={page_num}&page_size={per_page}"
-                response = requests.get(page_url)
+                page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?page={page_num}&page_size={per_page}"
+                response = requests.get(page_url, headers=headers)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
                     logger.info(f"Reached the end of available pages for per_page={per_page}")
@@ -296,21 +306,29 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test pagination when page size exceeds the number of available comments."""
         logger.info("Testing pagination for comments with page size greater than the total number of comments.")
 
-        valid_customer_guid = add_customer("test_org").get("customer_guid")
+        headers = {}
+
+        # Create a valid customer
+        data = add_customer("test_org")
+        valid_customer_guid = data.get("customer_guid")
+        org_id = data.get("org_id")
+
+        # Create Test Token
+        token = create_test_token(org_id=org_id, org_role=self.ORG_ROLE)
+        headers['Authorization'] = f'Bearer {token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": valid_customer_guid,
             "question": "How can I reset my password?"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         valid_chat_id = response.json().get("chat_id")
 
         # Create a valid ticket
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
-            "customer_guid": valid_customer_guid,
             "chat_id": valid_chat_id,
             "title": "This is title",
             "description": "Issue with login",
@@ -318,20 +336,20 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             "reported_by": "user@email.com",
             "assigned": "user@email.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
         valid_ticket_id = response.json().get("ticket_id")
 
         # Add 50 comments to the ticket for testing pagination
-        self._add_50_comments(valid_customer_guid, valid_ticket_id)
+        self._add_50_comments(headers, valid_ticket_id)
 
         # Set a page size greater than the total number of comments
         large_page_size = 100  # A page size larger than the total number of comments
 
         # Fetch the first page of comments
         page_num = 1
-        page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?customer_guid={valid_customer_guid}&page={page_num}&page_size={large_page_size}"
-        response = requests.get(page_url)
+        page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?page={page_num}&page_size={large_page_size}"
+        response = requests.get(page_url, headers=headers)
 
         # Validate the response status
         self.assertEqual(
@@ -384,12 +402,13 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
         logger.info(f"Test passed for page_size={large_page_size}, with only 50 comments returned as expected.")
 
-    def _delete_comment(self, ticket_id, comment_id, valid_customer_guid):
+    def _delete_comment(self, ticket_id, comment_id, headers):
         """Delete a specific comment for a ticket."""
         logger.info(f"Deleting comment {comment_id} for ticket {ticket_id}.")
         response = requests.delete(
             f"{self.BASE_URL}/delete_comment",
-            params={"ticket_id": ticket_id, "comment_id": comment_id, "customer_guid": valid_customer_guid}
+            params={"ticket_id": ticket_id, "comment_id": comment_id},
+            headers=headers
         )
         if response.status_code != HTTPStatus.OK:
             logger.error(f"Failed to delete comment {comment_id} for ticket {ticket_id}. Server response: {response.text}")
@@ -400,21 +419,29 @@ class TestGetCommentsByTicketId(unittest.TestCase):
         """Test pagination for comments retrieved by ticket ID, including comment deletion."""
         logger.info("Testing pagination for comments with different page sizes and deletion.")
 
-        valid_customer_guid = add_customer("test_org").get("customer_guid")
+        headers = {}
+
+        # Create a valid customer
+        data = add_customer("test_org")
+        valid_customer_guid = data.get("customer_guid")
+        org_id = data.get("org_id")
+
+        # Create Test Token
+        token = create_test_token(org_id=org_id, org_role=self.ORG_ROLE)
+        headers['Authorization'] = f'Bearer {token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": valid_customer_guid,
             "question": "How can I reset my password?"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         valid_chat_id = response.json().get("chat_id")
 
         # Create a valid ticket
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
-            "customer_guid": valid_customer_guid,
             "chat_id": valid_chat_id,
             "title": "This is title",
             "description": "Issue with login",
@@ -422,12 +449,12 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             "reported_by": "user@email.com",
             "assigned": "user@email.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a ticket")
         valid_ticket_id = response.json().get("ticket_id")
 
         # Add 50 comments to the ticket for testing pagination
-        self._add_50_comments(valid_customer_guid, valid_ticket_id)
+        self._add_50_comments(headers, valid_ticket_id)
 
         # Define different page sizes for pagination testing
         page_sizes = [10, 20, 50]
@@ -437,7 +464,7 @@ class TestGetCommentsByTicketId(unittest.TestCase):
 
         # Delete specific comments
         for comment_id in comment_ids_to_delete:
-            self._delete_comment(valid_ticket_id, comment_id, valid_customer_guid)
+            self._delete_comment(valid_ticket_id, comment_id, headers)
 
         for per_page in page_sizes:
             logger.info(f"Testing with per_page={per_page}")
@@ -448,8 +475,8 @@ class TestGetCommentsByTicketId(unittest.TestCase):
             # Fetch comments page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?customer_guid={valid_customer_guid}&page={page_num}&page_size={per_page}"
-                response = requests.get(page_url)
+                page_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}/comments?page={page_num}&page_size={per_page}"
+                response = requests.get(page_url, headers=headers)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
                     logger.info(f"Reached the end of available pages for per_page={per_page}")

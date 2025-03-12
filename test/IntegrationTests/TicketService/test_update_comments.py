@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token
 
 # Configure logging
 logging.basicConfig(
@@ -20,21 +20,29 @@ logger = logging.getLogger(__name__)
 class TestUpdateCommentAPI(unittest.TestCase):
 
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
-
+    ORG_ROLE = 'org:admin'
     def setUp(self):
         """Set up test environment by creating a customer, ticket, and comment."""
         logger.info("=== Setting up test environment ===")
 
-        # Add customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
+        self.headers = {}
+
+        # Create a valid customer
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Initial question"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
 
@@ -43,13 +51,12 @@ class TestUpdateCommentAPI(unittest.TestCase):
         ticket_data = {
             "title": "Test Ticket",
             "description": "Test description",
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "priority": "medium",
             "reported_by": "user@example.com",
             "assigned": "agent@example.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create ticket")
         self.valid_ticket_id = response.json().get("ticket_id")
         logger.info(f"Ticket created with ID: {self.valid_ticket_id}")
@@ -57,13 +64,12 @@ class TestUpdateCommentAPI(unittest.TestCase):
         # Add comment
         comment_url = f"{self.BASE_URL}/add_comment"
         comment_data = {
-            "customer_guid": self.valid_customer_guid,
             "ticket_id": self.valid_ticket_id,
             "posted_by": "test_user",
             "comment": "This is a test comment"
         }
 
-        response = requests.post(comment_url, json=comment_data)
+        response = requests.post(comment_url, json=comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a comment")
         self.valid_comment_id = response.json().get("comment_id")
         logger.info(f"Comment created with ID: {self.valid_comment_id}")
@@ -74,13 +80,12 @@ class TestUpdateCommentAPI(unittest.TestCase):
         update_comment_url = f"{self.BASE_URL}/update_comment"
         params = {
             "ticket_id": self.valid_ticket_id,
-            "comment_id": self.valid_comment_id,
-            "customer_guid": self.valid_customer_guid
+            "comment_id": self.valid_comment_id
         }
 
         # Get the current comment details before the update
         get_comment_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments/{self.valid_comment_id}"
-        comment_before_update_response = requests.get(get_comment_url, params=params)
+        comment_before_update_response = requests.get(get_comment_url, params=params, headers=self.headers)
         self.assertEqual(comment_before_update_response.status_code, HTTPStatus.OK,
                          "Failed to fetch comment before update")
         comment_before_update = comment_before_update_response.json()
@@ -97,11 +102,11 @@ class TestUpdateCommentAPI(unittest.TestCase):
         }
 
         # Update the comment
-        response = requests.put(update_comment_url, params=params, json=update_comment_data)
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to update the comment")
 
         # Get the updated comment
-        updated_comment_response = requests.get(get_comment_url, params=params)
+        updated_comment_response = requests.get(get_comment_url, params=params, headers=self.headers)
         self.assertEqual(updated_comment_response.status_code, HTTPStatus.OK, "Failed to fetch updated comment")
         updated_comment = updated_comment_response.json()
 
@@ -129,15 +134,14 @@ class TestUpdateCommentAPI(unittest.TestCase):
         invalid_ticket_id="9999"
         params = {
             "ticket_id": invalid_ticket_id,  # Invalid ticket_id
-            "comment_id": self.valid_comment_id,
-            "customer_guid": self.valid_customer_guid
+            "comment_id": self.valid_comment_id
         }
         update_comment_data = {
             "comment": "This comment update should fail",
             "posted_by": "test_user"  # Ensure posted_by is included
         }
 
-        response = requests.put(update_comment_url, params=params, json=update_comment_data)
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND, "Expected failure for invalid ticket ID")
 
         error_detail = response.json().get("detail")
@@ -150,13 +154,12 @@ class TestUpdateCommentAPI(unittest.TestCase):
         params = {
             "ticket_id": self.valid_ticket_id,
             "comment_id": self.valid_comment_id,
-            "customer_guid": self.valid_customer_guid
         }
 
         # Payload missing the 'comment' and 'posted_by' fields
         incomplete_update_data = {}
 
-        response = requests.put(update_comment_url, params=params, json=incomplete_update_data)
+        response = requests.put(update_comment_url, params=params, json=incomplete_update_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY, "Expected failure for missing fields")
 
         error_details = response.json().get("detail")
@@ -169,24 +172,25 @@ class TestUpdateCommentAPI(unittest.TestCase):
                 f"Error message should indicate missing '{field}' field"
             )
 
-    def test_update_comment_invalid_customer_guid(self):
+    def test_update_comment_invalid_org_id_or_customer_guid(self):
         """Test updating a comment with an invalid customer_guid."""
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
         update_comment_url = f"{self.BASE_URL}/update_comment"
         params = {
             "ticket_id": self.valid_ticket_id,
             "comment_id": self.valid_comment_id,
-            "customer_guid": "invalid_customer_guid"
         }
         update_comment_data = {
             "posted_by": "test_user",
             "comment": "This comment update should fail"
         }
 
-        response = requests.put(update_comment_url, params=params, json=update_comment_data)
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected failure for invalid customer_guid")
 
         error_detail = response.json().get("detail")
-        expected_error_message = "Database customer_invalid_customer_guid does not exist"
+        expected_error_message = "Database customer_None does not exist"
         self.assertEqual(error_detail, expected_error_message, "Unexpected error message for invalid customer_guid")
 
     def test_update_comment_invalid_comment_id(self):
@@ -196,14 +200,13 @@ class TestUpdateCommentAPI(unittest.TestCase):
         params = {
             "ticket_id": self.valid_ticket_id,
             "comment_id": invalid_comment_id,  # Invalid comment ID
-            "customer_guid": self.valid_customer_guid
         }
         update_comment_data = {
             "posted_by": "test_user",
             "comment": "This comment update should fail"
         }
 
-        response = requests.put(update_comment_url, params=params, json=update_comment_data)
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND, "Expected failure for invalid comment_id")
 
         error_detail = response.json().get("detail")
@@ -216,14 +219,13 @@ class TestUpdateCommentAPI(unittest.TestCase):
         params = {
             "ticket_id": self.valid_ticket_id,
             "comment_id": self.valid_comment_id,
-            "customer_guid": self.valid_customer_guid
         }
         update_comment_data = {
             "posted_by": "unauthorized_user",  # Different from the actual posted_by
             "comment": "This update should fail due to unauthorized access"
         }
 
-        response = requests.put(update_comment_url, params=params, json=update_comment_data)
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
                          "Expected failure for unauthorized comment update")
 
