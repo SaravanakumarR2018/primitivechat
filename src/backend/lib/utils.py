@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class CustomerService:
     def __init__(self):
-        self.db_manager=DatabaseManager()
+        self.db_manager = DatabaseManager()
 
     def get_customer_guid_from_token(self, request: Request):
         decoded_token = get_decoded_token(request)

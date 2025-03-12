@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token
 
 # Configure logging
 logging.basicConfig(
@@ -21,21 +21,30 @@ class TestCreateTicketAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
+    ORG_ROLE = 'org:admin'
 
     def setUp(self):
         """Set up test environment: create customer, chat, and custom fields."""
         logger.info("=== Setting up test environment ===")
 
-        # Add customer
-        self.valid_customer_guid =  add_customer("test_org").get("customer_guid")
+        self.headers = {}
+
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Initial question"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
 
@@ -45,12 +54,11 @@ class TestCreateTicketAPI(unittest.TestCase):
         for field_type in self.allowed_custom_field_sql_types:
             field_name = f"field_{field_type.split('(')[0].lower()}"
             payload = {
-                "customer_guid": self.valid_customer_guid,
                 "field_name": field_name,
                 "field_type": field_type,
                 "required": False
             }
-            response = requests.post(custom_fields_url, json=payload)
+            response = requests.post(custom_fields_url, json=payload, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
             self.custom_fields[field_name] = field_type
 
@@ -61,7 +69,6 @@ class TestCreateTicketAPI(unittest.TestCase):
         """Test creating a ticket with valid custom field values."""
         url = f"{self.BASE_URL}/tickets"
         payload = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title": "Valid Custom Fields Test",
             "description": "This ticket has valid custom fields.",
@@ -71,7 +78,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         }
 
         logger.info("Testing ticket creation with valid custom field values.")
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=self.headers)
 
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Ticket creation with valid custom fields should return 201.")
         self.assertIn("ticket_id", response.json())
@@ -81,7 +88,6 @@ class TestCreateTicketAPI(unittest.TestCase):
         """Test creating a ticket with valid custom field values."""
         url = f"{self.BASE_URL}/tickets"
         payload = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title": "Valid Custom Fields Test",
             "description": "This ticket has valid custom fields.",
@@ -100,7 +106,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         }
 
         logger.info("Testing ticket creation with valid custom field values.")
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=self.headers)
 
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Ticket creation with valid custom fields should return 201.")
         self.assertIn("ticket_id", response.json())
@@ -123,7 +129,6 @@ class TestCreateTicketAPI(unittest.TestCase):
         for field, invalid_value in invalid_custom_fields.items():
             with self.subTest(field=field, value=invalid_value):
                 payload = {
-                    "customer_guid": self.valid_customer_guid,
                     "chat_id": self.valid_chat_id,
                     "title": f"Invalid Custom Field Test for {field}",
                     "description": f"Testing invalid value for {field}.",
@@ -136,7 +141,7 @@ class TestCreateTicketAPI(unittest.TestCase):
                 }
 
                 logger.info(f"Testing {field} with invalid value: {invalid_value}")
-                response = requests.post(url, json=payload)
+                response = requests.post(url, json=payload, headers=self.headers)
 
                 # Assert the API returns a 400 BAD REQUEST
                 self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -152,7 +157,6 @@ class TestCreateTicketAPI(unittest.TestCase):
         """Test creating a ticket with an invalid priority."""
         url = f"{self.BASE_URL}/tickets"
         payload = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title": "Invalid Priority Test",
             "description": "Testing invalid priority field.",
@@ -162,7 +166,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         }
 
         logger.info("Testing ticket creation with invalid priority.")
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=self.headers)
 
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid priority should return 400.")
         self.assertIn("Invalid priority", response.text)
@@ -177,12 +181,11 @@ class TestCreateTicketAPI(unittest.TestCase):
         for field_type in self.allowed_custom_field_sql_types:
             field_name = f"required_field_{field_type.split('(')[0].lower()}"
             payload = {
-                "customer_guid": self.valid_customer_guid,
                 "field_name": field_name,
                 "field_type": field_type,
                 "required": True
             }
-            response = requests.post(custom_fields_url, json=payload)
+            response = requests.post(custom_fields_url, json=payload, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
             logger.info(f"Created custom field {field_name} with required:true")
 
@@ -190,7 +193,6 @@ class TestCreateTicketAPI(unittest.TestCase):
             logger.info(f"Testing ticket creation with missing required custom field {field_name}")
 
             ticket_payload = {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "title": f"Ticket without {field_name}",
                 "description": f"This ticket does not include the required custom field '{field_name}'.",
@@ -199,7 +201,7 @@ class TestCreateTicketAPI(unittest.TestCase):
                 "assigned": "agent@example.com"
             }
 
-            response = requests.post(url, json=ticket_payload)
+            response = requests.post(url, json=ticket_payload, headers=self.headers)
 
             # Assert that the response returns 400 Bad Request due to missing required custom field
             self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -221,7 +223,6 @@ class TestCreateTicketAPI(unittest.TestCase):
         non_existent_field = "random_field"  # Custom field name that does not exist
 
         payload = {
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "title": "Ticket with Non-Existent Custom Field",
             "description": "This ticket has a custom field that does not exist.",
@@ -234,7 +235,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         }
 
         logger.info(f"Testing ticket creation with non-existent custom field: {non_existent_field}")
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=self.headers)
 
         # Assert that the response returns 400 Bad Request or 404 Not Found
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -250,13 +251,12 @@ class TestCreateTicketAPI(unittest.TestCase):
     def test_create_ticket_missing_mandatory_fields(self):
         """Test creating a ticket with each mandatory field missing individually."""
         url = f"{self.BASE_URL}/tickets"
-        mandatory_fields = ["title", "description", "customer_guid", "chat_id", "reported_by", "assigned"]
+        mandatory_fields = ["title", "description", "chat_id", "reported_by", "assigned"]
 
         # Base payload with all fields
         base_payload = {
             "title": "Missing Mandatory Field Test",
             "description": "Testing missing mandatory fields.",
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "priority": "medium",
             "reported_by": "user@example.com",
@@ -270,7 +270,7 @@ class TestCreateTicketAPI(unittest.TestCase):
                 payload.pop(field)
 
                 logger.info(f"Testing missing mandatory field: {field}")
-                response = requests.post(url, json=payload)
+                response = requests.post(url, json=payload, headers=self.headers)
 
                 # Assert that the API returns 422 Unprocessable Entity
                 self.assertEqual(
@@ -291,7 +291,7 @@ class TestCreateTicketAPI(unittest.TestCase):
 
         logger.info("Test case for missing mandatory fields passed.")
 
-    def test_create_ticket_invalid_customer_guid(self):
+    def test_create_ticket_invalid_org_id_or_customer_guid(self):
         """Test creating a ticket with an invalid customer_guid."""
         url = f"{self.BASE_URL}/tickets"
 
@@ -300,15 +300,17 @@ class TestCreateTicketAPI(unittest.TestCase):
         payload = {
             "title": "Invalid Customer GUID Test",
             "description": "Testing invalid customer_guid.",
-            "customer_guid": invalid_customer_guid,
             "chat_id": self.valid_chat_id,
             "priority": "medium",
             "reported_by": "user@example.com",
             "assigned": "agent@example.com"
         }
 
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+
         logger.info("Testing with invalid customer_guid.")
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=headers)
 
         # Assert that the API returns 400 Bad Request
         self.assertEqual(
@@ -326,14 +328,14 @@ class TestCreateTicketAPI(unittest.TestCase):
             response_data,
             "Response should contain 'detail' key."
         )
-        expected_message = f"Database customer_{invalid_customer_guid} does not exist"
+        expected_message = f"Database customer_None does not exist"
         self.assertEqual(
             response_data["detail"],
             expected_message,
             f"Error message for invalid customer_guid is incorrect. Expected '{expected_message}', got '{response_data['detail']}'."
         )
 
-        logger.info("Test case for invalid customer_guid with 400 Bad Request passed.")
+        logger.info("Test case for invalid org_id/customer_guid with 400 Bad Request passed.")
 
     def test_create_ticket_invalid_chat_id(self):
         """Test creating a ticket with an invalid chat_id."""
@@ -352,7 +354,7 @@ class TestCreateTicketAPI(unittest.TestCase):
         }
 
         logger.info("Testing with invalid chat_id.")
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, headers=self.headers)
 
         # Assert that the API returns 400 Bad Request
         self.assertEqual(

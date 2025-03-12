@@ -60,7 +60,7 @@ async def add_customer(request: Request):
 
         # Check if customer already exists for the given org_id
         existing_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(org_id)
-        if (existing_customer_guid):
+        if existing_customer_guid:
             logger.info(f"Customer already exists for org_id: {org_id}, GUID: {existing_customer_guid}")
             return {"org_id": org_id, "customer_guid": existing_customer_guid}
 
@@ -116,10 +116,12 @@ async def upload_File(request: Request, file:UploadFile=File(...)):
 
         # Get customer_guid from the token
         customer_guid = customer_service.get_customer_guid_from_token(request)
+        logger.info(f"Uploading file '{file.filename}' of type '{file.content_type}' for customer '{customer_guid}'")
+
         if not customer_guid:
             logger.error("Invalid or missing customer_guid in token")
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
-
+           
         #call MinioManager to Upload the file
         minio_manager.upload_file(
             bucket_name=customer_guid,
@@ -146,11 +148,9 @@ async def upload_File(request: Request, file:UploadFile=File(...)):
 async def list_files(request: Request):
     logger.debug(f"Entering list_files() with Correlation ID: {request.state.correlation_id}")
     try:
-        # Get customer_guid from the token
         customer_guid = customer_service.get_customer_guid_from_token(request)
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
-
         # Call MinioManager to get the file list
         file_list = minio_manager.list_files(bucket_name=customer_guid)
         if file_list:
@@ -176,7 +176,7 @@ async def list_files(request: Request):
 
 @app.get("/downloadfile", tags=["File Management"])
 @Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def download_file(request: Request, filename: str):
+async def download_file(request:Request, filename:str):
     logger.debug(f"Entering download_file() with Correlation ID:{request.state.correlation_id}")
     try:
 
@@ -219,7 +219,46 @@ async def download_file(request: Request, filename: str):
 @Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def chat(request: Request, chat_request: ChatRequest):
     logger.debug(f"Entering chat() with Correlation ID: {request.state.correlation_id}")
+     # Get customer_guid from the token
+    customer_guid = customer_service.get_customer_guid_from_token(request)
 
+    # Call the add_message function for the user's question
+    user_response = db_manager.add_message(
+        customer_guid,
+        chat_request.question,
+        sender_type=SenderType.CUSTOMER,
+        chat_id=chat_request.chat_id
+    )
+
+    # Check if the response indicates an error
+    if 'error' in user_response:
+        logger.error(
+            f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
+        raise HTTPException(status_code=400, detail=user_response['error'])
+
+    # Now handle the system response
+    system_response = "You will get the correct answer once AI is integrated."
+    system_response_result = db_manager.add_message(
+        customer_guid,
+        system_response,
+        sender_type=SenderType.SYSTEM,
+        chat_id=user_response['chat_id']  # Use the chat_id returned from user message
+    )
+
+    # Log if the system message was not added successfully
+    if 'error' in system_response_result:
+        logger.error(
+            f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
+        # Do not raise an exception, just log the error
+
+    logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
+
+    # Return both chat_id and system response, indicating success regardless of the system message status
+    return {
+        "chat_id": user_response['chat_id'],
+        "customer_guid": customer_guid,
+        "answer": system_response
+    }
     try:
         # Get customer_guid from the token
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -270,7 +309,6 @@ async def chat(request: Request, chat_request: ChatRequest):
         logger.error(f"Unexpected error in chat(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred during chat processing")
 
-
 # API endpoint to retrieve chat messages in reverse chronological order (paginated)
 @app.get("/getallchats", tags=["Chat Management"])
 @Authenticate_and_check_role(allowed_roles=["org:admin"])
@@ -282,6 +320,11 @@ async def get_all_chats(
 ):
     logger.debug(f"Entering get_all_chats() with Correlation ID: {request.state.correlation_id}")
 
+    # Get customer_guid from the token
+    customer_guid = customer_service.get_customer_guid_from_token(request)
+
+    # Call the database manager to get paginated chat messages
+    messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page, page_size)
     try:
         # Get customer_guid from the token
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -294,7 +337,6 @@ async def get_all_chats(
         if not messages:
             logger.error("No chats found for this customer and chat ID")
             raise HTTPException(status_code=404, detail="No chats found for this customer and chat ID")
-
         logger.debug(f"Exiting get_all_chats() with Correlation ID: {request.state.correlation_id}")
         return {"messages": messages}
 
@@ -311,6 +353,14 @@ async def get_all_chats(
 @Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def delete_chats(request: Request, delete_chats_request: DeleteChatsRequest):
     logger.debug(f"Entering delete_chats() with Correlation ID: {request.state.correlation_id}")
+    # Get customer_guid from the token
+    customer_guid = customer_service.get_customer_guid_from_token(request)
+    result = db_manager.delete_chat_messages(customer_guid, delete_chats_request.chat_id)
+    if result is None:
+        logger.error("Failed to delete chats")
+        raise HTTPException(status_code=500, detail="Failed to delete chats")
+    logger.debug(f"Exiting delete_chats() with Correlation ID: {request.state.correlation_id}")
+    return {"message": "Chat deleted successfully"}
     try:
         # Get customer_guid from the token
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -328,4 +378,3 @@ async def delete_chats(request: Request, delete_chats_request: DeleteChatsReques
     except Exception as e:
         logger.error(f"Unexpected error in delete_chats(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while deleting chats")
-
