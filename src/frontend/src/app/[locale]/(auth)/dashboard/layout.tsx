@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { getCustomerGuid } from '@/api/backend-sdk/sendToken';
+import ErrorPage from '@/components/ui/error_page';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
 
 export async function generateMetadata(props: { params: { locale: string } }) {
@@ -21,10 +22,14 @@ export default async function DashboardLayout(props: { children: React.ReactNode
   // eslint-disable-next-line no-console
   console.log('🔹 Fetching user in DashboardLayout...');
 
-  const customerGuid = await getCustomerGuid(); // Now using the cache-based function
-
-  // eslint-disable-next-line no-console
-  console.log('Customer GUID:', customerGuid); // Should log the GUID or null
+  try {
+    const customerGuid = await getCustomerGuid(); // Now using the cache-based function
+    // eslint-disable-next-line no-console
+    console.log('Customer GUID:', customerGuid);
+  } catch (error) {
+    console.error('Error fetching customer GUID:', error);
+    return <ErrorPage />;
+  }
 
   return (
     <>
@@ -36,7 +41,6 @@ export default async function DashboardLayout(props: { children: React.ReactNode
                 href: '/dashboard',
                 label: t('home'),
               },
-              // PRO: Link to the /dashboard/todos page
               {
                 href: '/dashboard/organization-profile/organization-members',
                 label: t('members'),
@@ -51,9 +55,8 @@ export default async function DashboardLayout(props: { children: React.ReactNode
               },
               {
                 href: '/dashboard/chat',
-                label: ('Chatbot'),
+                label: 'Chatbot',
               },
-              // PRO: Link to the /dashboard/billing page
             ]}
           />
         </div>

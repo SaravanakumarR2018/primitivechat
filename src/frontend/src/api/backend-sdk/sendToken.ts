@@ -11,65 +11,54 @@ const customerCache = new Map<string, string>();
 /**
  * Centralized logger function
  */
-function logMessage(level: 'info' | 'warn' | 'error', message: string, ...args: any[]) {
-  if (process.env.NODE_ENV !== 'production' || level === 'error') {
+function logMessage(level: 'debug' | 'info' | 'warn' | 'error', message: string, ...args: any[]) {
+  if (process.env.NODE_ENV !== 'production' || level === 'error' || level === 'debug') {
     // eslint-disable-next-line no-console
-    console[level](`[${level.toUpperCase()}] ${message}`, ...args);
+    console[level === 'debug' ? 'log' : level](`[${level.toUpperCase()}] ${message}`, ...args);
   }
-}
-
-/**
- * Log the current state of customerCache
- */
-function logCustomerCache() {
-  logMessage('info', 'Current customerCache contents:', Array.from(customerCache.entries()));
 }
 
 /**
  * Fetch customer GUID for the authenticated user (Ensures API is called only once per session)
  */
-export async function getCustomerGuid(): Promise<string | null> {
+export async function getCustomerGuid(): Promise<string> {
   try {
-    logMessage('info', 'Fetching Clerk auth token...');
+    logMessage('debug', 'Fetching Clerk auth token...');
 
     const authData = auth();
     const { orgId } = authData;
     const token = await authData.getToken();
 
     if (!orgId || !token) {
-      logMessage('error', 'Missing Clerk orgId or token. Authentication failed.');
-      return null;
+      throw new Error('Missing Clerk orgId or token. Authentication failed.');
     }
 
     // If orgId exists in cache, return stored GUID (avoid duplicates)
     if (customerCache.has(orgId)) {
-      logMessage('info', `Customer GUID found in cache for this orgId: ${orgId}`);
-      logCustomerCache(); // Log the cache contents
+      logMessage('debug', `Customer GUID found in cache for orgId: ${orgId}, customer GUID: ${customerCache.get(orgId)}`);
       return customerCache.get(orgId)!;
     }
 
     // First-time call to API
-    const customerGuid = await fetchCustomerGuid(orgId, token);
+    const customerGuid = await fetchCustomerGuid(token);
 
     if (customerGuid && !customerCache.has(orgId)) {
       // Store in cache only if not already stored
       customerCache.set(orgId, customerGuid);
-      logMessage('info', `Stored new customer GUID in cache for this orgId: ${orgId}`);
+      logMessage('info', `Stored new customer GUID in cache for orgId: ${orgId}, customer GUID: ${customerGuid}`);
     }
-
-    logCustomerCache(); // Log cache after storing new entry
 
     return customerGuid;
   } catch (error) {
     logMessage('error', 'Error fetching customer GUID', error);
-    return null;
+    throw error; // Ensure the error propagates to the caller
   }
 }
 
 /**
  * Fetch customer GUID from backend (called only if not in cache)
  */
-async function fetchCustomerGuid(orgId: string, token: string): Promise<string | null> {
+async function fetchCustomerGuid(token: string): Promise<string> {
   const apiUrl = `http://${CHAT_SERVICE_HOST}:${CHAT_SERVICE_PORT}/addcustomer`;
 
   try {
@@ -81,27 +70,23 @@ async function fetchCustomerGuid(orgId: string, token: string): Promise<string |
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ orgId }),
     });
 
     if (!response.ok) {
-      logMessage('error', `API Error: ${response.status} ${response.statusText}`);
-      return null;
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     const customerGuid = data.customer_guid;
 
     if (!customerGuid) {
-      logMessage('error', 'No GUID returned from API');
-      return null;
+      throw new Error('No GUID returned from API');
     }
 
     logMessage('info', `Received customer GUID from API: ${customerGuid}`);
-
     return customerGuid;
   } catch (error) {
     logMessage('error', 'API request failed', error);
-    return null;
+    throw error;
   }
 }
