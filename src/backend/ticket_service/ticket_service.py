@@ -3,7 +3,6 @@ import re
 from datetime import datetime
 from http import HTTPStatus
 from typing import List, Optional, Dict, Any, Union
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, StrictBool
@@ -116,9 +115,9 @@ class CommentDeleteResponse(BaseModel):
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
 async def add_custom_field(request: Request, custom_field: CustomField):
     """Add a new custom field to a customer's tickets"""
-    # Retrieve the mapped customer_guid
-    existing_customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        # Retrieve the mapped customer_guid
+        existing_customer_guid = customer_service.get_customer_guid_from_token(request)
         # Add custom field to the database using retrieved customer_guid
         success = db_manager.add_custom_field(
             str(existing_customer_guid),
@@ -154,9 +153,9 @@ async def list_custom_fields(
     page_size: int = 10
 ):
     """List all custom fields for a customer with pagination."""
-    # Retrieve the mapped customer_guid
-    customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        # Retrieve the mapped customer_guid
+        customer_guid = customer_service.get_customer_guid_from_token(request)
         # Call the modified list_paginated_custom_fields to get paginated results
         paginated_fields = db_manager.list_paginated_custom_fields(str(customer_guid), page, page_size)
 
@@ -202,9 +201,10 @@ async def list_custom_fields(
 @app.delete("/custom_fields/{field_name}", tags=["Custom Field Management"])
 async def delete_custom_field(request: Request, field_name: str):
     """Delete a custom field"""
-    # Retrieve the mapped customer_guid
-    existing_customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        # Retrieve the mapped customer_guid
+        existing_customer_guid = customer_service.get_customer_guid_from_token(request)
+
         result = db_manager.delete_custom_field(str(existing_customer_guid), field_name)
 
         if result["status"] == "deleted":
@@ -250,8 +250,9 @@ async def delete_custom_field(request: Request, field_name: str):
 @app.post("/tickets", response_model=TicketResponse, status_code=HTTPStatus.CREATED, tags=["Ticket Management"])
 async def create_ticket(request:Request, ticket: TicketRequest):
     """Create a new ticket"""
-    existing_customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        existing_customer_guid = customer_service.get_customer_guid_from_token(request)
+
         logger.debug(f"Received ticket data: {ticket}")
         # Call the database method to create the ticket
         db_response = db_manager.create_ticket(
@@ -285,7 +286,8 @@ async def create_ticket(request:Request, ticket: TicketRequest):
     except SQLAlchemyError as e:
         logger.error(f"Database error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
-
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Unexpected error in creating ticket: {e}")
         raise HTTPException(
@@ -297,7 +299,10 @@ async def create_ticket(request:Request, ticket: TicketRequest):
 @app.get("/tickets/{ticket_id}", response_model=Ticket, tags=["Ticket Management"])
 async def get_ticket(request:Request, ticket_id: str):
     """Retrieve a ticket by ID"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         ticket = db_manager.get_ticket_by_id(ticket_id, str(customer_guid))
 
@@ -330,7 +335,10 @@ async def get_tickets_by_chat_id(
         page_size: int = 10
 ):
     """Retrieve all tickets for a specific chat_id with pagination"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         tickets = db_manager.get_paginated_tickets_by_chat_id(str(customer_guid), chat_id, page, page_size)
 
@@ -367,8 +375,9 @@ async def get_tickets_by_chat_id(
 @app.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
 async def update_ticket(request:Request, ticket_id: str, ticket_update: TicketUpdate):
     """Update an existing ticket"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+
         update_status = db_manager.update_ticket(ticket_id, str(customer_guid), ticket_update)
 
         if update_status["status"] == "updated":
@@ -421,8 +430,9 @@ async def update_ticket(request:Request, ticket_id: str, ticket_update: TicketUp
 @app.delete("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
 async def delete_ticket(ticket_id: str, request:Request):
     """Delete a ticket and corresponding custom fields"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+
         result = db_manager.delete_ticket(ticket_id, str(customer_guid))
 
         if result["status"] == "deleted":
@@ -502,8 +512,8 @@ def extract_core_error_details(message):
 async def create_comment(request:Request, comment: CommentRequest):
     """Create a new comment for a ticket"""
     logger.debug(f"Received comment data: {comment}")
-    customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
         # Call the database method to create the comment
         logger.debug("Calling DBManager.create_comment")
         db_response = db_manager.create_comment(
@@ -535,7 +545,8 @@ async def create_comment(request:Request, comment: CommentRequest):
     except SQLAlchemyError as e:
         logger.error(f"Database error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
-
+    except HTTPException as e:
+            raise e
     except Exception as e:
         logger.error(f"Unexpected error in creating comment: {e}")
         raise HTTPException(
@@ -547,7 +558,10 @@ async def create_comment(request:Request, comment: CommentRequest):
 @app.get("/tickets/{ticket_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
 async def get_comment(request:Request, comment_id: str, ticket_id: str):
     """Retrieve a comment by ID"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         comment = db_manager.get_comment_by_id(comment_id, str(customer_guid), ticket_id)
 
@@ -581,7 +595,10 @@ async def get_comments_by_ticket_id(
         page_size: int = 10
 ):
     """Retrieve all comments for a specific ticket_id"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         comments = db_manager.get_paginated_comments_by_ticket_id(str(customer_guid), ticket_id, page, page_size)
 
@@ -618,8 +635,8 @@ async def get_comments_by_ticket_id(
 @app.put("/update_comment", response_model=Comment, tags=["Comment Management"])
 async def update_comment(request:Request, ticket_id: str, comment_id: str, comment_update: CommentUpdate):
     """Update an existing comment"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
         logger.debug(f"Updating comment - Ticket ID: {ticket_id}, Comment ID: {comment_id}, Update: {comment_update}, Customer GUID: {customer_guid}")
         update_status = db_manager.update_comment(ticket_id, comment_id, str(customer_guid), comment_update)
 
@@ -686,8 +703,9 @@ async def update_comment(request:Request, ticket_id: str, comment_id: str, comme
 @app.delete("/delete_comment", response_model=CommentDeleteResponse, tags=["Comment Management"])
 async def delete_comment(request:Request, ticket_id: str, comment_id: str):
     """Delete a comment for a specific ticket."""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+
         result = db_manager.delete_comment(ticket_id, comment_id, str(customer_guid))
 
         if result["status"] == "deleted":
@@ -732,14 +750,17 @@ async def delete_comment(request:Request, ticket_id: str, comment_id: str):
         )
 
 @Authenticate_and_check_role(allowed_roles=["org:admin"])
-@app.get("/tickets/customer/{customer_guid}", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
+@app.get("/tickets/customer/", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
 async def get_tickets_by_customer_guid(
     request:Request,
     page: int = 1,
     page_size: int = 10
 ):
     """Retrieve all tickets for a specific customer_guid with pagination"""
-    customer_guid = customer_service.get_customer_guid_from_token(request)
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         logger.debug(f"Received customer_guid: {customer_guid}, page: {page}, page_size: {page_size}")
         tickets = db_manager.get_paginated_tickets_by_customer_guid(str(customer_guid), page, page_size)
