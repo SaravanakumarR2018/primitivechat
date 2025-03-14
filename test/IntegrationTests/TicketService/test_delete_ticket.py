@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_role, create_token_without_org_id
 
 # Configure logging
 logging.basicConfig(
@@ -22,24 +22,31 @@ class TestDeleteTicketAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
-
+    ORG_ROLE = 'org:admin'
     def setUp(self):
         """Setup function to initialize a valid customer GUID, chat, and ticket."""
         logger.info("=== Initializing test setup for Delete Ticket API ===")
 
-        # Step 1: Create a new customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
-        logger.info(f"Customer created with GUID: {self.valid_customer_guid}")
+        self.headers = {}
+
+        # Create a valid customer
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         self.custom_fields = {}
 
         # Step 2: Create a new chat for the customer
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Initial question"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create chat")
         self.valid_chat_id = response.json().get("chat_id")
         logger.info(f"Chat created with ID: {self.valid_chat_id}")
@@ -52,29 +59,27 @@ class TestDeleteTicketAPI(unittest.TestCase):
         ticket_data = {
             "title": "Test Ticket",
             "description": "Test description",
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "priority": "medium",
             "reported_by": "user@example.com",
             "assigned": "agent@example.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create ticket")
         valid_ticket_id = response.json().get("ticket_id")
         logger.info(f"Ticket created with ID: {valid_ticket_id}")
         """Test deleting a valid ticket and verifying the response."""
-        delete_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}?customer_guid={self.valid_customer_guid}"
+        delete_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}"
         logger.info(f"Deleting valid ticket with ID: {valid_ticket_id}")
 
-        response = requests.delete(delete_url)
+        response = requests.delete(delete_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to delete valid ticket")
         response_data = response.json()
         self.assertEqual(response_data["ticket_id"], valid_ticket_id)
         self.assertEqual(response_data["status"], "deleted")
         logger.info("Successfully deleted valid ticket.")
 
-        response = requests.get(f"{self.BASE_URL}/tickets/{valid_ticket_id}",
-                                params={"customer_guid": self.valid_customer_guid})
+        response = requests.get(f"{self.BASE_URL}/tickets/{valid_ticket_id}", headers=self.headers)
         logger.info(f"Get ticket {valid_ticket_id} response status: {response.status_code}")
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
                          f"Ticket {valid_ticket_id} should not exist but was found.")
@@ -85,45 +90,41 @@ class TestDeleteTicketAPI(unittest.TestCase):
     def test_delete_non_existent_ticket(self):
         """Test deleting a non-existent ticket."""
         non_existent_ticket_id = "non_existent_ticket_12345"
-        delete_url = f"{self.BASE_URL}/tickets/{non_existent_ticket_id}?customer_guid={self.valid_customer_guid}"
+        delete_url = f"{self.BASE_URL}/tickets/{non_existent_ticket_id}"
         logger.info(f"Deleting non-existent ticket with ID: {non_existent_ticket_id}")
 
-        response = requests.delete(delete_url)
+        response = requests.delete(delete_url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to delete non_existent_ticket_12345 ticket")
         response_data = response.json()
         self.assertEqual(response_data["ticket_id"], non_existent_ticket_id)
         self.assertEqual(response_data["status"], "deleted")
         logger.info("Successfully deleted valid ticket.")
 
-    def test_delete_ticket_invalid_customer_guid(self):
+    def test_delete_ticket_invalid_org_id_customer_guid(self):
         """Test deleting a ticket with an invalid customer GUID."""
         ticket_url = f"{self.BASE_URL}/tickets"
         ticket_data = {
             "title": "Test Ticket",
             "description": "Test description",
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "priority": "medium",
             "reported_by": "user@example.com",
             "assigned": "agent@example.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create ticket")
         valid_ticket_id = response.json().get("ticket_id")
         logger.info(f"Ticket created with ID: {valid_ticket_id}")
         """Test deleting a valid ticket and verifying the response."""
-        delete_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}?customer_guid={self.valid_customer_guid}"
-        logger.info(f"Deleting valid ticket with ID: {valid_ticket_id}")
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        delete_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}"
 
-        invalid_customer_guid = "invalid_guid_12345"
-        delete_url = f"{self.BASE_URL}/tickets/{valid_ticket_id}?customer_guid={invalid_customer_guid}"
-        logger.info(f"Deleting ticket with invalid customer GUID: {invalid_customer_guid}")
-
-        response = requests.delete(delete_url)
+        response = requests.delete(delete_url, headers=headers)
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected 400 for invalid customer GUID")
         response_data = response.json()
         self.assertIn("detail", response_data)
-        self.assertEqual(response_data["detail"], f"Database customer_{invalid_customer_guid} does not exist")
+        self.assertEqual(response_data["detail"], f"Database customer_None does not exist")
         logger.info("Successfully validated deletion with invalid customer GUID.")
 
     def _generate_field_value(self, field_type):
@@ -151,13 +152,12 @@ class TestDeleteTicketAPI(unittest.TestCase):
         for field_type in self.allowed_custom_field_sql_types:
             field_name = f"field_{field_type.split('(')[0].lower()}"
             payload = {
-                "customer_guid": self.valid_customer_guid,
                 "field_name": field_name,
                 "field_type": field_type,
                 "required": False
             }
 
-            response = requests.post(custom_fields_url, json=payload)
+            response = requests.post(custom_fields_url, json=payload, headers=self.headers)
             if response.status_code != HTTPStatus.CREATED:
                 logger.error(f"Failed to create custom field '{field_name}': {response.text}")
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field '{field_name}'")
@@ -171,7 +171,6 @@ class TestDeleteTicketAPI(unittest.TestCase):
             ticket_data = {
                 "title": f"Ticket for {field_type}",
                 "description": f"Testing ticket with custom field {field_name}",
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "priority": "medium",
                 "reported_by": "user@example.com",
@@ -181,7 +180,7 @@ class TestDeleteTicketAPI(unittest.TestCase):
                 }
             }
 
-            response = requests.post(ticket_url, json=ticket_data)
+            response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
             if response.status_code != HTTPStatus.CREATED:
                 logger.error(f"Failed to create ticket for '{field_name}': {response.text}")
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create ticket with '{field_name}'")
@@ -192,8 +191,8 @@ class TestDeleteTicketAPI(unittest.TestCase):
 
         # Step 3: Delete Tickets Individually
         for ticket_id in self.tickets:
-            delete_url = f"{ticket_url}/{ticket_id}?customer_guid={self.valid_customer_guid}"
-            response = requests.delete(delete_url)
+            delete_url = f"{ticket_url}/{ticket_id}"
+            response = requests.delete(delete_url, headers=self.headers)
             if response.status_code != HTTPStatus.OK:
                 logger.error(f"Failed to delete ticket '{ticket_id}': {response.text}")
             self.assertEqual(response.status_code, HTTPStatus.OK, f"Failed to delete ticket '{ticket_id}'")
@@ -201,7 +200,7 @@ class TestDeleteTicketAPI(unittest.TestCase):
 
             logger.info(f"Verifying ticket {ticket_id} no longer exists.")
             response = requests.get(f"{self.BASE_URL}/tickets/{ticket_id}",
-                                    params={"customer_guid": self.valid_customer_guid})
+                                    headers=self.headers)
             logger.info(f"Get ticket {ticket_id} response status: {response.status_code}")
             self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
                              f"Ticket {ticket_id} should not exist but was found.")
@@ -218,12 +217,11 @@ class TestDeleteTicketAPI(unittest.TestCase):
         for field_type in self.allowed_custom_field_sql_types:
             field_name = f"field_{field_type.split('(')[0].lower()}"
             payload = {
-                "customer_guid": self.valid_customer_guid,
                 "field_name": field_name,
                 "field_type": field_type,
                 "required": False
             }
-            response = requests.post(custom_fields_url, json=payload)
+            response = requests.post(custom_fields_url, json=payload, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
             self.custom_fields[field_name] = field_type
 
@@ -232,7 +230,6 @@ class TestDeleteTicketAPI(unittest.TestCase):
         # Create 50 tickets with custom fields
         tickets = [
             {
-                "customer_guid": self.valid_customer_guid,
                 "chat_id": self.valid_chat_id,
                 "title": f"Ticket {i}",
                 "description": f"Description for ticket {i}",
@@ -246,7 +243,7 @@ class TestDeleteTicketAPI(unittest.TestCase):
 
         # Add each ticket via POST request
         for ticket in tickets:
-            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket)
+            response = requests.post(f"{self.BASE_URL}/tickets", json=ticket, headers=self.headers)
             if response.status_code != HTTPStatus.CREATED:
                 logger.error(f"Failed to add ticket: {ticket['title']}. Server response: {response.text}")
             self.assertEqual(
@@ -270,7 +267,7 @@ class TestDeleteTicketAPI(unittest.TestCase):
         for ticket_id in ticket_ids_to_delete:
             logger.info(f"Deleting ticket {ticket_id}.")
             response = requests.delete(f"{self.BASE_URL}/tickets/{ticket_id}",
-                                       params={"customer_guid": self.valid_customer_guid})
+                                       headers=self.headers)
             if response.status_code != HTTPStatus.OK:
                 logger.error(f"Failed to delete ticket {ticket_id}. Server response: {response.text}")
             self.assertEqual(response.status_code, HTTPStatus.OK, f"Failed to delete ticket {ticket_id}")
@@ -280,13 +277,95 @@ class TestDeleteTicketAPI(unittest.TestCase):
         for ticket_id in ticket_ids_to_delete:
             logger.info(f"Verifying ticket {ticket_id} no longer exists.")
             response = requests.get(f"{self.BASE_URL}/tickets/{ticket_id}",
-                                    params={"customer_guid": self.valid_customer_guid})
+                                    headers=self.headers)
             logger.info(f"Get ticket {ticket_id} response status: {response.status_code}")
             self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
                              f"Ticket {ticket_id} should not exist but was found.")
             self.assertIn("not found", response.json().get("detail", "").lower(),
                           f"Unexpected error message for ticket {ticket_id}: {response.json().get('detail')}")
             logger.info(f"Confirmed ticket {ticket_id} does not exist.")
+
+    def test_delete_tickets_no_token(self):
+        """Test API request without an authentication token."""
+        logger.info("Testing API request without token")
+        ticket_id=1
+        response = requests.delete(f"{self.BASE_URL}/tickets/{ticket_id}") # No headers
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Missing token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Missing Token leads to Unauthorized")
+
+    def test_delete_tickets_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        ticket_id = 1
+        headers = {"Authorization": "Bearer corrupted_token"}
+        logger.info("Testing API request with corrupted token")
+        response = requests.delete(
+            f"{self.BASE_URL}/tickets/{ticket_id}",
+            headers=headers
+        )
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_delete_tickets_missing_org_id_in_token(self):
+        """Test API request where the token does not have an org_id."""
+        ticket_id=1
+        token = create_token_without_org_id(org_role=self.ORG_ROLE)  # No org_id
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Testing API request with missing org_id in token")
+        response = requests.delete(
+            f"{self.BASE_URL}/tickets/{ticket_id}",
+            headers=headers
+        )
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Missing org_id should result in 400 Bad Request")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+    def test_delete_tickets_missing_org_role_in_token(self):
+        """Test API request where the token does not have an org_role."""
+        ticket_id=1
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        logger.info("Testing API request with missing org_role in token")
+        response = requests.delete(
+            f"{self.BASE_URL}/tickets/{ticket_id}",
+            headers=headers
+        )
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN, "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_delete_tickets_unauthorized_org_role(self):
+        headers={}
+        ticket_id=1
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        data = add_customer("test_org")
+        org_id = data.get("org_id")
+
+        # Create Test Token for member (not allowed)
+        token = create_test_token(org_id=org_id, org_role="org:random_org_role")
+        headers['Authorization'] = f'Bearer {token}'
+        response = requests.delete(
+            f"{self.BASE_URL}/tickets/{ticket_id}",
+            headers=headers
+        )
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_delete_tickets_invalid_org_id_no_mapped_customer_guid(self):
+        """Test API request with an org_id that has no mapped customer_guid."""
+        ticket_id=1
+        invalid_token = create_test_token(org_id="unmapped_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        logger.info("Testing API request with org_id that has no mapped customer_guid")
+        response = requests.delete(
+            f"{self.BASE_URL}/tickets/{ticket_id}",
+            headers=headers
+        )
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Unmapped org_id should result in 400 Bad Request")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def tearDown(self):
         """Clean up resources if necessary."""
