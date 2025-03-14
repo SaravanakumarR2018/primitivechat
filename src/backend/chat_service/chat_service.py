@@ -100,7 +100,8 @@ async def add_customer(request: Request):
         logger.debug(f"Exiting add_customer() with Customer GUID: {mapping_result.get('customer_guid')}")
 
         return {"org_id": mapping_result['org_id'], "customer_guid": mapping_result['customer_guid']}
-
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
