@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer,create_test_token
+from utils.api_utils import add_customer,create_test_token, create_token_without_org_id,create_token_without_org_role
 
 # Set up logging configuration
 logging.basicConfig(
@@ -219,6 +219,77 @@ class TestChatAPI(unittest.TestCase):
         self.assertEqual(response_json.get("detail"), "Authentication required")
 
         logger.info("=== Test Case 7 Completed ===\n")
+        
+    def test_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        headers = {"Authorization": "Bearer corrupted_token"}
+        url = f"{self.BASE_URL}/chat"
+        data = {
+            "chat_id": self.valid_chat_id,
+            "question": "Test question"
+        }
+
+        logger.info("Testing API request with corrupted token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, 401, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+        logger.info("=== Test Case 8 Completed ===\n")
+
+    def test_chat_token_without_org_role(self):
+        logger.info("Testing chat API with a token missing org_role")
+
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(self.org_id)}'}
+        url = f"{self.BASE_URL}/chat"
+        data = {
+            "chat_id": self.valid_chat_id,
+            "question": "Test question"
+        }
+        response = requests.post(url, json=data, headers=headers)
+
+        self.assertEqual(response.status_code, 403, "Expected status code 403 for missing org_role")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+        logger.info("=== Test Case 9 Completed ===\n")
+
+    def test_chat_token_without_org_id(self):
+        logger.info("Testing chat API with a token missing org_id")
+
+        url = f"{self.BASE_URL}/chat"
+        headers = {'Authorization': f'Bearer {create_token_without_org_id(ORG_ADMIN_ROLE)}'}
+        data = {
+            "chat_id": self.valid_chat_id,
+            "question": "Test question"
+        }
+        response = requests.post(url, json=data, headers=headers)
+
+        # Expect 400 Bad Request
+        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+        logger.info("=== Test Case 10 Completed ===\n")
+
+    def test_chat_no_mapping_customer_guid(self):
+        logger.info("Testing chat API with no mapping between org_id and customer_guid")
+
+        # Create a new org_id without mapping it to a customer_guid
+        org_id = "unmapped_org_id"
+        token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
+
+        url = f"{self.BASE_URL}/chat"
+        data = {
+            "chat_id": self.valid_chat_id,
+            "question": "Test question"
+        }
+        response = requests.post(url, json=data, headers=headers)
+
+        self.assertEqual(response.status_code, 404, "Expected status code 404 for unmapped org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
+
+        logger.info("=== Test Case 11 Completed ===\n")    
 
 
 if __name__ == "__main__":
