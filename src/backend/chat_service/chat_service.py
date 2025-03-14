@@ -159,6 +159,8 @@ async def list_files(request: Request):
             logger.info(f"No files found in bucket '{customer_guid}'")
 
         return {"files": file_list}
+    except HTTPException as e:
+        raise e    
     except Exception as e:
         if isinstance(e, HTTPException):
             if e.status_code == 404:
