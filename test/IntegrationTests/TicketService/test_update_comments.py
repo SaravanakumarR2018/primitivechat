@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer, create_test_token
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_id, create_token_without_org_role
 
 # Configure logging
 logging.basicConfig(
@@ -233,6 +233,125 @@ class TestUpdateCommentAPI(unittest.TestCase):
         expected_error_message = "You are not authorized to update this comment."
         self.assertEqual(error_detail, expected_error_message,
                          "Unexpected error message for unauthorized comment update")
+
+    def test_update_comment_no_token(self):
+        """Test API request without an authentication token."""
+        update_comment_url = f"{self.BASE_URL}/update_comment"
+        params = {
+            "ticket_id": self.valid_ticket_id,
+            "comment_id": self.valid_comment_id,
+        }
+        update_comment_data = {
+            "posted_by": "user123",
+            "comment": "This update should fail due to unauthorized access"
+        }
+
+        response = requests.put(update_comment_url, params=params, json=update_comment_data)  # No headers
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Missing token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Missing Token leads to Unauthorized")
+
+    def test_update_comment_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        headers = {"Authorization": "Bearer corrupted_token"}
+        logger.info("Testing API request with corrupted token")
+        update_comment_url = f"{self.BASE_URL}/update_comment"
+        params = {
+            "ticket_id": self.valid_ticket_id,
+            "comment_id": self.valid_comment_id,
+        }
+        update_comment_data = {
+            "posted_by": "user1",  # Different from the actual posted_by
+            "comment": "This update should fail due to unauthorized access"
+        }
+
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_update_comment_missing_org_id_in_token(self):
+        """Test API request where the token does not have an org_id."""
+        token = create_token_without_org_id(org_role=self.ORG_ROLE)  # No org_id
+        headers = {"Authorization": f"Bearer {token}"}
+        update_comment_url = f"{self.BASE_URL}/update_comment"
+        params = {
+            "ticket_id": self.valid_ticket_id,
+            "comment_id": self.valid_comment_id,
+        }
+        update_comment_data = {
+            "posted_by": "user1",  # Different from the actual posted_by
+            "comment": "This update should fail due to unauthorized access"
+        }
+
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=headers)
+
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Missing org_id should result in 400 Bad Request")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+    def test_update_comment_missing_org_role_in_token(self):
+        """Test API request where the token does not have an org_role."""
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        logger.info("Testing API request with missing org_role in token")
+        update_comment_url = f"{self.BASE_URL}/update_comment"
+        params = {
+            "ticket_id": self.valid_ticket_id,
+            "comment_id": self.valid_comment_id,
+        }
+        update_comment_data = {
+            "posted_by": "user1",  # Different from the actual posted_by
+            "comment": "This update should fail due to unauthorized access"
+        }
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN, "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_update_comment_unauthorized_org_role(self):
+        headers={}
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        data = add_customer("test_org")
+        org_id = data.get("org_id")
+
+        # Create Test Token for member (not allowed)
+        token = create_test_token(org_id=org_id, org_role="org:random_org_role")
+        headers['Authorization'] = f'Bearer {token}'
+        update_comment_url = f"{self.BASE_URL}/update_comment"
+        params = {
+            "ticket_id": self.valid_ticket_id,
+            "comment_id": self.valid_comment_id,
+        }
+        update_comment_data = {
+            "posted_by": "user1",  # Different from the actual posted_by
+            "comment": "This update should fail due to unauthorized access"
+        }
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_update_comment_invalid_org_id_no_mapped_customer_guid(self):
+        """Test API request with an org_id that has no mapped customer_guid."""
+        update_comment_url = f"{self.BASE_URL}/update_comment"
+        invalid_token = create_test_token(org_id="unmapped_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        params = {
+            "ticket_id": self.valid_ticket_id,
+            "comment_id": self.valid_comment_id,
+        }
+        update_comment_data = {
+            "posted_by": "user1",  # Different from the actual posted_by
+            "comment": "This update should fail due to unauthorized access"
+        }
+        response = requests.put(update_comment_url, params=params, json=update_comment_data, headers=headers)
+        logger.info("Testing API request with org_id that has no mapped customer_guid")
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Unmapped org_id should result in 400 Bad Request")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def tearDown(self):
         """Clean up after each test."""

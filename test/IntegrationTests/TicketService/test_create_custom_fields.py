@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer, create_test_token
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_id, create_token_without_org_role
 
 # Configure logging
 logging.basicConfig(
@@ -284,6 +284,105 @@ class TestCustomFieldAPI(unittest.TestCase):
                          f"Unexpected error message for long field_name: {long_field_name}")
 
         logger.info(f"Test case for overly long field_name passed.")
+
+    def test_add_custom_field_no_token(self):
+        """Test API request without an authentication token."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_no_token",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        logger.info("Testing API request without token")
+        response = requests.post(url, json=data)  # No headers
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Missing token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Missing Token leads to Unauthorized")
+
+    def test_add_custom_field_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_corrupt_token",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        headers = {"Authorization": "Bearer corrupted_token"}
+        logger.info("Testing API request with corrupted token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_add_custom_field_missing_org_id_in_token(self):
+        """Test API request where the token does not have an org_id."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_missing_org_id",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        token = create_token_without_org_id(org_role=self.ORG_ROLE)  # No org_id
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Testing API request with missing org_id in token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Missing org_id should result in 400 Bad Request")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+    def test_add_custom_field_missing_org_role_in_token(self):
+        """Test API request where the token does not have an org_role."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_missing_org_role",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        logger.info("Testing API request with missing org_role in token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN, "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_add_custom_field_unauthorized_org_role(self):
+        headers={}
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        data = add_customer("test_org")
+        valid_customer_guid = data.get("customer_guid")
+        org_id = data.get("org_id")
+
+        # Create Test Token for member (not allowed)
+        token = create_test_token(org_id=org_id, org_role="org:random_org_role")
+        headers['Authorization'] = f'Bearer {token}'
+
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_invalid_org",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_add_custom_field_invalid_org_id_no_mapped_customer_guid(self):
+        """Test API request with an org_id that has no mapped customer_guid."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_invalid_org",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        invalid_token = create_test_token(org_id="unmapped_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        logger.info("Testing API request with org_id that has no mapped customer_guid")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Unmapped org_id should result in 400 Bad Request")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def tearDown(self):
         """Clean up resources if necessary."""
