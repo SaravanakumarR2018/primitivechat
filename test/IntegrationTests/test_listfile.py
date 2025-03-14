@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer, create_test_token
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_id, create_token_without_org_role
 
 logging.basicConfig(
     level=logging.INFO,
@@ -178,6 +178,82 @@ class TestListFileAPI(unittest.TestCase):
         self.assertEqual(set(listed_files), set(expected_file_names),"File names in response do not match uploaded files")
 
         logger.info("Successfully tested file listing after uploading three files")
+        
+    def test_list_without_token(self):
+        """Test case: list file without a token"""
+        logger.info("Executing test_list_file_without_token: Testing error handling for missing token")
+
+        url = f"{self.BASE_URL}/listfiles"
+        logger.info(f"Sending GET request to {url}")
+
+        # Make the get request without a token
+        response = requests.get(url)
+        logger.info(f"OUTPUT: Response status code: {response.status_code}")
+        logger.info(f"OUTPUT: Response content: {response.text}")
+
+        self.assertEqual(response.status_code, 401)
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Authentication required")
+        logger.info("Test completed successfully for test_listfiles_without_token")
+
+    def test_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        headers = {"Authorization": "Bearer corrupted_token"}
+        url = f"{self.BASE_URL}/listfiles"
+
+        logger.info("Testing API request with corrupted token")
+        response = requests.get(url, headers=headers)
+        self.assertEqual(response.status_code, 401, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+        logger.info("Test completed successfully for test_corrupted_token")
+
+    def test_list_files_token_without_org_role(self):
+        logger.info("Testing list files API with a token missing org_role")
+
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        list_files_url = f"{self.BASE_URL}/listfiles"
+        response = requests.get(list_files_url, headers=headers)
+
+        self.assertEqual(response.status_code, 403, "Expected status code 403 for missing org_role")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+        logger.info("Successfully tested list files API with token missing org_role")
+
+    def test_list_files_token_without_org_id(self):
+        logger.info("Testing list files API with a token missing org_id")
+
+        list_files_url = f"{self.BASE_URL}/listfiles"
+        headers = {'Authorization': f'Bearer {create_token_without_org_id("org:admin")}'}
+        response = requests.get(list_files_url, headers=headers)
+
+        # Expect 400 Bad Request
+        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+        logger.info("Successfully tested list files API with token missing org_id")
+
+
+    def test_list_files_no_mapping_customer_guid(self):
+        logger.info("Testing list files API with no mapping between org_id and customer_guid")
+
+        # Create a new org_id without mapping it to a customer_guid
+        org_id = "unmapped_org_id"
+        token = create_test_token(org_id=org_id, org_role="org:admin")
+        headers = {'Authorization': f'Bearer {token}'}
+
+        list_files_url = f"{self.BASE_URL}/listfiles"
+        response = requests.get(list_files_url, headers=headers)
+
+        self.assertEqual(response.status_code, 404, "Expected status code 404 for unmapped org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
+
+        logger.info("Successfully tested list files API with no mapping between org_id and customer_guid")
+    
 
 
 if __name__ == "__main__":
