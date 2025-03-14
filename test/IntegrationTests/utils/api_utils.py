@@ -122,6 +122,40 @@ def add_customer(org_id: str):
         logger.error(f"Failed to add customer: {e}")
         raise e
 
+# Helper function to create a token without org_id
+def create_token_without_org_id(org_role: str):
+    payload = {
+        "azp": "http://localhost:3000",
+            "exp": int(time.time()) + 365 * 24 * 3600,
+            "fva": [2, -1],
+            "iat": int(time.time()),
+            "iss": "https://valued-phoenix-52.clerk.accounts.dev",
+            "nbf": 1741279970,
+            "org_permissions": [],
+            "org_role": org_role,
+            "org_slug": "simple",
+            "sid": "sess_2tx3NSrSqGUYSSVpgp58jImNzLq",
+            "sub": "user_2t4DF5pHXlYpHZ6n5yjVzFVrctQ",
+        }
+    return TEST_TOKEN_PREFIX + jwt.encode(payload, TEST_SECRET, algorithm="HS256")
+
+# Helper function to create a token without org_role
+def create_token_without_org_role(org_id: str):
+    payload = {
+            "azp": "http://localhost:3000",
+            "exp": int(time.time()) + 365 * 24 * 3600,
+            "fva": [2, -1],
+            "iat": int(time.time()),
+            "iss": "https://valued-phoenix-52.clerk.accounts.dev",
+            "nbf": 1741279970,
+            "org_id": org_id,
+            "org_permissions": [],
+            "org_slug": "simple",
+            "sid": "sess_2tx3NSrSqGUYSSVpgp58jImNzLq",
+            "sub": "user_2t4DF5pHXlYpHZ6n5yjVzFVrctQ",
+    }
+    return TEST_TOKEN_PREFIX + jwt.encode(payload, TEST_SECRET, algorithm="HS256")
+
 
 
 # Example Usage
