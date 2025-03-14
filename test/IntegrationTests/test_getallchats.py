@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer,create_test_token
+from utils.api_utils import add_customer,create_test_token,create_token_without_org_role,create_token_without_org_id
 
 # Set up logging configuration
 logging.basicConfig(
@@ -687,6 +687,83 @@ class TestGetAllChatsAPI(unittest.TestCase):
         logger.info(f"Total messages retrieved across all pages: {len(all_messages)}")
         logger.info("All messages retrieved successfully with correct pagination")
         logger.info("=== Test Case 14: Specific Pagination Retrieval Completed ===")
+        
+    def test_get_all_chat_without_token(self):
+        """Test case: getallchat without a token"""
+        logger.info("Executing test_getallchat_without_token: Testing error handling for missing token")
+
+        local_chat_id = self.create_chat()
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}"
+
+        # Make the get request without a token
+        response = requests.get(url)
+        logger.info(f"OUTPUT: Response status code: {response.status_code}")
+        logger.info(f"OUTPUT: Response content: {response.text}")
+
+        self.assertEqual(response.status_code, 401)
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Authentication required")
+        logger.info("=== Test Case 15: test_getallchat_without_token ===")
+
+    def test_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        headers = {"Authorization": "Bearer corrupted_token"}
+        local_chat_id = self.create_chat()
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}"
+
+        logger.info("Testing API request with corrupted token")
+        response = requests.get(url, headers=headers)
+        self.assertEqual(response.status_code, 401, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+        logger.info("=== Test Case 16: test_corrupted_token ===")
+
+    def test_get_all_chat_token_without_org_role(self):
+        logger.info("Testing getallchat API with a token missing org_role")
+
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(self.org_id)}'}
+        local_chat_id = self.create_chat()
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}"
+        response = requests.get(url, headers=headers)
+
+        self.assertEqual(response.status_code, 403, "Expected status code 403 for missing org_role")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+        logger.info("=== Test Case 17: test_getallchat_token_without_org_role===")
+
+    def test_get_all_chat_token_without_org_id(self):
+        logger.info("Testing getallchat API with a token missing org_id")
+
+        headers = {'Authorization': f'Bearer {create_token_without_org_id(ORG_ADMIN_ROLE)}'}
+        local_chat_id = self.create_chat()
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}"
+        response = requests.get(url, headers=headers)
+
+        # Expect 400 Bad Request
+        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+        logger.info("=== Test Case 18 Completed: test_getallchat_token_without_org_id ===\n")
+
+    def test_get_all_chat_no_mapping_customer_guid(self):
+        logger.info("Testing getallchat API with no mapping between org_id and customer_guid")
+
+        # Create a new org_id without mapping it to a customer_guid
+        org_id = "unmapped_org_id"
+        token = create_test_token(org_id=org_id, org_role=ORG_ADMIN_ROLE)
+        headers = {'Authorization': f'Bearer {token}'}
+
+        local_chat_id = self.create_chat()
+        url = f"{self.BASE_URL}/getallchats?chat_id={local_chat_id}"
+        response = requests.get(url, headers=headers)
+
+        self.assertEqual(response.status_code, 404, "Expected status code 404 for unmapped org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
+
+        logger.info("=== Test Case 19 Completed: test_get_all_chat_no_mapping_customer_guid===\n")
+ 
 
 if __name__ == "__main__":
     unittest.main()
