@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from utils.api_utils import add_customer, create_test_token
+from utils.api_utils import add_customer, create_test_token, create_test_token,create_token_without_org_role,create_token_without_org_id
 
 logging.basicConfig(
     level=logging.INFO,
@@ -225,6 +225,93 @@ class TestUploadFileAPI(unittest.TestCase):
         self.assertEqual(data["detail"],"Invalid customer_guid provided","Unexpected error message content")
 
         logger.info("Test completed successfully for test_upload_file_with_invalid_customer_guid")
+        
+    def test_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        headers = {"Authorization": "Bearer corrupted_token"}
+        url = f"{self.BASE_URL}/uploadFile"
+        # Define a valid test file
+        file_name = "valid_file.txt"  # Sample file
+        file_content = b"Sample content for a valid file"
+        test_file = (file_name, file_content)
+
+        # Request data
+        files = {"file": test_file}
+
+        logger.info("Testing API request with corrupted token")
+        response = requests.post(url, files=files, headers=headers)
+        self.assertEqual(response.status_code, 401, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+        logger.info("Test completed successfully for test_corrupted_token")
+
+    def test_upload_files_token_without_org_role(self):
+        logger.info("Testing upload files API with a token missing org_role")
+
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        url = f"{self.BASE_URL}/uploadFile"
+        # Define a valid test file
+        file_name = "valid_file.txt"  # Sample file
+        file_content = b"Sample content for a valid file"
+        test_file = (file_name, file_content)
+
+        # Request data
+        files = {"file": test_file}
+        response = requests.post(url, files=files, headers=headers)
+
+        self.assertEqual(response.status_code, 403, "Expected status code 403 for missing org_role")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+        logger.info("Successfully tested upload files API with token missing org_role")
+
+    def test_upload_files_token_without_org_id(self):
+        logger.info("Testing upload files API with a token missing org_id")
+
+        url = f"{self.BASE_URL}/uploadFile"
+        headers = {'Authorization': f'Bearer {create_token_without_org_id("org:admin")}'}
+        # Define a valid test file
+        file_name = "valid_file.txt"  # Sample file
+        file_content = b"Sample content for a valid file"
+        test_file = (file_name, file_content)
+
+        # Request data
+        files = {"file": test_file}
+        response = requests.post(url, files=files, headers=headers)
+
+        # Expect 400 Bad Request
+        self.assertEqual(response.status_code, 400, "Expected status code 400 for missing org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+        logger.info("Successfully tested upload files API with token missing org_id")
+
+
+    def test_upload_files_no_mapping(self):
+        logger.info("Testing upload files API with no mapping between org_id and customer_guid")
+
+        # Create a new org_id without mapping it to a customer_guid
+        org_id = "unmapped_org_id"
+        token = create_test_token(org_id=org_id, org_role="org:admin")
+        headers = {'Authorization': f'Bearer {token}'}
+
+        url = f"{self.BASE_URL}/uploadFile"
+        # Define a valid test file
+        file_name = "valid_file.txt"  # Sample file
+        file_content = b"Sample content for a valid file"
+        test_file = (file_name, file_content)
+
+        # Request data
+        files = {"file": test_file}
+        response = requests.post(url, files=files, headers=headers)
+
+        self.assertEqual(response.status_code, 404, "Expected status code 404 for unmapped org_id")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
+
+        logger.info("Successfully tested upload files API with no mapping between org_id and customer_guid")
+
 
 
 if __name__ == "__main__":
