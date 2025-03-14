@@ -111,8 +111,8 @@ class CommentDeleteResponse(BaseModel):
     status: str
 
 # Custom Fields Management APIs
-@Authenticate_and_check_role(allowed_roles=["org:admin"])  # Apply authentication & role check
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])  # Apply authentication & role check
 async def add_custom_field(request: Request, custom_field: CustomField):
     """Add a new custom field to a customer's tickets"""
     try:
@@ -145,8 +145,8 @@ async def add_custom_field(request: Request, custom_field: CustomField):
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.get("/custom_fields", response_model=List[CustomFieldResponse], tags=["Custom Field Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def list_custom_fields(
     request: Request,
     page: int = 1,
@@ -197,14 +197,12 @@ async def list_custom_fields(
         logger.error(f"Unexpected error while listing custom fields: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.delete("/custom_fields/{field_name}", tags=["Custom Field Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def delete_custom_field(request: Request, field_name: str):
     """Delete a custom field"""
     try:
-        # Retrieve the mapped customer_guid
         existing_customer_guid = customer_service.get_customer_guid_from_token(request)
-
         result = db_manager.delete_custom_field(str(existing_customer_guid), field_name)
 
         if result["status"] == "deleted":
@@ -246,8 +244,8 @@ async def delete_custom_field(request: Request, field_name: str):
 
 
 #Tickets APIS
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.post("/tickets", response_model=TicketResponse, status_code=HTTPStatus.CREATED, tags=["Ticket Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def create_ticket(request:Request, ticket: TicketRequest):
     """Create a new ticket"""
     try:
@@ -295,8 +293,8 @@ async def create_ticket(request:Request, ticket: TicketRequest):
             detail="An unexpected error occurred"
         )
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.get("/tickets/{ticket_id}", response_model=Ticket, tags=["Ticket Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_ticket(request:Request, ticket_id: str):
     """Retrieve a ticket by ID"""
     try:
@@ -326,8 +324,8 @@ async def get_ticket(request:Request, ticket_id: str):
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.get("/tickets", response_model=List[TicketByChatId], tags=["Ticket Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_tickets_by_chat_id(
         request:Request,
         chat_id: str,
@@ -371,8 +369,8 @@ async def get_tickets_by_chat_id(
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def update_ticket(request:Request, ticket_id: str, ticket_update: TicketUpdate):
     """Update an existing ticket"""
     try:
@@ -426,8 +424,8 @@ async def update_ticket(request:Request, ticket_id: str, ticket_update: TicketUp
             detail="An unexpected server error occurred."
         )
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.delete("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def delete_ticket(ticket_id: str, request:Request):
     """Delete a ticket and corresponding custom fields"""
     try:
@@ -507,8 +505,8 @@ def extract_core_error_details(message):
 
 
 #Comments APIS
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.post("/add_comment", response_model=Comment, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def create_comment(request:Request, comment: CommentRequest):
     """Create a new comment for a ticket"""
     logger.debug(f"Received comment data: {comment}")
@@ -554,8 +552,8 @@ async def create_comment(request:Request, comment: CommentRequest):
             detail="An unexpected error occurred"
         )
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.get("/tickets/{ticket_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_comment(request:Request, comment_id: str, ticket_id: str):
     """Retrieve a comment by ID"""
     try:
@@ -586,8 +584,8 @@ async def get_comment(request:Request, comment_id: str, ticket_id: str):
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.get("/tickets/{ticket_id}/comments", response_model=List[Comment], tags=["Comment Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_comments_by_ticket_id(
         request:Request,
         ticket_id: str,
@@ -631,8 +629,8 @@ async def get_comments_by_ticket_id(
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.put("/update_comment", response_model=Comment, tags=["Comment Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def update_comment(request:Request, ticket_id: str, comment_id: str, comment_update: CommentUpdate):
     """Update an existing comment"""
     try:
@@ -699,8 +697,8 @@ async def update_comment(request:Request, ticket_id: str, comment_id: str, comme
             detail="An unexpected server error occurred."
         )
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.delete("/delete_comment", response_model=CommentDeleteResponse, tags=["Comment Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def delete_comment(request:Request, ticket_id: str, comment_id: str):
     """Delete a comment for a specific ticket."""
     try:
@@ -749,8 +747,8 @@ async def delete_comment(request:Request, ticket_id: str, comment_id: str):
             detail="An unexpected error occurred while deleting the comment."
         )
 
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 @app.get("/tickets/customer/", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
+@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_tickets_by_customer_guid(
     request:Request,
     page: int = 1,
