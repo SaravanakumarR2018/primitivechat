@@ -4,10 +4,21 @@ from src.backend.db.database_manager import DatabaseManager
 from src.backend.lib.auth_utils import get_decoded_token
 from fastapi import HTTPException, Request
 
+from src.backend.lib.auth_decorator import authenticate_and_check_role
+
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
+async def auth_admin_dependency(request: Request):
+    return await authenticate_and_check_role(request, allowed_roles=["org:admin"])
+
+async def auth_admin_member_dependency(request: Request):
+    return await authenticate_and_check_role(request, allowed_roles=["org:admin", "org:member"])
+
+async def auth_admin_member_user_dependency(request: Request):
+    return await authenticate_and_check_role(request, allowed_roles=["org:admin", "org:member", "org:user"])
 
 class CustomerService:
     def __init__(self):
@@ -15,6 +26,7 @@ class CustomerService:
 
     def get_customer_guid_from_token(self, request: Request):
         decoded_token = get_decoded_token(request)
+        logger.info(f"Decoded token: {decoded_token}")
         org_id = decoded_token.get("org_id")
         if not org_id:
             logger.error("Org ID not found in token")
