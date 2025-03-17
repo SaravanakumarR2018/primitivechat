@@ -1,13 +1,12 @@
 import logging
 import os
-import json
-import jwt
-from fastapi import APIRouter, Request, HTTPException
-from starlette.responses import JSONResponse
+
 from clerk_backend_api import Clerk
-from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
-from src.backend.lib.auth_decorator import Authenticate_and_check_role  
+from clerk_backend_api.jwks_helpers import AuthenticateRequestOptions
+from fastapi import APIRouter, Request, HTTPException, Depends
 from src.backend.lib.auth_utils import get_decoded_token  # Import the new utility function
+from src.backend.lib.utils import auth_admin_dependency
+from starlette.responses import JSONResponse
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,8 +19,7 @@ app = APIRouter()
 clerk_client = Clerk(bearer_auth=os.getenv('CLERK_SECRET_KEY'))
 
 @app.get("/checkauth", tags=["Authentication"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def check_auth(request: Request):
+async def check_auth(request: Request, auth=Depends(auth_admin_dependency)):
     try:
 
         logger.info("Checking authentication status: Calling /checkauth")
