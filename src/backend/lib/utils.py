@@ -26,7 +26,6 @@ class CustomerService:
 
     def get_customer_guid_from_token(self, request: Request):
         decoded_token = get_decoded_token(request)
-        logger.info(f"Decoded token: {decoded_token}")
         org_id = decoded_token.get("org_id")
         if not org_id:
             logger.error("Org ID not found in token")
