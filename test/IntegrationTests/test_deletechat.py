@@ -188,7 +188,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         data = {}
         logger.info(f"INPUT: Sending request with data:\n{str(data)}")
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         logger.info(f"OUTPUT: Response status code: {response.status_code}")
         logger.info(f"OUTPUT: Response content: {response.text}")
 
