@@ -3,12 +3,11 @@ from http import HTTPStatus
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form, Depends
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from src.backend.lib.auth_utils import get_decoded_token  # Import auth_utils
-from src.backend.lib.auth_decorator import Authenticate_and_check_role
-from src.backend.lib.utils import CustomerService
+from src.backend.lib.utils import CustomerService, auth_admin_dependency
 
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
@@ -45,8 +44,7 @@ class DeleteChatsRequest(BaseModel):
 
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def add_customer(request: Request):
+async def add_customer(request: Request, auth=Depends(auth_admin_dependency)):
     """Create a new customer, set up DBs, and add an entry in the common_db table."""
     logger.debug(f"Entering add_customer()")
 
@@ -109,8 +107,7 @@ async def add_customer(request: Request):
 
 #API endpoint for UploadFile api
 @app.post("/uploadFile",tags=["File Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def upload_File(request: Request, file:UploadFile=File(...)):
+async def upload_File(request: Request, auth=Depends(auth_admin_dependency), file:UploadFile=File(...)):
     logger.debug(f"Entering upload_file() with Correlation ID:{request.state.correlation_id}")
     try:
         logger.info(f"uploading file '{file.filename} of type '{file.content_type}'")
@@ -143,8 +140,7 @@ async def upload_File(request: Request, file:UploadFile=File(...)):
 
 
 @app.get("/listfiles", tags=["File Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def list_files(request: Request):
+async def list_files(request: Request, auth=Depends(auth_admin_dependency)):
     logger.debug(f"Entering list_files() with Correlation ID: {request.state.correlation_id}")
     try:
         # Get customer_guid from the token
@@ -178,8 +174,7 @@ async def list_files(request: Request):
 
 
 @app.get("/downloadfile", tags=["File Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def download_file(request: Request, filename: str):
+async def download_file(filename: str, request: Request, auth=Depends(auth_admin_dependency)):
     logger.debug(f"Entering download_file() with Correlation ID:{request.state.correlation_id}")
     try:
 
@@ -219,8 +214,7 @@ async def download_file(request: Request, filename: str):
 
 
 @app.post("/chat", tags=["Chat Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def chat(request: Request, chat_request: ChatRequest):
+async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_admin_dependency)):
     logger.debug(f"Entering chat() with Correlation ID: {request.state.correlation_id}")
 
     try:
@@ -276,12 +270,12 @@ async def chat(request: Request, chat_request: ChatRequest):
 
 # API endpoint to retrieve chat messages in reverse chronological order (paginated)
 @app.get("/getallchats", tags=["Chat Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_all_chats(
         request: Request,
         chat_id: str,
         page: int = 1,
-        page_size: int = 10
+        page_size: int = 10,
+        auth=Depends(auth_admin_dependency),
 ):
     logger.debug(f"Entering get_all_chats() with Correlation ID: {request.state.correlation_id}")
 
@@ -311,8 +305,7 @@ async def get_all_chats(
 
 # API endpoint to delete a specific chat
 @app.post("/deletechat", tags=["Chat Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def delete_chats(request: Request, delete_chats_request: DeleteChatsRequest):
+async def delete_chats(delete_chats_request: DeleteChatsRequest, request: Request, auth=Depends(auth_admin_dependency)):
     logger.debug(f"Entering delete_chats() with Correlation ID: {request.state.correlation_id}")
     try:
         # Get customer_guid from the token
