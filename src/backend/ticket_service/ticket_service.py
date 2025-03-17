@@ -4,13 +4,12 @@ from datetime import datetime
 from http import HTTPStatus
 from typing import List, Optional, Dict, Any, Union
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, StrictBool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
-from src.backend.lib.auth_decorator import Authenticate_and_check_role
-from src.backend.lib.utils import CustomerService
+from src.backend.lib.utils import CustomerService, auth_admin_dependency
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -112,8 +111,7 @@ class CommentDeleteResponse(BaseModel):
 
 # Custom Fields Management APIs
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])  # Apply authentication & role check
-async def add_custom_field(request: Request, custom_field: CustomField):
+async def add_custom_field(custom_field: CustomField, request: Request, auth=Depends(auth_admin_dependency)):
     """Add a new custom field to a customer's tickets"""
     try:
         # Retrieve the mapped customer_guid
@@ -146,9 +144,9 @@ async def add_custom_field(request: Request, custom_field: CustomField):
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.get("/custom_fields", response_model=List[CustomFieldResponse], tags=["Custom Field Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def list_custom_fields(
     request: Request,
+    auth=Depends(auth_admin_dependency),
     page: int = 1,
     page_size: int = 10
 ):
@@ -198,8 +196,7 @@ async def list_custom_fields(
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
 @app.delete("/custom_fields/{field_name}", tags=["Custom Field Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def delete_custom_field(request: Request, field_name: str):
+async def delete_custom_field(field_name: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Delete a custom field"""
     try:
         existing_customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -245,8 +242,7 @@ async def delete_custom_field(request: Request, field_name: str):
 
 #Tickets APIS
 @app.post("/tickets", response_model=TicketResponse, status_code=HTTPStatus.CREATED, tags=["Ticket Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def create_ticket(request:Request, ticket: TicketRequest):
+async def create_ticket(ticket: TicketRequest, request: Request, auth=Depends(auth_admin_dependency)):
     """Create a new ticket"""
     try:
         existing_customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -294,8 +290,7 @@ async def create_ticket(request:Request, ticket: TicketRequest):
         )
 
 @app.get("/tickets/{ticket_id}", response_model=Ticket, tags=["Ticket Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def get_ticket(request:Request, ticket_id: str):
+async def get_ticket(ticket_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Retrieve a ticket by ID"""
     try:
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -325,12 +320,12 @@ async def get_ticket(request:Request, ticket_id: str):
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.get("/tickets", response_model=List[TicketByChatId], tags=["Ticket Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_tickets_by_chat_id(
-        request:Request,
+        request: Request,
         chat_id: str,
         page: int = 1,
-        page_size: int = 10
+        page_size: int = 10,
+        auth=Depends(auth_admin_dependency),
 ):
     """Retrieve all tickets for a specific chat_id with pagination"""
     try:
@@ -370,8 +365,7 @@ async def get_tickets_by_chat_id(
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def update_ticket(request:Request, ticket_id: str, ticket_update: TicketUpdate):
+async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, request: Request, auth=Depends(auth_admin_dependency)):
     """Update an existing ticket"""
     try:
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -425,8 +419,7 @@ async def update_ticket(request:Request, ticket_id: str, ticket_update: TicketUp
         )
 
 @app.delete("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def delete_ticket(ticket_id: str, request:Request):
+async def delete_ticket(ticket_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Delete a ticket and corresponding custom fields"""
     try:
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -506,8 +499,7 @@ def extract_core_error_details(message):
 
 #Comments APIS
 @app.post("/add_comment", response_model=Comment, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def create_comment(request:Request, comment: CommentRequest):
+async def create_comment(comment: CommentRequest, request: Request, auth=Depends(auth_admin_dependency)):
     """Create a new comment for a ticket"""
     logger.debug(f"Received comment data: {comment}")
     try:
@@ -553,8 +545,7 @@ async def create_comment(request:Request, comment: CommentRequest):
         )
 
 @app.get("/tickets/{ticket_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def get_comment(request:Request, comment_id: str, ticket_id: str):
+async def get_comment(comment_id: str, ticket_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Retrieve a comment by ID"""
     try:
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -585,12 +576,12 @@ async def get_comment(request:Request, comment_id: str, ticket_id: str):
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.get("/tickets/{ticket_id}/comments", response_model=List[Comment], tags=["Comment Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_comments_by_ticket_id(
-        request:Request,
+        request: Request,
         ticket_id: str,
         page: int = 1,
-        page_size: int = 10
+        page_size: int = 10,
+        auth=Depends(auth_admin_dependency)
 ):
     """Retrieve all comments for a specific ticket_id"""
     try:
@@ -630,8 +621,7 @@ async def get_comments_by_ticket_id(
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.put("/update_comment", response_model=Comment, tags=["Comment Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def update_comment(request:Request, ticket_id: str, comment_id: str, comment_update: CommentUpdate):
+async def update_comment(ticket_id: str, comment_id: str, comment_update: CommentUpdate, request: Request, auth=Depends(auth_admin_dependency)):
     """Update an existing comment"""
     try:
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -698,8 +688,7 @@ async def update_comment(request:Request, ticket_id: str, comment_id: str, comme
         )
 
 @app.delete("/delete_comment", response_model=CommentDeleteResponse, tags=["Comment Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
-async def delete_comment(request:Request, ticket_id: str, comment_id: str):
+async def delete_comment(ticket_id: str, comment_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Delete a comment for a specific ticket."""
     try:
         customer_guid = customer_service.get_customer_guid_from_token(request)
@@ -748,9 +737,9 @@ async def delete_comment(request:Request, ticket_id: str, comment_id: str):
         )
 
 @app.get("/tickets/customer/", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
-@Authenticate_and_check_role(allowed_roles=["org:admin"])
 async def get_tickets_by_customer_guid(
-    request:Request,
+    request: Request,
+    auth=Depends(auth_admin_dependency),
     page: int = 1,
     page_size: int = 10
 ):
