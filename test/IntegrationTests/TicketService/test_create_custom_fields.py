@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_id, create_token_without_org_role
 
 # Configure logging
 logging.basicConfig(
@@ -20,13 +20,22 @@ logger = logging.getLogger(__name__)
 class TestCustomFieldAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
     MYSQL_CONTAINER_NAME = "mysql_db"
+    ORG_ROLE='org:admin'
 
     def setUp(self):
         """Setup function to initialize valid customer GUID."""
         logger.info("=== Initializing test setup ===")
 
+        self.headers = {}
+
         # Assuming an endpoint `/addcustomer` to create a new customer
-        self.valid_customer_guid =  add_customer("test_org").get("customer_guid")
+        self.data =  add_customer("test_org")
+        self.valid_customer_guid=self.data.get("customer_guid")
+        self.org_id=self.data.get("org_id")
+
+        #Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
         logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
         logger.info(f"Starting test: {self._testMethodName}")
 
@@ -34,13 +43,12 @@ class TestCustomFieldAPI(unittest.TestCase):
         """Test adding a valid custom field."""
         url = f"{self.BASE_URL}/custom_fields"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": "test_field",
             "field_type": "VARCHAR(255)",
             "required": True
         }
         logger.info(f"Testing valid custom field addition with data: {data}")
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to add custom field")
         response_data = response.json()
         self.assertEqual(response_data["field_name"], "test_field")
@@ -50,37 +58,38 @@ class TestCustomFieldAPI(unittest.TestCase):
         """Test adding a custom field with missing required field."""
         url = f"{self.BASE_URL}/custom_fields"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": "missing_required_field",
             "field_type": "VARCHAR(255)"
             # 'required' field is missing
         }
         logger.info(f"Testing missing 'required' field with data: {data}")
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY, "Missing required field should result in 422")
-        self.assertIn("field required", response.text.lower())
+        self.assertIn("required", response.text.lower())
         logger.info("Test case for missing required field passed.")
 
-    def test_add_custom_field_invalid_customer_guid(self):
-        """Test adding a custom field with invalid customer_guid."""
+    def test_add_custom_field_invalid_org_id_or_customer_guid(self):
+        """Test adding a custom field with an invalid org_id."""
         url = f"{self.BASE_URL}/custom_fields"
         data = {
-            "customer_guid": "256128e2-b963-4019-b870-d6e82db0d631", # Invalid or random customer_guid
             "field_name": "test_field",
             "field_type": "VARCHAR(255)",
             "required": True
         }
-        logger.info(f"Testing invalid customer GUID with data: {data}")
-        response = requests.post(url, json=data)
-        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid customer_guid should result in 400")
-        self.assertIn(f"Database customer_{data['customer_guid']} does not exist", response.text)
-        logger.info("Test case for invalid customer_guid passed.")
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+
+        logger.info(f"Testing invalid org_id with data: {data}")
+        response = requests.post(url, json=data, headers=headers)
+
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid org_id/customer_guid should result in 400")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Test case for invalid org_id/customer_guid passed.")
 
     def test_add_duplicate_custom_field_name(self):
         """Test adding a custom field with a duplicate field name."""
         url = f"{self.BASE_URL}/custom_fields"
         initial_data = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": "duplicate_field",
             "field_type": "VARCHAR(255)",
             "required": True
@@ -88,7 +97,7 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Add the custom field for the first time
         logger.info(f"Adding initial custom field with data: {initial_data}")
-        response = requests.post(url, json=initial_data)
+        response = requests.post(url, json=initial_data, headers=self.headers)
         logger.info(f"Response: {response.status_code}, Payload: {response.json()}")
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to add the initial custom field")
         response_data = response.json()
@@ -97,13 +106,12 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Add the same custom field with identical data
         duplicate_data_matching = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": "duplicate_field",
             "field_type": "VARCHAR(255)",
             "required": True
         }
         logger.info(f"Adding duplicate custom field with matching data: {duplicate_data_matching}")
-        response = requests.post(url, json=duplicate_data_matching)
+        response = requests.post(url, json=duplicate_data_matching, headers=self.headers)
         logger.info(f"Response: {response.status_code}, Payload: {response.json()}")
         self.assertEqual(response.status_code, HTTPStatus.CREATED,
                          "Duplicate field with matching data should result in 200")
@@ -113,13 +121,12 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Add the same custom field with conflicting data
         duplicate_data_conflicting = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": "duplicate_field",
             "field_type": "INT",  # Different field_type
             "required": False  # Different required value
         }
         logger.info(f"Adding duplicate custom field with conflicting data: {duplicate_data_conflicting}")
-        response = requests.post(url, json=duplicate_data_conflicting)
+        response = requests.post(url, json=duplicate_data_conflicting, headers=self.headers)
         logger.info(f"Response: {response.status_code}, Payload: {response.json()}")
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
                          "Duplicate field with conflicting data should result in 400")
@@ -135,7 +142,6 @@ class TestCustomFieldAPI(unittest.TestCase):
         url = f"{self.BASE_URL}/custom_fields"
         invalid_field_type = "INVALID_TYPE"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": "invalid_field_type_test",
             "field_type": invalid_field_type,
             "required": True
@@ -143,7 +149,7 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Attempt to add a custom field with an invalid field type
         logger.info(f"Testing invalid field type with data: {data}")
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
 
         # Assert that the API returns a 400 status code
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid field type should result in 400")
@@ -173,7 +179,7 @@ class TestCustomFieldAPI(unittest.TestCase):
 
         # Attempt to add a custom field with an empty field name
         logger.info(f"Testing empty field name with data: {data}")
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
 
         # Assert that the API returns a 400 status code
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Empty field name should result in 400")
@@ -216,13 +222,12 @@ class TestCustomFieldAPI(unittest.TestCase):
         """Helper method to test adding a custom field with a specific type."""
         url = f"{self.BASE_URL}/custom_fields"
         data = {
-            "customer_guid": self.valid_customer_guid,
             "field_name": f"test_field_{field_type.lower().replace('(', '').replace(')', '').replace(' ', '_')}",
             "field_type": field_type,
             "required": True
         }
         logger.info(f"Testing custom field addition with field type: {field_type} and data: {data}")
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to add custom field with type {field_type}")
         response_data = response.json()
         self.assertEqual(response_data["field_name"], data["field_name"])
@@ -232,33 +237,23 @@ class TestCustomFieldAPI(unittest.TestCase):
 
     def test_invalid_required_field_value(self):
         """Test providing invalid values for the 'required' field."""
-        invalid_values = ["yes", "no", 123, None, {}, []]
+        invalid_values = ["Yes", "No", 123, None, {}, []]
         for value in invalid_values:
             with self.subTest(value=value):
                 url = f"{self.BASE_URL}/custom_fields"
                 data = {
-                    "customer_guid": self.valid_customer_guid,
                     "field_name": "test_invalid_required",
                     "field_type": "VARCHAR(255)",
                     "required": value
                 }
                 logger.info(f"Testing invalid required field value: {value} with data: {data}")
-                response = requests.post(url, json=data)
+                response = requests.post(url, json=data, headers=self.headers)
 
                 # Assert response status code
-                self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
-                                 f"Expected BAD_REQUEST for required field value: {value}")
+                self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY,
+                                 f"Expected 422 for required field value: {value}")
 
-                # Parse response data
-                response_data = response.json()
-
-                # Assert error detail in response
-                expected_error_message = f"Invalid value for 'required'. Expected a boolean, got {type(value).__name__}."
-                self.assertIn("detail", response_data, "Error message key 'detail' is missing in response")
-                self.assertEqual(response_data["detail"], expected_error_message,
-                                 f"Unexpected error message for required field value: {value}")
-
-                logger.info(f"Test case for invalid required field value {value} passed.")
+                logger.info(f"Testtest_invalid_required_field_value case for invalid required field value {value} passed.")
 
     def test_field_name_too_long(self):
         """Test providing a 'field_name' value that exceeds the maximum allowed length."""
@@ -271,7 +266,7 @@ class TestCustomFieldAPI(unittest.TestCase):
             "required": True
         }
         logger.info(f"Testing long field_name with length {len(long_field_name)}: {long_field_name}")
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, headers=self.headers)
 
         # Assert response status code
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
@@ -289,6 +284,105 @@ class TestCustomFieldAPI(unittest.TestCase):
                          f"Unexpected error message for long field_name: {long_field_name}")
 
         logger.info(f"Test case for overly long field_name passed.")
+
+    def test_add_custom_field_no_token(self):
+        """Test API request without an authentication token."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_no_token",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        logger.info("Testing API request without token")
+        response = requests.post(url, json=data)  # No headers
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Missing token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Missing Token leads to Unauthorized")
+
+    def test_add_custom_field_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_corrupt_token",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        headers = {"Authorization": "Bearer corrupted_token"}
+        logger.info("Testing API request with corrupted token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_add_custom_field_missing_org_id_in_token(self):
+        """Test API request where the token does not have an org_id."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_missing_org_id",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        token = create_token_without_org_id(org_role=self.ORG_ROLE)  # No org_id
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Testing API request with missing org_id in token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Missing org_id should result in 400 Bad Request")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+    def test_add_custom_field_missing_org_role_in_token(self):
+        """Test API request where the token does not have an org_role."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_missing_org_role",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        logger.info("Testing API request with missing org_role in token")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN, "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_add_custom_field_unauthorized_org_role(self):
+        headers={}
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        data = add_customer("test_org")
+        valid_customer_guid = data.get("customer_guid")
+        org_id = data.get("org_id")
+
+        # Create Test Token for member (not allowed)
+        token = create_test_token(org_id=org_id, org_role="org:random_org_role")
+        headers['Authorization'] = f'Bearer {token}'
+
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_invalid_org",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_add_custom_field_invalid_org_id_no_mapped_customer_guid(self):
+        """Test API request with an org_id that has no mapped customer_guid."""
+        url = f"{self.BASE_URL}/custom_fields"
+        data = {
+            "field_name": "test_invalid_org",
+            "field_type": "VARCHAR(255)",
+            "required": True
+        }
+        invalid_token = create_test_token(org_id="unmapped_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        logger.info("Testing API request with org_id that has no mapped customer_guid")
+        response = requests.post(url, json=data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Unmapped org_id should result in 400 Bad Request")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def tearDown(self):
         """Clean up resources if necessary."""

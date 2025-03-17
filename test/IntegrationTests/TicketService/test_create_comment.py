@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_role, create_token_without_org_id
 
 # Configure logging
 logging.basicConfig(
@@ -20,21 +20,29 @@ logger = logging.getLogger(__name__)
 class TestCreateCommentAPI(unittest.TestCase):
 
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
-
+    ORG_ROLE = 'org:admin'
     def setUp(self):
         """Set up test environment by creating a customer and ticket."""
         logger.info("=== Setting up test environment ===")
 
-        # Add customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
+        self.headers = {}
+
+        # Create a valid customer
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
 
         # Add chat
         chat_url = f"{self.BASE_URL}/chat"
         chat_data = {
-            "customer_guid": self.valid_customer_guid,
             "question": "Initial question"
         }
-        response = requests.post(chat_url, json=chat_data)
+        response = requests.post(chat_url, json=chat_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK, "Failed to create a chat")
         self.valid_chat_id = response.json().get("chat_id")
 
@@ -43,13 +51,12 @@ class TestCreateCommentAPI(unittest.TestCase):
         ticket_data = {
             "title": "Test Ticket",
             "description": "Test description",
-            "customer_guid": self.valid_customer_guid,
             "chat_id": self.valid_chat_id,
             "priority": "medium",
             "reported_by": "user@example.com",
             "assigned": "agent@example.com"
         }
-        response = requests.post(ticket_url, json=ticket_data)
+        response = requests.post(ticket_url, json=ticket_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create ticket")
         self.valid_ticket_id = response.json().get("ticket_id")
         logger.info(f"Ticket created with ID: {self.valid_ticket_id}")
@@ -59,13 +66,12 @@ class TestCreateCommentAPI(unittest.TestCase):
         """Test creating a comment for a valid ticket."""
         comment_url = f"{self.BASE_URL}/add_comment"
         comment_data = {
-            "customer_guid": self.valid_customer_guid,
             "ticket_id": self.valid_ticket_id,
             "posted_by": "test_user",
             "comment": "This is a test comment"
         }
 
-        response = requests.post(comment_url, json=comment_data)
+        response = requests.post(comment_url, json=comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.CREATED, "Failed to create a comment")
 
         comment_response = response.json()
@@ -81,9 +87,9 @@ class TestCreateCommentAPI(unittest.TestCase):
 
         # Step 2: Retrieve the comment using the valid ticket_id and customer_guid
         get_comment_url = (f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments/{comment_id}"
-                           f"?customer_guid={self.valid_customer_guid}&ticket_id={self.valid_ticket_id}")
+                           f"?ticket_id={self.valid_ticket_id}")
 
-        response_get = requests.get(get_comment_url)
+        response_get = requests.get(get_comment_url, headers=self.headers)
         self.assertEqual(response_get.status_code, HTTPStatus.OK, "Failed to retrieve the comment")
 
         # Step 3: Validate the retrieved comment data
@@ -103,30 +109,29 @@ class TestCreateCommentAPI(unittest.TestCase):
         comment_url = f"{self.BASE_URL}/add_comment"
         invalid_ticket_id="invalid_ticket_id"
         comment_data = {
-            "customer_guid": self.valid_customer_guid,
             "ticket_id": invalid_ticket_id,
             "posted_by": "test_user",
             "comment": "Invalid ticket test"
         }
 
-        response = requests.post(comment_url, json=comment_data)
+        response = requests.post(comment_url, json=comment_data, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Expected failure for invalid ticket")
 
         error_detail = response.json().get("detail")
         expected_error_message = f"Invalid ticket_id: {invalid_ticket_id} does not exist."
         self.assertEqual(error_detail, expected_error_message, "Unexpected error message for invalid ticket")
 
-    def test_create_comment_invalid_customer_guid(self):
+    def test_create_comment_invalid_org_id_or_customer_guid(self):
         comment_url = f"{self.BASE_URL}/add_comment"
-        invalid_customer_guid = "invalid_customer_guid"
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
         comment_data = {
-            "customer_guid": invalid_customer_guid,
             "ticket_id": self.valid_ticket_id,
             "posted_by": "test_user",
             "comment": "Invalid ticket test"
         }
 
-        response_data = requests.post(comment_url, json=comment_data)
+        response_data = requests.post(comment_url, json=comment_data, headers=headers)
         self.assertEqual(response_data.status_code, HTTPStatus.BAD_REQUEST, "Expected failure for invalid ticket")
 
         # Parse the response data
@@ -138,7 +143,7 @@ class TestCreateCommentAPI(unittest.TestCase):
             response_data,
             "Response should contain 'detail' key."
         )
-        expected_message = f"Database customer_{invalid_customer_guid} does not exist"
+        expected_message = f"Database customer_None does not exist"
         self.assertEqual(
             response_data["detail"],
             expected_message,
@@ -151,12 +156,11 @@ class TestCreateCommentAPI(unittest.TestCase):
 
         # Missing 'comment' field
         incomplete_comment_data = {
-            "customer_guid": self.valid_customer_guid,
             "ticket_id": self.valid_chat_id,
             "posted_by": "test_user"
         }
 
-        response = requests.post(comment_url, json=incomplete_comment_data)
+        response = requests.post(comment_url, json=incomplete_comment_data, headers=self.headers)
 
         # Check status code for 422 Unprocessable Entity
         self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -170,36 +174,17 @@ class TestCreateCommentAPI(unittest.TestCase):
         missing_field_message = any("comment" in str(error) for error in error_details)
         self.assertTrue(missing_field_message, "Error message should indicate missing 'comment' field")
 
-    def test_create_comment_missing_customer_guid(self):
-        """Test creating a comment with missing customer_guid field."""
-        comment_url = f"{self.BASE_URL}/add_comment"
-
-        # Payload missing customer_guid
-        incomplete_comment_data = {
-            "ticket_id": "123",
-            "posted_by": "user123",
-            "comment": "Test comment"
-        }
-
-        response = requests.post(comment_url, json=incomplete_comment_data)
-
-        self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY,
-                         "Expected status code 422 for missing customer_guid")
-        self.assertIn("customer_guid", str(response.json()["detail"]),
-                      "Error should indicate missing 'customer_guid' field")
-
     def test_create_comment_missing_ticket_id(self):
         """Test creating a comment with missing ticket_id field."""
         comment_url = f"{self.BASE_URL}/add_comment"
 
         # Payload missing ticket_id
         incomplete_comment_data = {
-            "customer_guid": "cust-123",
             "posted_by": "user123",
             "comment": "Test comment"
         }
 
-        response = requests.post(comment_url, json=incomplete_comment_data)
+        response = requests.post(comment_url, json=incomplete_comment_data, headers=self.headers)
 
         self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY,
                          "Expected status code 422 for missing ticket_id")
@@ -212,12 +197,11 @@ class TestCreateCommentAPI(unittest.TestCase):
 
         # Payload missing posted_by
         incomplete_comment_data = {
-            "customer_guid": "cust-123",
             "ticket_id": "123",
             "comment": "Test comment"
         }
 
-        response = requests.post(comment_url, json=incomplete_comment_data)
+        response = requests.post(comment_url, json=incomplete_comment_data, headers=self.headers)
 
         self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY,
                          "Expected status code 422 for missing posted_by")
@@ -229,13 +213,12 @@ class TestCreateCommentAPI(unittest.TestCase):
 
         for i in range(1, number_of_comments + 1):
             comment_data = {
-                "customer_guid": self.valid_customer_guid,
                 "ticket_id": self.valid_ticket_id,
                 "posted_by": f"user_{i}",
                 "comment": f"This is test comment number {i}"
             }
 
-            response = requests.post(comment_url, json=comment_data)
+            response = requests.post(comment_url, json=comment_data, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create comment #{i}")
             logger.info(f"Comment #{i} added successfully")
 
@@ -258,8 +241,8 @@ class TestCreateCommentAPI(unittest.TestCase):
             # Fetch comments page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments?customer_guid={self.valid_customer_guid}&page={page_num}&page_size={per_page}"
-                response = requests.get(page_url)
+                page_url = f"{self.BASE_URL}/tickets/{self.valid_ticket_id}/comments?page={page_num}&page_size={per_page}"
+                response = requests.get(page_url, headers=self.headers)
 
                 if response.status_code == HTTPStatus.NOT_FOUND:
                     logger.info(f"Reached the end of available pages for per_page={per_page}")
@@ -318,6 +301,104 @@ class TestCreateCommentAPI(unittest.TestCase):
                 retrieved_comment_texts,
                 "Mismatch in expected and retrieved comment texts"
             )
+
+    def test_create_comment_no_token(self):
+        """Test API request without an authentication token."""
+        url = f"{self.BASE_URL}/add_comment"
+        comment_data = {
+            "ticket_id": self.valid_ticket_id,
+            "posted_by": f"user",
+            "comment": f"This is test comment"
+        }
+
+        response = requests.post(url, json=comment_data) # No headers
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Missing token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Missing Token leads to Unauthorized")
+
+    def test_create_comment_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        url = f"{self.BASE_URL}/add_comment"
+        comment_data = {
+            "ticket_id": self.valid_ticket_id,
+            "posted_by": f"user",
+            "comment": f"This is test comment"
+        }
+        headers = {"Authorization": "Bearer corrupted_token"}
+        response = requests.post(url, json=comment_data, headers=headers)
+        logger.info("Testing API request with corrupted token")
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_create_comment_missing_org_id_in_token(self):
+        """Test API request where the token does not have an org_id."""
+        url = f"{self.BASE_URL}/add_comment"
+        comment_data = {
+            "ticket_id": self.valid_ticket_id,
+            "posted_by": f"user",
+            "comment": f"This is test comment"
+        }
+        token = create_token_without_org_id(org_role=self.ORG_ROLE)  # No org_id
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Testing API request with missing org_id in token")
+        response = requests.post(url, json=comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Missing org_id should result in 400 Bad Request")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+    def test_create_comment_missing_org_role_in_token(self):
+        """Test API request where the token does not have an org_role."""
+        url = f"{self.BASE_URL}/add_comment"
+        comment_data = {
+            "ticket_id": self.valid_ticket_id,
+            "posted_by": f"user",
+            "comment": f"This is test comment"
+        }
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        logger.info("Testing API request with missing org_role in token")
+        response = requests.post(url, json=comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN, "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_create_comment_unauthorized_org_role(self):
+        headers={}
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        data = add_customer("test_org")
+        org_id = data.get("org_id")
+
+        # Create Test Token for member (not allowed)
+        token = create_test_token(org_id=org_id, org_role="org:random_org_role")
+        headers['Authorization'] = f'Bearer {token}'
+
+        url = f"{self.BASE_URL}/add_comment"
+        comment_data = {
+            "ticket_id": self.valid_ticket_id,
+            "posted_by": f"user",
+            "comment": f"This is test comment"
+        }
+        response = requests.post(url, json=comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_create_comment_invalid_org_id_no_mapped_customer_guid(self):
+        """Test API request with an org_id that has no mapped customer_guid."""
+        url = f"{self.BASE_URL}/add_comment"
+        comment_data = {
+            "ticket_id": self.valid_ticket_id,
+            "posted_by": f"user",
+            "comment": f"This is test comment"
+        }
+        invalid_token = create_test_token(org_id="unmapped_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        logger.info("Testing API request with org_id that has no mapped customer_guid")
+        response = requests.post(url, json=comment_data, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Unmapped org_id should result in 400 Bad Request")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def tearDown(self):
         """Clean up after each test."""

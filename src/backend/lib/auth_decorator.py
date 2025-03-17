@@ -1,14 +1,12 @@
 # libs/auth_decorator.py
 import logging
-import httpx
-import jwt
-from fastapi import HTTPException, Request
-from functools import wraps
-from clerk_backend_api import Clerk
-from clerk_backend_api.jwks_helpers import authenticate_request, AuthenticateRequestOptions
 import os
-import time
-from src.backend.lib.config import TEST_TOKEN_PREFIX, TEST_SECRET, JWKS_URL # Import from config
+
+import jwt
+from clerk_backend_api import Clerk
+from clerk_backend_api.jwks_helpers import AuthenticateRequestOptions
+from fastapi import HTTPException, Request
+from src.backend.lib.config import TEST_TOKEN_PREFIX, TEST_SECRET, JWKS_URL  # Import from config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,7 +23,7 @@ if not JWKS_URL:
 # TEST_TOKEN_PREFIX = "test_" # moved to config
 # TEST_SECRET = "test_secret" # moved to config
 
-async def call_backend_and_verify_auth(request: Request, allowed_roles: list, *args, **kwargs):
+async def call_backend_and_verify_auth(request: Request, allowed_roles: list):
     try:
         logger.info("Calling function for Clerk authentication")
         # Authenticate the incoming request
@@ -71,7 +69,7 @@ async def call_backend_and_verify_auth(request: Request, allowed_roles: list, *a
         logger.error(f"Error in Clerk authentication: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-async def jwt_verifier(request: Request, allowed_roles: list, *args, **kwargs):
+async def jwt_verifier(request: Request, allowed_roles: list):
     """
     Verify the JWT token and ensure the user has an allowed role.
     """
@@ -151,24 +149,21 @@ async def jwt_verifier(request: Request, allowed_roles: list, *args, **kwargs):
                 logger.error(f"JWT verification failed after retry: {e}")
                 raise HTTPException(status_code=401, detail="Invalid token after retrying public key fetch")
 
-def Authenticate_and_check_role(allowed_roles: list):
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
-            if request is None:
-                raise HTTPException(status_code=400, detail="Request object is required")
-            try:
-                await jwt_verifier(request, allowed_roles, *args, **kwargs)
-            except HTTPException as e:
-                if e.status_code == 403:
-                    logger.info(f"JWT verification failed with 403: {e}")
-                    raise e
-                else:
-                    logger.error(f"JWT verification failed: {e}. Calling Clerk to verify authentication")
-                    await call_backend_and_verify_auth(request, allowed_roles, *args, **kwargs)
-            except Exception as e:
-                logger.error(f"JWT verification failed: {e}. Calling Clerk to verify authentication")
-                await call_backend_and_verify_auth(request, allowed_roles, *args, **kwargs)
-            return await func(request=request, *args, **kwargs)
-        return wrapper
-    return decorator
+async def authenticate_and_check_role(request: Request, allowed_roles: list):
+    """Dependency to authenticate and authorize based on roles."""
+    if request is None:
+        raise HTTPException(status_code=400, detail="Request object is required")
+    try:
+        await jwt_verifier(request, allowed_roles)
+    except HTTPException as e:
+        if e.status_code == 403:
+            logger.info(f"JWT verification failed with 403: {e}")
+            raise e
+        else:
+            logger.error(f"JWT verification failed: {e}. Calling Clerk to verify authentication")
+            await call_backend_and_verify_auth(request, allowed_roles)
+    except Exception as e:
+        logger.error(f"JWT verification failed: {e}. Calling Clerk to verify authentication")
+        await call_backend_and_verify_auth(request, allowed_roles)
+
+    return request  # Return request for further processing if needed

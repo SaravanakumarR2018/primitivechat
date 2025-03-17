@@ -8,7 +8,7 @@ import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from utils.api_utils import add_customer
+from utils.api_utils import add_customer, create_test_token, create_token_without_org_role, create_token_without_org_id
 
 # Configure logging
 logging.basicConfig(
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class TestDeleteCustomFieldAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
+    ORG_ROLE = 'org:admin'
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
 
@@ -27,17 +28,26 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         logger.info("=== Initializing test setup ===")
 
         # Step 1: Create a new customer
-        self.valid_customer_guid = add_customer("test_org").get("customer_guid")
-        logger.info(f"Customer created with GUID: {self.valid_customer_guid}")
+        logger.info("=== Initializing test setup ===")
 
-        logger.info("Setup complete.")
+        self.headers = {}
+
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        self.data = add_customer("test_org")
+        self.valid_customer_guid = self.data.get("customer_guid")
+        self.org_id = self.data.get("org_id")
+
+        # Create Test Token
+        self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
+        self.headers['Authorization'] = f'Bearer {self.token}'
+        logger.info(f"Valid customer_guid initialized: {self.valid_customer_guid}")
         logger.info(f"Starting test: {self._testMethodName}")
 
     def list_custom_fields(self, expected_fields=None):
         """Reusable function to list all custom fields and optionally validate them."""
         logger.info("Listing all custom fields.")
-        url = f"{self.BASE_URL}/custom_fields?customer_guid={self.valid_customer_guid}"
-        response = requests.get(url)
+        url = f"{self.BASE_URL}/custom_fields"
+        response = requests.get(url, headers=self.headers)
 
         if response.status_code == HTTPStatus.NOT_FOUND:
             logger.info(f"No custom fields found for customer {self.valid_customer_guid}")
@@ -78,8 +88,8 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
 
         for field in custom_fields:
             logger.info(f"Adding custom field: {field['field_name']}")
-            field_data = {**field, "customer_guid": self.valid_customer_guid}
-            response = requests.post(custom_field_url, json=field_data)
+            field_data = {**field}
+            response = requests.post(custom_field_url, json=field_data, headers=self.headers)
             self.assertEqual(
                 response.status_code,
                 HTTPStatus.CREATED,
@@ -93,11 +103,11 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         # Step 3: Delete each custom field one by one and verify
         for field in custom_fields:
             # Define the deletion URL
-            url = f"{self.BASE_URL}/custom_fields/{field['field_name']}?customer_guid={self.valid_customer_guid}"
+            url = f"{self.BASE_URL}/custom_fields/{field['field_name']}"
             logger.info(f"Deleting custom field: {field['field_name']}")
 
             # Perform the deletion
-            response = requests.delete(url)
+            response = requests.delete(url, headers=self.headers)
             self.assertEqual(response.status_code, HTTPStatus.OK,
                              f"Failed to delete custom field {field['field_name']}")
 
@@ -116,9 +126,9 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
 
     def test_delete_custom_field_not_found(self):
         """Test deleting a custom field that doesn't exist."""
-        url = f"{self.BASE_URL}/custom_fields/{'non_existent_field'}?customer_guid={self.valid_customer_guid}"
+        url = f"{self.BASE_URL}/custom_fields/{'non_existent_field'}"
         logger.info("Testing deletion of non-existent custom field.")
-        response = requests.delete(url)
+        response = requests.delete(url, headers=self.headers)
 
         self.assertEqual(response.status_code, HTTPStatus.OK, "Expected 200 even when field does not exist")
         response_data = response.json()
@@ -126,16 +136,18 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         self.assertEqual(response_data["status"], "deleted")
         logger.info("Negative test case for deleting non-existent custom field passed.")
 
-    def test_delete_custom_field_invalid_customer_guid(self):
+    def test_delete_custom_field_invalid_org_id_or_customer_guid(self):
         """Test deleting a custom field with an invalid customer GUID."""
-        invalid_customer_guid = "ae0ae9ed-26dd-4319-9f40-0354990ad101"
-        url = f"{self.BASE_URL}/custom_fields/{'test_field'}?customer_guid={invalid_customer_guid}"
-        logger.info(f"Testing deletion with invalid customer GUID: {invalid_customer_guid}")
-        response = requests.delete(url)
+        invalid_token = create_test_token(org_id="invalid_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
 
-        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Invalid customer GUID should result in 400")
-        self.assertIn(f"Database customer_{invalid_customer_guid} does not exist", response.text)
-        logger.info("Negative test case for invalid customer GUID passed.")
+        url = f"{self.BASE_URL}/custom_fields/{'test_field'}"
+        response = requests.delete(url, headers=headers)
+
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST,
+                         "Invalid org_id/customer_guid should result in 400")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def test_add_and_delete_one_custom_field(self):
         """Test adding 3 custom fields, deleting one, and verifying the remaining 2 custom fields are present."""
@@ -157,8 +169,8 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
 
         for field in custom_fields:
             logger.info(f"Adding custom field: {field['field_name']}")
-            field_data = {**field, "customer_guid": self.valid_customer_guid}
-            response = requests.post(custom_field_url, json=field_data)
+            field_data = {**field}
+            response = requests.post(custom_field_url, json=field_data, headers=self.headers)
             self.assertEqual(
                 response.status_code,
                 HTTPStatus.CREATED,
@@ -175,11 +187,11 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
 
         # Step 3: Delete one custom field (let's delete the second one in the list)
         field_to_delete = custom_fields[1]
-        url = f"{self.BASE_URL}/custom_fields/{field_to_delete['field_name']}?customer_guid={self.valid_customer_guid}"
+        url = f"{self.BASE_URL}/custom_fields/{field_to_delete['field_name']}"
         logger.info(f"Deleting custom field: {field_to_delete['field_name']}")
 
         # Perform the deletion
-        response = requests.delete(url)
+        response = requests.delete(url, headers=self.headers)
         self.assertEqual(response.status_code, HTTPStatus.OK,
                          f"Failed to delete custom field {field_to_delete['field_name']}")
 
@@ -208,12 +220,12 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         """Test that an invalid custom field API endpoint returns 404 Not Found."""
 
         # Define the invalid API endpoint URL
-        invalid_url = f"{self.BASE_URL}/custom_fields/test_field/blah/blah/blah?customer_guid={self.valid_customer_guid}"
+        invalid_url = f"{self.BASE_URL}/custom_fields/test_field/random/api/end_point"
 
         logger.info(f"Testing invalid API endpoint: {invalid_url}")
 
         # Send a GET request to the invalid URL
-        response = requests.get(invalid_url)
+        response = requests.get(invalid_url, headers=self.headers)
 
         # Assert that the response status code is 404 Not Found
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND,
@@ -225,6 +237,81 @@ class TestDeleteCustomFieldAPI(unittest.TestCase):
         self.assertEqual(response_data["detail"], "Not Found", "Expected 'Not Found' message in the response.")
 
         logger.info(f"Successfully validated 404 Not Found response for invalid endpoint: {invalid_url}")
+
+    def test_delete_custom_fields_without_token(self):
+        """Test API request without an authentication token."""
+        field_to_delete="test_field"
+        url = f"{self.BASE_URL}/custom_fields/{field_to_delete}"
+        logger.info("Testing API request without token")
+        response = requests.delete(url)  # No headers
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Missing token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_delete_custom_fields_corrupted_token(self):
+        """Test API request with a corrupted authentication token."""
+        field_to_delete = "test_field"
+        url = f"{self.BASE_URL}/custom_fields/{field_to_delete}"
+        headers = {"Authorization": "Bearer corrupted_token"}
+        logger.info("Testing API request with corrupted token")
+        response = requests.delete(url, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.UNAUTHORIZED, "Corrupted token should result in 401 Unauthorized")
+        self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
+
+    def test_delete_custom_fields_missing_org_id_in_token(self):
+        """Test API request where the token does not have an org_id."""
+        field_to_delete = "test_field"
+        url = f"{self.BASE_URL}/custom_fields/{field_to_delete}"
+        token = create_token_without_org_id(org_role=self.ORG_ROLE)  # No org_id
+        headers = {"Authorization": f"Bearer {token}"}
+        logger.info("Testing API request with missing org_id in token")
+        response = requests.delete(url, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Missing org_id should result in 400 Bad Request")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
+
+    def test_delete_custom_fields_missing_org_role_in_token(self):
+        """Test API request where the token does not have an org_role."""
+        field_to_delete = "test_field"
+        url = f"{self.BASE_URL}/custom_fields/{field_to_delete}"
+        customer_data = add_customer("test_org")
+        org_id = customer_data.get("org_id")
+        headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
+        logger.info("Testing API request with missing org_role in token")
+        response = requests.delete(url, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN, "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_delete_custom_fields_unauthorized_org_role(self):
+        headers={}
+        # Assuming an endpoint `/addcustomer` to create a new customer
+        data = add_customer("test_org")
+        valid_customer_guid = data.get("customer_guid")
+        org_id = data.get("org_id")
+
+        # Create Test Token for member (not allowed)
+        token = create_test_token(org_id=org_id, org_role="org:random_org_role")
+        headers['Authorization'] = f'Bearer {token}'
+
+        url = f"{self.BASE_URL}/custom_fields/test_field"
+
+        response = requests.delete(url, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN,
+                         "Missing org_role should result in 403 Unauthorized")
+        self.assertIn("detail", response.json(), "'detail' key not found in response")
+        self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
+
+    def test_delete_custom_fields_invalid_org_id_no_mapped_customer_guid(self):
+        """Test API request with an org_id that has no mapped customer_guid."""
+        url = f"{self.BASE_URL}/custom_fields/test_field"
+
+        invalid_token = create_test_token(org_id="unmapped_org", org_role=self.ORG_ROLE)
+        headers = {"Authorization": f"Bearer {invalid_token}"}
+        logger.info("Testing API request with org_id that has no mapped customer_guid")
+        response = requests.delete(url, headers=headers)
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST, "Unmapped org_id should result in 400 Bad Request")
+        self.assertIn("Database customer_None does not exist", response.text)
+        logger.info("Negative test case for invalid org_id/customer_guid passed.")
 
     def tearDown(self):
         """Clean up resources if necessary."""

@@ -3,13 +3,13 @@ import re
 from datetime import datetime
 from http import HTTPStatus
 from typing import List, Optional, Dict, Any, Union
-from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, validator
+from fastapi import APIRouter, HTTPException, Request, Depends
+from pydantic import BaseModel, StrictBool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
+from src.backend.lib.utils import CustomerService, auth_admin_dependency
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,19 +21,14 @@ app = APIRouter()
 # Initialize DatabaseManager instance
 db_manager = DatabaseManager()
 
+#Intialize CustomerService Instance
+customer_service=CustomerService()
 
 # Custom Field Pydantic Model
 class CustomField(BaseModel):
-    customer_guid: UUID
     field_name: str
     field_type: str
-    required: bool
-
-    @validator("required", pre=True, always=True)
-    def validate_required(cls, value):
-        if not isinstance(value, bool):
-            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=f"Invalid value for 'required'. Expected a boolean, got {type(value).__name__}.")
-        return value
+    required: StrictBool
 
 class CustomFieldResponse(BaseModel):
     field_name: str
@@ -55,7 +50,6 @@ class Ticket(BaseModel):
     custom_fields: Optional[Dict[str, Union[Any, None]]] = None
 
 class TicketRequest(BaseModel):
-    customer_guid: str
     chat_id: str
     title: str
     description: Optional[str]
@@ -103,7 +97,6 @@ class Comment(BaseModel):
     updated_at: datetime
 
 class CommentRequest(BaseModel):
-    customer_guid: str
     ticket_id: Union[str, int]
     posted_by: str
     comment: str
@@ -118,21 +111,26 @@ class CommentDeleteResponse(BaseModel):
 
 # Custom Fields Management APIs
 @app.post("/custom_fields", response_model=CustomField, status_code=HTTPStatus.CREATED, tags=["Custom Field Management"])
-async def add_custom_field(custom_field: CustomField):
+async def add_custom_field(custom_field: CustomField, request: Request, auth=Depends(auth_admin_dependency)):
     """Add a new custom field to a customer's tickets"""
     try:
+        # Retrieve the mapped customer_guid
+        existing_customer_guid = customer_service.get_customer_guid_from_token(request)
+        # Add custom field to the database using retrieved customer_guid
         success = db_manager.add_custom_field(
-            str(custom_field.customer_guid),
+            str(existing_customer_guid),
             custom_field.field_name,
             custom_field.field_type,
             custom_field.required,
         )
+
         if success:
             return custom_field
         else:
-            raise HTTPException(status_code=400, detail="Failed to add custom field")
+            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Failed to add custom field")
+
     except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(ve))
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -147,12 +145,15 @@ async def add_custom_field(custom_field: CustomField):
 
 @app.get("/custom_fields", response_model=List[CustomFieldResponse], tags=["Custom Field Management"])
 async def list_custom_fields(
-    customer_guid: UUID,
+    request: Request,
+    auth=Depends(auth_admin_dependency),
     page: int = 1,
     page_size: int = 10
 ):
     """List all custom fields for a customer with pagination."""
     try:
+        # Retrieve the mapped customer_guid
+        customer_guid = customer_service.get_customer_guid_from_token(request)
         # Call the modified list_paginated_custom_fields to get paginated results
         paginated_fields = db_manager.list_paginated_custom_fields(str(customer_guid), page, page_size)
 
@@ -195,10 +196,11 @@ async def list_custom_fields(
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
 @app.delete("/custom_fields/{field_name}", tags=["Custom Field Management"])
-async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...)):
+async def delete_custom_field(field_name: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Delete a custom field"""
     try:
-        result = db_manager.delete_custom_field(str(customer_guid), field_name)
+        existing_customer_guid = customer_service.get_customer_guid_from_token(request)
+        result = db_manager.delete_custom_field(str(existing_customer_guid), field_name)
 
         if result["status"] == "deleted":
             return {"field_name": field_name, "status": "deleted"}
@@ -240,13 +242,15 @@ async def delete_custom_field(field_name: str, customer_guid: UUID = Query(...))
 
 #Tickets APIS
 @app.post("/tickets", response_model=TicketResponse, status_code=HTTPStatus.CREATED, tags=["Ticket Management"])
-async def create_ticket(ticket: TicketRequest):
+async def create_ticket(ticket: TicketRequest, request: Request, auth=Depends(auth_admin_dependency)):
     """Create a new ticket"""
     try:
+        existing_customer_guid = customer_service.get_customer_guid_from_token(request)
+
         logger.debug(f"Received ticket data: {ticket}")
         # Call the database method to create the ticket
         db_response = db_manager.create_ticket(
-            ticket.customer_guid,
+            str(existing_customer_guid),
             ticket.chat_id,
             ticket.title,
             ticket.description,
@@ -276,7 +280,8 @@ async def create_ticket(ticket: TicketRequest):
     except SQLAlchemyError as e:
         logger.error(f"Database error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
-
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Unexpected error in creating ticket: {e}")
         raise HTTPException(
@@ -285,8 +290,12 @@ async def create_ticket(ticket: TicketRequest):
         )
 
 @app.get("/tickets/{ticket_id}", response_model=Ticket, tags=["Ticket Management"])
-async def get_ticket(ticket_id: str, customer_guid: UUID):
+async def get_ticket(ticket_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Retrieve a ticket by ID"""
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         ticket = db_manager.get_ticket_by_id(ticket_id, str(customer_guid))
 
@@ -312,12 +321,17 @@ async def get_ticket(ticket_id: str, customer_guid: UUID):
 
 @app.get("/tickets", response_model=List[TicketByChatId], tags=["Ticket Management"])
 async def get_tickets_by_chat_id(
-        customer_guid: UUID,
+        request: Request,
         chat_id: str,
         page: int = 1,
-        page_size: int = 10
+        page_size: int = 10,
+        auth=Depends(auth_admin_dependency),
 ):
     """Retrieve all tickets for a specific chat_id with pagination"""
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         tickets = db_manager.get_paginated_tickets_by_chat_id(str(customer_guid), chat_id, page, page_size)
 
@@ -351,10 +365,12 @@ async def get_tickets_by_chat_id(
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.put("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
-async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, customer_guid: str):
+async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, request: Request, auth=Depends(auth_admin_dependency)):
     """Update an existing ticket"""
     try:
-        update_status = db_manager.update_ticket(ticket_id, customer_guid, ticket_update)
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+
+        update_status = db_manager.update_ticket(ticket_id, str(customer_guid), ticket_update)
 
         if update_status["status"] == "updated":
             return TicketResponse(ticket_id=ticket_id, status="updated")
@@ -403,10 +419,12 @@ async def update_ticket(ticket_id: str, ticket_update: TicketUpdate, customer_gu
         )
 
 @app.delete("/tickets/{ticket_id}", response_model=TicketResponse, tags=["Ticket Management"])
-async def delete_ticket(ticket_id: str, customer_guid: str):
+async def delete_ticket(ticket_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Delete a ticket and corresponding custom fields"""
     try:
-        result = db_manager.delete_ticket(ticket_id, customer_guid)
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+
+        result = db_manager.delete_ticket(ticket_id, str(customer_guid))
 
         if result["status"] == "deleted":
             return TicketResponse(ticket_id=ticket_id, status="deleted")
@@ -481,15 +499,15 @@ def extract_core_error_details(message):
 
 #Comments APIS
 @app.post("/add_comment", response_model=Comment, status_code=HTTPStatus.CREATED, tags=["Comment Management"])
-async def create_comment(comment: CommentRequest):
+async def create_comment(comment: CommentRequest, request: Request, auth=Depends(auth_admin_dependency)):
     """Create a new comment for a ticket"""
     logger.debug(f"Received comment data: {comment}")
-
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
         # Call the database method to create the comment
         logger.debug("Calling DBManager.create_comment")
         db_response = db_manager.create_comment(
-            comment.customer_guid,
+            str(customer_guid),
             comment.ticket_id,
             comment.posted_by,
             comment.comment
@@ -517,7 +535,8 @@ async def create_comment(comment: CommentRequest):
     except SQLAlchemyError as e:
         logger.error(f"Database error: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
-
+    except HTTPException as e:
+            raise e
     except Exception as e:
         logger.error(f"Unexpected error in creating comment: {e}")
         raise HTTPException(
@@ -526,8 +545,12 @@ async def create_comment(comment: CommentRequest):
         )
 
 @app.get("/tickets/{ticket_id}/comments/{comment_id}", response_model=Comment, tags=["Comment Management"])
-async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
+async def get_comment(comment_id: str, ticket_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Retrieve a comment by ID"""
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         comment = db_manager.get_comment_by_id(comment_id, str(customer_guid), ticket_id)
 
@@ -554,12 +577,17 @@ async def get_comment(comment_id: str, customer_guid: UUID, ticket_id: str):
 
 @app.get("/tickets/{ticket_id}/comments", response_model=List[Comment], tags=["Comment Management"])
 async def get_comments_by_ticket_id(
-        customer_guid: UUID,
+        request: Request,
         ticket_id: str,
         page: int = 1,
-        page_size: int = 10
+        page_size: int = 10,
+        auth=Depends(auth_admin_dependency)
 ):
     """Retrieve all comments for a specific ticket_id"""
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
     try:
         comments = db_manager.get_paginated_comments_by_ticket_id(str(customer_guid), ticket_id, page, page_size)
 
@@ -593,11 +621,12 @@ async def get_comments_by_ticket_id(
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Internal Server Error")
 
 @app.put("/update_comment", response_model=Comment, tags=["Comment Management"])
-async def update_comment(ticket_id: str, comment_id: str, comment_update: CommentUpdate, customer_guid: str):
+async def update_comment(ticket_id: str, comment_id: str, comment_update: CommentUpdate, request: Request, auth=Depends(auth_admin_dependency)):
     """Update an existing comment"""
     try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
         logger.debug(f"Updating comment - Ticket ID: {ticket_id}, Comment ID: {comment_id}, Update: {comment_update}, Customer GUID: {customer_guid}")
-        update_status = db_manager.update_comment(ticket_id, comment_id, customer_guid, comment_update)
+        update_status = db_manager.update_comment(ticket_id, comment_id, str(customer_guid), comment_update)
 
         if update_status["status"] == "updated":
             comment_data = update_status.get("comment_data", {})
@@ -659,10 +688,12 @@ async def update_comment(ticket_id: str, comment_id: str, comment_update: Commen
         )
 
 @app.delete("/delete_comment", response_model=CommentDeleteResponse, tags=["Comment Management"])
-async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
+async def delete_comment(ticket_id: str, comment_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     """Delete a comment for a specific ticket."""
     try:
-        result = db_manager.delete_comment(ticket_id, comment_id, customer_guid)
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+
+        result = db_manager.delete_comment(ticket_id, comment_id, str(customer_guid))
 
         if result["status"] == "deleted":
             return CommentDeleteResponse(comment_id=comment_id, status="deleted")
@@ -705,16 +736,21 @@ async def delete_comment(ticket_id: str, comment_id: str, customer_guid: str):
             detail="An unexpected error occurred while deleting the comment."
         )
 
-@app.get("/tickets/customer/{customer_guid}", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
+@app.get("/tickets/customer/", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
 async def get_tickets_by_customer_guid(
-    customer_guid: str,
+    request: Request,
+    auth=Depends(auth_admin_dependency),
     page: int = 1,
     page_size: int = 10
 ):
     """Retrieve all tickets for a specific customer_guid with pagination"""
-    logger.debug(f"Received customer_guid: {customer_guid}, page: {page}, page_size: {page_size}")
     try:
-        tickets = db_manager.get_paginated_tickets_by_customer_guid(customer_guid, page, page_size)
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+    except HTTPException as e:
+        raise e
+    try:
+        logger.debug(f"Received customer_guid: {customer_guid}, page: {page}, page_size: {page_size}")
+        tickets = db_manager.get_paginated_tickets_by_customer_guid(str(customer_guid), page, page_size)
 
         if not tickets:
             logger.info(f"No tickets found for customer {customer_guid}")
