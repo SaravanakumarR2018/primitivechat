@@ -78,7 +78,7 @@ class TicketByChatId(BaseModel):
     created_at: datetime
 
 class TicketByCustomerId(BaseModel):
-    ticket_id: str
+    ticket_id: int
     title: str
     status: str
     priority:str
