@@ -17,7 +17,6 @@ from src.backend.weaviate.weaviate_manager import WeaviateManager
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
 app = APIRouter()
 
 # Allow CORS if necessary
@@ -26,6 +25,7 @@ db_manager = DatabaseManager()
 minio_manager = MinioManager()
 weaviate_manager = WeaviateManager()
 customer_service = CustomerService()
+
 
 # Pydantic models for the API inputs
 class ChatRequest(BaseModel):
@@ -41,6 +41,7 @@ class GetAllChatsRequest(BaseModel):
 
 class DeleteChatsRequest(BaseModel):
     chat_id: str
+
 
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
@@ -76,7 +77,8 @@ async def add_customer(request: Request, auth=Depends(auth_admin_dependency)):
             logger.info(f"MinIO bucket created for customer GUID: {customer_guid}")
         except Exception as e:
             logger.error(f"MinIO creation failed. Error: {e}")
-            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer storage")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                                detail="Failed to create customer storage")
 
         # Create a Weaviate class
         try:
@@ -85,15 +87,15 @@ async def add_customer(request: Request, auth=Depends(auth_admin_dependency)):
         except Exception as e:
             logger.error(f"Weaviate schema creation failed. Error: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Failed to create customer schema")
-        
+
         # Add extra row in common_db table
         try:
             mapping_result = db_manager.map_clerk_orgid_with_customer_guid(org_id, customer_guid)
-            logger.info(f"Entry added in common_db for org_id: {mapping_result.get('org_id')}, customer_guid: {mapping_result.get('customer_guid')}")
+            logger.info(
+                f"Entry added in common_db for org_id: {mapping_result.get('org_id')}, customer_guid: {mapping_result.get('customer_guid')}")
         except SQLAlchemyError as e:
             logger.error(f"Database error while inserting into common_db: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="Database error occurred")
-
 
         logger.debug(f"Exiting add_customer() with Customer GUID: {mapping_result.get('customer_guid')}")
 
@@ -118,15 +120,18 @@ async def upload_File(request: Request, auth=Depends(auth_admin_dependency), fil
             logger.error("Invalid or missing customer_guid in token")
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
+        # Generate a unique file ID
+        file_id = db_manager.generate_file_id()
+
         #call MinioManager to Upload the file
         minio_manager.upload_file(
             bucket_name=customer_guid,
             filename=file.filename,
             file_data=file.file
         )
-        db_manager.insert_customer_file_status(customer_guid=customer_guid, filename=file.filename)
-        logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' successfully.")
-        return {"message":"File uploaded SuccessFully"}
+        db_manager.insert_customer_file_status(customer_guid=customer_guid, filename=file.filename, file_id=file_id)
+        logger.info(f"File '{file.filename}' uploaded to bucket '{customer_guid}' with file_id: {file_id} successfully.")
+        return {"message":"File uploaded SuccessFully", "file_id": file_id}
 
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -157,7 +162,7 @@ async def list_files(request: Request, auth=Depends(auth_admin_dependency)):
 
         return {"files": file_list}
     except HTTPException as e:
-        raise e    
+        raise e
     except Exception as e:
         if isinstance(e, HTTPException):
             if e.status_code == 404:
@@ -183,11 +188,11 @@ async def download_file(filename: str, request: Request, auth=Depends(auth_admin
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-        file_stream=minio_manager.download_file(
+        file_stream = minio_manager.download_file(
             customer_guid,
             filename
         )
-        if isinstance(file_stream,dict) and "error" in file_stream:
+        if isinstance(file_stream, dict) and "error" in file_stream:
             logger.error(f"Error downloading file '{filename}' from bucket '{customer_guid}'")
             raise HTTPException(status_code=500, detail=file_stream["error"])
 
@@ -196,11 +201,11 @@ async def download_file(filename: str, request: Request, auth=Depends(auth_admin
             file_stream,
             media_type="application/octet-stream",
             headers={
-            "Content-Disposition":f"attachment; filename={filename}"
-        })
+                "Content-Disposition": f"attachment; filename={filename}"
+            })
     except Exception as e:
         if isinstance(e, HTTPException):
-            if e.status_code==404:
+            if e.status_code == 404:
                 logger.error(f"Invalid customer_guid:{e.detail}")
                 raise HTTPException(status_code=404, detail=e.detail)
             else:
@@ -211,6 +216,113 @@ async def download_file(filename: str, request: Request, auth=Depends(auth_admin
             raise HTTPException(status_code=500, detail="Error downloading file")
     finally:
         logger.debug(f"Exiting download_file() with Correlation ID:{request.state.correlation_id}")
+
+@app.get("/file/{file_id}/embeddingstatus", tags=["Vectorize Management"])
+async def get_file_embedding_status(file_id: str,request: Request, auth=Depends(auth_admin_dependency)):
+    logger.debug(f"Entering get_file_embedding_status() with file_id: {file_id}")
+    try:
+        # Get customer_guid from the token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            logger.error("Invalid or missing customer_guid in token")
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
+        # Fetch the filename associated with the file_id
+        filename = db_manager.get_filename_from_file_id(customer_guid, file_id)
+        if not filename:
+            logger.error(f"Filename not found for file_id: {file_id}")
+            raise HTTPException(status_code=400, detail="Filename not found")
+
+        # Fetch the file status from the database
+        file_status = db_manager.get_file_embedding_status(customer_guid, filename)
+        if not file_status:
+            logger.error(f"File with file_id: {file_id} not found for customer_guid: {customer_guid}")
+            raise HTTPException(status_code=403, detail="File not found")
+
+        status, error_retry = file_status
+
+        # Map the database status to a user-friendly processing stage
+        status_mapping = {
+            "todo": "EXTRACTING",
+            "extract_error": "EXTRACTING",
+            "extracted": "CHUNKING",
+            "chunk_error": "CHUNKING",
+            "chunked": "EMBEDDING",
+            "vectorize_error": "EMBEDDING",
+            "completed": "SUCCESS",
+            "error": "FILE_EMBEDDING_FAILED",
+            "file_vectorization_failed": "FILE_EMBEDDING_FAILED"
+        }
+
+        processing_stage = status_mapping.get(status, "UNKNOWN")
+        logger.info(f"File {file_id} is in stage: {processing_stage}")
+
+        return {
+            "processing_stage": processing_stage,
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching file embedding status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        logger.debug(f"Exiting get_file_embedding_status() with file_id: {file_id}")
+
+
+@app.get("/file/list", tags=["Vectorize Management"])
+async def paginated_list_files(
+    request: Request,
+    page: int = 1,
+    page_size: int = 10,
+    auth=Depends(auth_admin_dependency)
+):
+    logger.debug(f"Entering list_files() with page: {page}, page_size: {page_size}")
+
+    try:
+        # Get customer_guid from the token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            logger.error("Invalid or missing customer_guid in token")
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
+        # Fetch paginated files from the database
+        files = db_manager.get_paginated_files(customer_guid, page, page_size)
+        if not files:
+            logger.info(f"No files found for customer_guid: {customer_guid}")
+            return []
+
+        # Map database status to user-friendly embedding status
+        status_mapping = {
+            "todo": "EXTRACTING",
+            "extract_error": "EXTRACTING",
+            "extracted": "CHUNKING",
+            "chunk_error": "CHUNKING",
+            "chunked": "EMBEDDING",
+            "vectorize_error": "EMBEDDING",
+            "completed": "SUCCESS",
+            "error": "FILE_EMBEDDING_FAILED",
+            "file_vectorization_failed": "FILE_EMBEDDING_FAILED"
+        }
+
+        # Format the response
+        response = [
+            {
+                "fileid": file["file_id"],
+                "filename": file["filename"],
+                "embeddingstatus": status_mapping.get(file["status"], "UNKNOWN")
+            }
+            for file in files
+        ]
+
+        logger.info(f"Returning {len(response)} files for customer_guid: {customer_guid}")
+        return response
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error in list_files: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
 
 @app.post("/chat", tags=["Chat Management"])
