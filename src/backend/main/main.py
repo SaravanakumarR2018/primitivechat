@@ -7,12 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.backend.chat_service.chat_service import app as chat_router
 from src.backend.ticket_service.ticket_service import app as ticket_router
 from src.backend.auth_router.auth_router import app as auth_router
+from src.backend.lib.logging_config import log_format
 
 # Create the main FastAPI app
 main_app = FastAPI()
 
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
 
 # Mount chat_service and ticket_service to different paths

@@ -5,9 +5,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 import logging
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
+from src.backend.lib.logging_config import log_format
 
 # Configure Logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
 
 class ProcessAndUploadBucket:

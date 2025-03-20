@@ -12,9 +12,10 @@ from src.backend.lib.utils import CustomerService, auth_admin_dependency
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
+from src.backend.lib.logging_config import log_format
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
 
 

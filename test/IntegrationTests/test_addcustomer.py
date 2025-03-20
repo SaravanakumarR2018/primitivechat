@@ -2,10 +2,12 @@ import logging
 import os
 import unittest
 import requests
+
+from src.backend.lib.logging_config import log_format
 from utils.api_utils import add_customer, create_token_without_org_id, create_token_without_org_role
 
 # Set up logging configuration
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
 class TestAddCustomerAPI(unittest.TestCase):
