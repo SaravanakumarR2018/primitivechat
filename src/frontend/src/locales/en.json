@@ -91,7 +91,9 @@
     "todos": "Todos",
     "members": "Members",
     "billing": "Billing",
-    "settings": "Settings"
+    "settings": "Settings",
+    "tickets": "Tickets",
+    "chats": "Chats"
   },
   "Dashboard": {
     "meta_title": "SaaS Template Dashboard",
@@ -162,5 +164,14 @@
     "message_title": "Message",
     "message_description": "Enter a detailed message for your todo.",
     "submit_button": "Submit"
+  },
+  "Tickets": {
+    "title_bar": "Ticket Management",
+    "title_bar_description": "Manage Your Tickets"
+  },
+  "NotFoundLayout": {
+    "not_found": "Page Not Found",
+    "meta_title": "404 - Not Found",
+    "meta_description": "The page you are looking for does not exist."
   }
 }
