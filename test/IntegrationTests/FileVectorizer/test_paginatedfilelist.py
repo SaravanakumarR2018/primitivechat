@@ -3,6 +3,7 @@ import os
 import unittest
 import requests
 import sys
+import uuid
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from utils.api_utils import add_customer, create_test_token, create_token_without_org_id, create_token_without_org_role
 from src.backend.lib.logging_config import log_format
@@ -30,9 +31,11 @@ class TestFileListAPI(unittest.TestCase):
         logger.info("=== Setup process completed ===")
 
     def upload_files(self, num_files):
-        """Helper function to upload multiple files."""
+        """Helper function to upload multiple files with unique filenames."""
         for i in range(1, num_files + 1):
-            test_file = (f"testfile{i}.txt", b"Sample file content")
+            # Generate a unique filename for each file
+            unique_filename = f"testfile_{uuid.uuid4().hex}.txt"
+            test_file = (unique_filename, b"Sample file content")
             files = {"file": test_file}
             upload_response = requests.post(f"{self.BASE_URL}/uploadFile", files=files, headers=self.headers)
             self.assertEqual(upload_response.status_code, 200, f"File upload failed for file {i}")
