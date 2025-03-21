@@ -47,6 +47,7 @@ class DatabaseManager:
                     id SERIAL PRIMARY KEY,
                     customer_guid VARCHAR(255),
                     filename VARCHAR(255),
+                    file_id VARCHAR(255) NOT NULL UNIQUE,
                     uploaded_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
                     current_activity_updated_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                     status ENUM('todo', 'extracted', 'chunked', 'completed', 'error', 'extract_error', 'chunk_error', 'vectorize_error','file_vectorization_failed') DEFAULT 'todo',
@@ -58,7 +59,8 @@ class DatabaseManager:
                     delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
                     final_delete_timestamp TIMESTAMP(6),
                     INDEX idx_customer_guid (customer_guid),
-                    INDEX idx_filename (filename)
+                    INDEX idx_filename (filename),
+                    INDEX idx_file_id (file_id) 
                     );
                     """
             session.execute(text(create_table_query))
@@ -184,6 +186,7 @@ class DatabaseManager:
                     id SERIAL PRIMARY KEY,
                     customer_guid VARCHAR(255),
                     filename VARCHAR(255),
+                    file_id VARCHAR(255) NOT NULL UNIQUE,
                     uploaded_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
                     current_activity_updated_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                     status ENUM('todo', 'extracted', 'chunked', 'completed', 'error', 'extract_error', 'chunk_error', 'vectorize_error','file_vectorization_failed') DEFAULT 'todo',
@@ -195,7 +198,8 @@ class DatabaseManager:
                     delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
                     final_delete_timestamp TIMESTAMP(6),
                     INDEX idx_customer_guid (customer_guid),
-                    INDEX idx_filename (filename)               
+                    INDEX idx_filename (filename),
+                    INDEX idx_file_id (file_id) 
                     );
                     """
             session.execute(text(create_uploadedfile_status_table_query))
@@ -1587,7 +1591,11 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def insert_customer_file_status(self, customer_guid, filename):
+    def generate_file_id(self):
+        """Generate a unique file ID."""
+        return str(uuid.uuid4())
+
+    def insert_customer_file_status(self, customer_guid, filename, file_id):
         logger.debug("Inserting record into customer_file_status and uploadedfile_status tables")
         session = DatabaseManager._session_factory()
         try:
@@ -1595,17 +1603,19 @@ class DatabaseManager:
 
             insert_common_query = """
             INSERT INTO common_db.customer_file_status
-            (customer_guid, filename, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
-            VALUES (:customer_guid, :filename, 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
+            (customer_guid, filename, file_id, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
+            VALUES (:customer_guid, :filename, :file_id, 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
             """
-            session.execute(text(insert_common_query), {'customer_guid': customer_guid, 'filename': filename})
+            session.execute(text(insert_common_query),
+                            {'customer_guid': customer_guid, 'filename': filename, 'file_id': file_id})
 
             insert_customer_query = f"""
             INSERT INTO `{customer_db}`.uploadedfile_status
-            (customer_guid, filename, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
-            VALUES (:customer_guid, :filename, 'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
+            (customer_guid, filename, file_id, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp)
+            VALUES (:customer_guid, :filename, :file_id,  'todo', NULL, 0, NULL, FALSE, NULL, 'todo', NULL);
             """
-            session.execute(text(insert_customer_query), {'customer_guid': customer_guid, 'filename': filename})
+            session.execute(text(insert_customer_query),
+                            {'customer_guid': customer_guid, 'filename': filename, 'file_id': file_id})
             session.commit()
             logger.info(f"File upload record inserted for customer_guid: {customer_guid} with filename: {filename}")
 
@@ -1723,3 +1733,84 @@ class DatabaseManager:
             session.rollback()
         finally:
             session.close()
+
+    def check_filename_exists(self, customer_guid: str, filename: str):
+        session = self._session_factory()
+        try:
+            customer_db = self.get_customer_db(customer_guid)
+            query = f"""
+                SELECT COUNT(*) 
+                FROM `{customer_db}`.uploadedfile_status
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).scalar()
+            return result > 0 
+        except SQLAlchemyError as e:
+            logger.error(f"Error checking filename existence: {e}")
+            return False
+        finally:
+            session.close()
+
+    def get_file_embedding_status_from_file_id(self, customer_guid: str, file_id: str):
+        session = self._session_factory()
+        try:
+            customer_db = self.get_customer_db(customer_guid)
+            query = f"""
+                    SELECT filename, status, error_retry 
+                    FROM `{customer_db}`.uploadedfile_status 
+                    WHERE customer_guid = :customer_guid AND file_id = :file_id
+                """
+            result = session.execute(text(query), {"customer_guid": customer_guid, "file_id": file_id}).fetchone()
+            return result if result else None
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching file embedding status: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_paginated_files(self, customer_guid: str, page: int = 1, page_size: int = 10):
+
+        logger.debug("Entering get_paginated_files method")
+        session = self._session_factory()
+        try:
+            # Get the customer-specific database name
+            customer_db = self.get_customer_db(customer_guid)
+
+            # Calculate the offset for pagination
+            offset = (page - 1) * page_size
+
+            # Query to fetch paginated files
+            query = f"""
+                SELECT file_id, filename, status 
+                FROM `{customer_db}`.uploadedfile_status
+                WHERE customer_guid = :customer_guid
+                ORDER BY uploaded_time DESC
+                LIMIT :limit OFFSET :offset
+            """
+            result = session.execute(text(query), {
+                "customer_guid": customer_guid,
+                "limit": page_size,
+                "offset": offset
+            }).fetchall()
+
+            # Convert the result into a list of dictionaries
+            files_list = [
+                {
+                    "file_id": file.file_id,
+                    "filename": file.filename,
+                    "status": file.status
+                }
+                for file in result
+            ]
+
+            logger.info(f"Retrieved {len(files_list)} files for customer_guid: {customer_guid}")
+            return files_list
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching paginated files: {e}")
+            return []
+        finally:
+            logger.debug("Exiting get_paginated_files method")
+            session.close()
+
+
