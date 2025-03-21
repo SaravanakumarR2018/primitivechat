@@ -47,7 +47,7 @@ class DatabaseManager:
                     id SERIAL PRIMARY KEY,
                     customer_guid VARCHAR(255),
                     filename VARCHAR(255),
-                    file_id VARCHAR(255) NOT NULL,
+                    file_id VARCHAR(255) NOT NULL UNIQUE,
                     uploaded_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
                     current_activity_updated_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                     status ENUM('todo', 'extracted', 'chunked', 'completed', 'error', 'extract_error', 'chunk_error', 'vectorize_error','file_vectorization_failed') DEFAULT 'todo',
@@ -59,7 +59,8 @@ class DatabaseManager:
                     delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
                     final_delete_timestamp TIMESTAMP(6),
                     INDEX idx_customer_guid (customer_guid),
-                    INDEX idx_filename (filename)
+                    INDEX idx_filename (filename),
+                    INDEX idx_file_id (file_id) 
                     );
                     """
             session.execute(text(create_table_query))
@@ -185,7 +186,7 @@ class DatabaseManager:
                     id SERIAL PRIMARY KEY,
                     customer_guid VARCHAR(255),
                     filename VARCHAR(255),
-                    file_id VARCHAR(255) NOT NULL,
+                    file_id VARCHAR(255) NOT NULL UNIQUE,
                     uploaded_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
                     current_activity_updated_time TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                     status ENUM('todo', 'extracted', 'chunked', 'completed', 'error', 'extract_error', 'chunk_error', 'vectorize_error','file_vectorization_failed') DEFAULT 'todo',
@@ -197,7 +198,8 @@ class DatabaseManager:
                     delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
                     final_delete_timestamp TIMESTAMP(6),
                     INDEX idx_customer_guid (customer_guid),
-                    INDEX idx_filename (filename)               
+                    INDEX idx_filename (filename),
+                    INDEX idx_file_id (file_id) 
                     );
                     """
             session.execute(text(create_uploadedfile_status_table_query))
@@ -1732,36 +1734,36 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_filename_from_file_id(self, customer_guid, file_id):
+    def check_filename_exists(self, customer_guid: str, filename: str):
         session = self._session_factory()
         try:
             customer_db = self.get_customer_db(customer_guid)
             query = f"""
-                SELECT filename 
+                SELECT COUNT(*) 
                 FROM `{customer_db}`.uploadedfile_status
-                WHERE customer_guid = :customer_guid AND file_id = :file_id
+                WHERE customer_guid = :customer_guid AND filename = :filename
             """
-            result = session.execute(text(query), {"customer_guid": customer_guid, "file_id": file_id}).fetchone()
-            return result[0] if result else None
+            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).scalar()
+            return result > 0 
         except SQLAlchemyError as e:
-            logger.error(f"Error fetching filename: {e}")
-            return None
+            logger.error(f"Error checking filename existence: {e}")
+            return False
         finally:
             session.close()
 
-    def get_file_embedding_status(self, customer_guid, filename):
+    def get_file_embedding_status_from_file_id(self, customer_guid: str, file_id: str):
         session = self._session_factory()
         try:
             customer_db = self.get_customer_db(customer_guid)
             query = f"""
-                SELECT status, error_retry 
-                FROM `{customer_db}`.uploadedfile_status 
-                WHERE customer_guid = :customer_guid AND filename = :filename
-            """
-            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).fetchone()
+                    SELECT filename, status, error_retry 
+                    FROM `{customer_db}`.uploadedfile_status 
+                    WHERE customer_guid = :customer_guid AND file_id = :file_id
+                """
+            result = session.execute(text(query), {"customer_guid": customer_guid, "file_id": file_id}).fetchone()
             return result if result else None
         except SQLAlchemyError as e:
-            logger.error(f"Error fetching file status: {e}")
+            logger.error(f"Error fetching file embedding status: {e}")
             return None
         finally:
             session.close()
