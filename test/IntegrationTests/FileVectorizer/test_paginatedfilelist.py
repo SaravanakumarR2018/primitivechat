@@ -5,6 +5,7 @@ import requests
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from utils.api_utils import add_customer, create_test_token, create_token_without_org_id, create_token_without_org_role
+from src.backend.lib.logging_config import log_format
 
 # Set up logging configuration
 logging.basicConfig(level=logging.INFO, format=log_format)
