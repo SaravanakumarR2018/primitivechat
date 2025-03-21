@@ -2,8 +2,11 @@ import unittest
 import requests
 import logging
 import os
+
+from src.backend.lib.logging_config import log_format
+
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
 class TestAPI(unittest.TestCase):

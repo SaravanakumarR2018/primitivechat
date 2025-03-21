@@ -9,11 +9,12 @@ import requests
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from utils.api_utils import add_customer, create_test_token, create_token_without_org_role, create_token_without_org_id
+from src.backend.lib.logging_config import log_format
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format=log_format
 )
 logger = logging.getLogger(__name__)
 
