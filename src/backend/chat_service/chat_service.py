@@ -119,6 +119,11 @@ async def upload_File(request: Request, auth=Depends(auth_admin_dependency), fil
             logger.error("Invalid or missing customer_guid in token")
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
+         # Check if the filename already exists for the customer
+        if db_manager.check_filename_exists(customer_guid, file.filename):
+            logger.error(f"File '{file.filename}' already exists for customer_guid: {customer_guid}")
+            raise HTTPException(status_code=HTTPStatus.CONFLICT, detail=f"File '{file.filename}' already exists in the system.")
+
         # Generate a unique file ID
         file_id = db_manager.generate_file_id()
 
@@ -217,7 +222,7 @@ async def download_file(filename: str, request: Request, auth=Depends(auth_admin
         logger.debug(f"Exiting download_file() with Correlation ID:{request.state.correlation_id}")
 
 @app.get("/file/{file_id}/embeddingstatus", tags=["Vectorize Management"])
-async def get_file_embedding_status(file_id: str,request: Request, auth=Depends(auth_admin_dependency)):
+async def get_file_embedding_status(file_id: str, request: Request, auth=Depends(auth_admin_dependency)):
     logger.debug(f"Entering get_file_embedding_status() with file_id: {file_id}")
     try:
         # Get customer_guid from the token
@@ -226,19 +231,13 @@ async def get_file_embedding_status(file_id: str,request: Request, auth=Depends(
             logger.error("Invalid or missing customer_guid in token")
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-        # Fetch the filename associated with the file_id
-        filename = db_manager.get_filename_from_file_id(customer_guid, file_id)
-        if not filename:
-            logger.error(f"Filename not found for file_id: {file_id}")
-            raise HTTPException(status_code=400, detail="Filename not found")
-
-        # Fetch the file status from the database
-        file_status = db_manager.get_file_embedding_status(customer_guid, filename)
+        # Fetch the file status directly using file_id
+        file_status = db_manager.get_file_embedding_status_from_file_id(customer_guid, file_id)
         if not file_status:
             logger.error(f"File with file_id: {file_id} not found for customer_guid: {customer_guid}")
-            raise HTTPException(status_code=403, detail="File not found")
+            raise HTTPException(status_code=400, detail="File not found")
 
-        status, error_retry = file_status
+        filename, status, error_retry = file_status
 
         # Map the database status to a user-friendly processing stage
         status_mapping = {
@@ -257,6 +256,8 @@ async def get_file_embedding_status(file_id: str,request: Request, auth=Depends(
         logger.info(f"File {file_id} is in stage: {processing_stage}")
 
         return {
+            "file_id": file_id,
+            "filename": filename,
             "processing_stage": processing_stage,
         }
 
