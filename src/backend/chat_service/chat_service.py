@@ -235,7 +235,7 @@ async def get_file_embedding_status(file_id: str, request: Request, auth=Depends
         file_status = db_manager.get_file_embedding_status_from_file_id(customer_guid, file_id)
         if not file_status:
             logger.error(f"File with file_id: {file_id} not found for customer_guid: {customer_guid}")
-            raise HTTPException(status_code=400, detail="File not found")
+            raise HTTPException(status_code=400, detail="Filename not found")
 
         filename, status, error_retry = file_status
 
