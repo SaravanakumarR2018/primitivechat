@@ -7,8 +7,9 @@ from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import AuthenticateRequestOptions
 from fastapi import HTTPException, Request
 from src.backend.lib.config import TEST_TOKEN_PREFIX, TEST_SECRET, JWKS_URL  # Import from config
+from src.backend.lib.logging_config import log_format
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
 # Initialize Clerk client

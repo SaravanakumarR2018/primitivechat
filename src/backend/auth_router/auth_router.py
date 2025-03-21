@@ -7,9 +7,10 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from src.backend.lib.auth_utils import get_decoded_token  # Import the new utility function
 from src.backend.lib.utils import auth_admin_dependency
 from starlette.responses import JSONResponse
+from src.backend.lib.logging_config import log_format
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
 # Create a new router for authentication

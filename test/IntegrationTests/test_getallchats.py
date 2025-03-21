@@ -4,12 +4,13 @@ import unittest
 
 import requests
 
+from src.backend.lib.logging_config import log_format
 from utils.api_utils import add_customer,create_test_token,create_token_without_org_role,create_token_without_org_id
 
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format=log_format
 )
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
         # Create a test token for authentication
         self.token = create_test_token(org_id=self.org_id, org_role=ORG_ADMIN_ROLE)
         self.headers = {'Authorization': f'Bearer {self.token}'}
-
+        logger.info(f"=== Test Case {self._testMethodName} Started ===")
         logger.info("=== setUp completed successfully ===\n")
 
     def create_chat(self):
@@ -763,7 +764,11 @@ class TestGetAllChatsAPI(unittest.TestCase):
         self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
 
         logger.info("=== Test Case 19 Completed: test_get_all_chat_no_mapping_customer_guid===\n")
- 
+
+    def tearDown(self):
+        """Clean up after tests."""
+        logger.info(f"=== Test {self._testMethodName} completed and passed ===")
+        logger.info("=== Test teardown complete ===")
 
 if __name__ == "__main__":
     unittest.main()

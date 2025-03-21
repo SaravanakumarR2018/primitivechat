@@ -10,9 +10,10 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
+from src.backend.lib.logging_config import log_format
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
 
 

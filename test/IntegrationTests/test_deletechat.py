@@ -4,12 +4,13 @@ import unittest
 
 import requests
 
+from src.backend.lib.logging_config import log_format
 from utils.api_utils import add_customer,create_test_token, create_token_without_org_role, create_token_without_org_id
 
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format=log_format
 )
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class TestDeleteChatAPI(unittest.TestCase):
         # Create a test token for authentication
         self.token = create_test_token(org_id=self.org_id, org_role=ORG_ADMIN_ROLE)
         self.headers = {'Authorization': f'Bearer {self.token}'}
+        logger.info(f"=== Test Case {self._testMethodName} Started ===")
 
     def create_chat(self):
         """Helper method to create a new chat and return the chat_id"""

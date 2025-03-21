@@ -3,11 +3,11 @@ from http import HTTPStatus
 from src.backend.db.database_manager import DatabaseManager
 from src.backend.lib.auth_utils import get_decoded_token
 from fastapi import HTTPException, Request
-
+from src.backend.lib.logging_config import log_format
 from src.backend.lib.auth_decorator import authenticate_and_check_role
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
 
 
