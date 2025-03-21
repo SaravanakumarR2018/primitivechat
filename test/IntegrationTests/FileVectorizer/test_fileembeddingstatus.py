@@ -4,7 +4,6 @@ import unittest
 import sys
 import requests
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-
 from utils.api_utils import add_customer, create_test_token, create_token_without_org_role, create_token_without_org_id
 from src.backend.lib.logging_config import log_format
 
@@ -12,13 +11,12 @@ from src.backend.lib.logging_config import log_format
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
-
 class TestFileEmbeddingStatusAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         """Setup function to initialize customer, token, and upload a file to get a valid file_id."""
-        logger.info("=== Starting setup process ===")
+        logger.info(f"=== Starting setup process for test: {self._testMethodName} ===")
 
         # Initialize customer and token
         customer_data = add_customer("test_org")
@@ -42,7 +40,7 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.valid_file_id = upload_response.json().get("file_id")
         logger.info(f"Received valid file_id: {self.valid_file_id}")
 
-        logger.info("=== Setup process completed ===")
+        logger.info(f"=== Setup process completed for test: {self._testMethodName} ===")
 
     def test_valid_file_id_and_status(self):
         """Test the API with a valid file_id and check the processing stage."""
@@ -64,8 +62,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("processing_stage", data, "'processing_stage' not found in response data")
         logger.info(f"File is in stage: {data['processing_stage']}")
 
-        logger.info("Test completed successfully for test_valid_file_id_and_status")
-
     def test_invalid_file_id(self):
         """Test the API with an invalid file_id."""
         logger.info("Executing test_invalid_file_id")
@@ -78,7 +74,7 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         logger.info(f"Received response status code: {response.status_code}")
 
         # Check if the response indicates an error
-        self.assertIn(response.status_code, [400], f"Expected status code 400 or 403 but got {response.status_code}")
+        self.assertIn(response.status_code, [400], f"Expected status code 400 but got {response.status_code}")
 
         # Check if the error message is correct
         data = response.json()
@@ -86,8 +82,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
 
         self.assertIn("detail", data, "'detail' not found in response data")
         self.assertIn("Filename not found", data["detail"], "Error message does not indicate file not found")
-
-        logger.info("Test completed successfully for test_invalid_file_id")
 
     def test_Invalid_customer_guid_file_and_valid_fileid(self):
         """Test the API with a valid file_id but an invalid customer_guid (org_id)."""
@@ -137,8 +131,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("detail", data, "'detail' not found in response data")
         self.assertEqual(data["detail"], "Invalid customer_guid provided", "Unexpected error message")
 
-        logger.info("Test completed successfully for test_Invalid_customer_guid_file_and_valid_fileid")
-
     def test_wrong_customer_guid_and_wrong_file_id(self):
         """Test the API with an invalid customer_guid and an invalid file_id."""
         logger.info("Executing test_wrong_customer_guid_and_wrong_file_id")
@@ -166,8 +158,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("detail", data, "'detail' not found in response data")
         self.assertEqual(data["detail"], "Invalid customer_guid provided", "Unexpected error message")
 
-        logger.info("Test completed successfully for test_wrong_customer_guid_and_wrong_file_id")
-
     def test_correct_customer_guid_and_wrong_file_id(self):
         """Test the API with a valid customer_guid but an invalid file_id."""
         logger.info("Executing test_correct_customer_guid_and_wrong_file_id")
@@ -193,8 +183,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("detail", data, "'detail' not found in response data")
         self.assertEqual(data["detail"], "Filename not found", "Unexpected error message")
 
-        logger.info("Test completed successfully for test_correct_customer_guid_and_wrong_file_id")
-
     def test_missing_file_id(self):
         """Test the API with a missing file_id in the URL."""
         logger.info("Executing test_missing_file_id")
@@ -219,8 +207,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("detail", data, "'detail' not found in response data")
         self.assertEqual(data["detail"], "Not Found", "Unexpected error message")
 
-        logger.info("Test completed successfully for test_missing_file_id")
-
     def test_fileid_without_token(self):
         logger.info("Executing file_id_without_token: Testing error handling for missing token")
 
@@ -234,7 +220,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         response_json = response.json()
         self.assertEqual(response_json.get("detail"), "Authentication required")
-        logger.info("Test completed successfully for test_fileid_without_token")
 
     def test_corrupted_token(self):
         """Test API request with a corrupted authentication token."""
@@ -245,7 +230,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         response = requests.get(url,  headers=headers)
         self.assertEqual(response.status_code, 401, "Corrupted token should result in 401 Unauthorized")
         self.assertEqual(response.json()["detail"], "Authentication required", "Unexpected error message")
-        logger.info("Test completed successfully for test_corrupted_token")
 
     def test_fileid_token_without_org_role(self):
         logger.info("Testing embeddingstatus API with a token missing org_role")
@@ -258,8 +242,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("detail", response.json(), "'detail' key not found in response")
         self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
 
-        logger.info("Test completed successfully for test_fileid_token_without_org_role")
-
     def test_fileid_token_without_org_id(self):
         logger.info("Testing embeddingstatus API with a token missing org_id")
 
@@ -271,8 +253,6 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 400, "Expected status code 400 for missing org_id")
         self.assertIn("detail", response.json(), "'detail' key not found in response")
         self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
-
-        logger.info("Test completed successfully for test_fileid_token_without_org_id")
 
     def test_fileid_no_mapping_customer_guid(self):
         logger.info("Testing embeddingstatus API with no mapping between org_id and customer_guid")
@@ -288,7 +268,9 @@ class TestFileEmbeddingStatusAPI(unittest.TestCase):
         self.assertIn("detail", response.json(), "'detail' key not found in response")
         self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
 
-        logger.info("Test completed successfully for test_fileid_no_mapping_customer_guid")
+    def tearDown(self):
+        """Teardown function to log the completion of the test case."""
+        logger.info(f"=== Finished execution of test: {self._testMethodName} ===")
 
 
 if __name__ == "__main__":
