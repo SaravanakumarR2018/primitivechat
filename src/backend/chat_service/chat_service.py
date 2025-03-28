@@ -335,8 +335,12 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
+        user_id =customer_service.get_user_id_from_token(request)
+        logger.info(f"User ID: {user_id}")
+
         # Call the add_message function for the user's question
         user_response = db_manager.add_message(
+            user_id,
             customer_guid,
             chat_request.question,
             sender_type=SenderType.CUSTOMER,
@@ -352,6 +356,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
         # Now handle the system response
         system_response = "You will get the correct answer once AI is integrated."
         system_response_result = db_manager.add_message(
+            user_id,
             customer_guid,
             system_response,
             sender_type=SenderType.SYSTEM,
@@ -370,6 +375,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
         return {
             "chat_id": user_response['chat_id'],
             "customer_guid": customer_guid,
+            "user_id": user_id,
             "answer": system_response
         }
     except HTTPException as e:
@@ -414,6 +420,48 @@ async def get_all_chats(
         logger.error(f"Unexpected error in get_all_chats(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while retrieving chats")
 
+@app.get("/getallchatids", tags=["Chat Management"])
+async def get_all_chat_ids(
+        request: Request,
+        auth=Depends(auth_admin_dependency),
+):
+    logger.debug(f"Entering get_all_chat_ids() with Correlation ID: {request.state.correlation_id}")
+
+    try:
+        # Get user_id from the token
+        logger.debug("Fetching user_id from token")
+        user_id = customer_service.get_user_id_from_token(request)
+        if not user_id:
+            logger.error("Invalid user_id provided")
+            raise HTTPException(status_code=404, detail="Invalid user_id provided")
+
+        # Get customer_guid from the token
+        logger.debug("Fetching customer_guid from token")
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            logger.error("Invalid customer_guid provided")
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
+        logger.info(f"Fetching all chat IDs for User ID: {user_id}, Customer GUID: {customer_guid}")
+
+        # Call database function (passing only 2 arguments now)
+        logger.debug(f"Calling get_all_chat_ids() with customer_guid={customer_guid}, user_id={user_id}")
+        chat_ids = db_manager.get_all_chat_ids(customer_guid, user_id)
+
+        if not chat_ids:
+            logger.warning(f"No chat messages found for User ID: {user_id}")
+            raise HTTPException(status_code=404, detail="No chat messages found for this user")
+
+        logger.debug(f"Exiting get_all_chat_ids() with Correlation ID: {request.state.correlation_id}")
+        return {"messages": chat_ids}
+
+    except HTTPException as e:
+        logger.error(f"HTTPException in get_all_chat_ids(): {e.detail}")
+        raise e
+
+    except Exception as e:
+        logger.error(f"Unexpected error in get_all_chat_ids(): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 # API endpoint to delete a specific chat
 @app.post("/deletechat", tags=["Chat Management"])

@@ -37,3 +37,16 @@ class CustomerService:
         customer_guid = self.db_manager.get_customer_guid_from_clerk_orgId(org_id)
 
         return customer_guid
+    
+    # Get user_id from the token
+    def get_user_id_from_token(self, request: Request):
+        decoded_token = get_decoded_token(request)
+        logger.info(f"Decoded token: {decoded_token}")
+        user_id = decoded_token.get("sub")
+        if not user_id:
+            logger.error("User ID not found in token")
+            raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="User ID not found in token")
+ 
+        logger.debug(f"Entering with org_id from token: {user_id}")
+ 
+        return user_id

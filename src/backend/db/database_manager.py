@@ -206,14 +206,16 @@ class DatabaseManager:
 
             # Creating chat_messages table if not exists
             create_chat_messages_table_query = """
-            CREATE TABLE chat_messages (
+            CREATE TABLE IF NOT EXISTS chat_messages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
                 chat_id VARCHAR(255) NOT NULL,
                 customer_guid VARCHAR(255) NOT NULL,
                 message MEDIUMTEXT NOT NULL,
                 sender_type ENUM('customer', 'system') NOT NULL,
                 timestamp TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
-                INDEX (chat_id)
+                INDEX (chat_id),
+                INDEX (user_id)
             );
             """
             session.execute(text(create_chat_messages_table_query))
@@ -286,7 +288,7 @@ class DatabaseManager:
             logger.debug("Exiting add_customer method")
             session.close()
 
-    def add_message(self, customer_guid, message, sender_type, chat_id=None):
+    def add_message(self, user_id, customer_guid, message, sender_type, chat_id=None):
         logger.debug("Entering add_message method")
         customer_db_name = self.get_customer_db(customer_guid)
         session = DatabaseManager._session_factory()
@@ -321,11 +323,11 @@ class DatabaseManager:
             # Insert the message into the chat_messages table
             logger.debug(f"Inserting message into chat ID: {chat_id}")
             insert_message_query = """
-            INSERT INTO chat_messages (chat_id, customer_guid, message, sender_type)
-            VALUES (:chat_id, :customer_guid, :message, :sender_type)
+            INSERT INTO chat_messages (user_id, chat_id, customer_guid, message, sender_type)
+            VALUES (:user_id, :chat_id, :customer_guid, :message, :sender_type)
             """
             session.execute(text(insert_message_query), {
-                'chat_id': chat_id, 'customer_guid': customer_guid, 'message': message, 'sender_type': sender_type.value
+                'user_id':user_id, 'chat_id': chat_id, 'customer_guid': customer_guid, 'message': message, 'sender_type': sender_type.value
             })
             session.commit()
             logger.info(f"Message added for chat ID: {chat_id} by {sender_type.value}")
@@ -375,6 +377,41 @@ class DatabaseManager:
         finally:
             logger.debug("Exiting get_paginated_chat_messages method")
             session.close()
+
+    def get_all_chat_ids(self, customer_guid, user_id):
+        logger.debug("Entering get_all_chat_ids method")
+    
+        customer_db_name = self.get_customer_db(customer_guid)
+        session = DatabaseManager._session_factory()
+    
+        try:
+            logger.debug(f"Switching to customer database: {customer_db_name}")
+            session.execute(text(f"USE `{customer_db_name}`"))
+    
+            query = """
+            SELECT chat_id 
+            FROM chat_messages 
+            WHERE customer_guid = :customer_guid AND user_id = :user_id
+            GROUP BY chat_id
+            ORDER BY MAX(timestamp) DESC;
+            """
+            result = session.execute(text(query), {
+                'customer_guid': customer_guid,
+                'user_id': user_id
+            }).fetchall()
+    
+            chat_ids = [row[0] for row in result] if result else []
+            logger.info(f"Retrieved {len(chat_ids)} chat IDs for User ID: {user_id}")
+    
+            return chat_ids
+    
+        except SQLAlchemyError as e:
+            logger.error(f"Error retrieving chat IDs: {e}", exc_info=True)
+            return []
+        finally:
+            logger.debug("Exiting get_all_chat_ids method")
+            session.close()
+
 
     def delete_chat_messages(self, customer_guid, chat_id):
         logger.debug("Entering delete_chat_messages method")
