@@ -1813,4 +1813,262 @@ class DatabaseManager:
             logger.debug("Exiting get_paginated_files method")
             session.close()
 
+    def get_filenames_from_database(self, customer_guid: str):
+        session = self._session_factory()
+        try:
+            customer_db = self.get_customer_db(customer_guid)
 
+            query = f"""
+                SELECT filename
+                FROM `{customer_db}`.uploadedfile_status
+                WHERE to_be_deleted = FALSE
+                ORDER BY uploaded_time DESC
+            """
+            result = session.execute(text(query)).fetchall()
+            return [row.filename for row in result]
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching filenames: {e}")
+            return []
+        finally:
+            session.close()
+
+    def mark_file_for_deletion(self, customer_guid: str, filename: str):
+        session = self._session_factory()
+        try:
+            # Get the customer-specific database name
+            customer_db = self.get_customer_db(customer_guid)
+
+            # First update the customer-specific table
+            update_customer_query = f"""
+                UPDATE `{customer_db}`.uploadedfile_status
+                SET to_be_deleted = TRUE,
+                delete_request_timestamp = CURRENT_TIMESTAMP(6),
+                delete_status = 'todo'
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            session.execute(text(update_customer_query), {
+                'customer_guid': customer_guid,
+                'filename': filename
+            })
+
+            # Now get the updated record
+            select_query = f"""
+                SELECT * FROM `{customer_db}`.uploadedfile_status
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            result = session.execute(text(select_query), {
+                'customer_guid': customer_guid,
+                'filename': filename
+            }).fetchone()
+
+            # Check if record exists in common_db
+            common_exists = session.execute(text("""
+                SELECT 1 FROM common_db.customer_file_status
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """), {
+                'customer_guid': customer_guid,
+                'filename': filename
+            }).scalar()
+
+            if not common_exists:
+                # Insert into common_db with ALL fields from customer table
+                session.execute(text("""
+                    INSERT INTO common_db.customer_file_status
+                    (customer_guid, filename, file_id, uploaded_time, 
+                     current_activity_updated_time, status, errors, error_retry,
+                     completed_time, to_be_deleted, delete_request_timestamp, 
+                     delete_status, final_delete_timestamp)
+                    VALUES (
+                        :customer_guid, :filename, :file_id, :uploaded_time,
+                        :current_activity_updated_time, :status, :errors, :error_retry,
+                        :completed_time, :to_be_deleted, :delete_request_timestamp,
+                        :delete_status, :final_delete_timestamp
+                    )
+                """), {
+                    'customer_guid': result.customer_guid,
+                    'filename': result.filename,
+                    'file_id': result.file_id,
+                    'uploaded_time': result.uploaded_time,
+                    'current_activity_updated_time': result.current_activity_updated_time,
+                    'status': result.status,
+                    'errors': result.errors,
+                    'error_retry': result.error_retry,
+                    'completed_time': result.completed_time,
+                    'to_be_deleted': result.to_be_deleted,
+                    'delete_request_timestamp': result.delete_request_timestamp,
+                    'delete_status': result.delete_status,
+                    'final_delete_timestamp': result.final_delete_timestamp
+                })
+            else:
+                # Update existing record in common_db
+                update_common_query = """
+                    UPDATE common_db.customer_file_status
+                    SET to_be_deleted = :to_be_deleted,
+                    delete_request_timestamp = :delete_request_timestamp,
+                    delete_status = :delete_status
+                    WHERE customer_guid = :customer_guid AND filename = :filename
+                """
+                session.execute(text(update_common_query), {
+                    'customer_guid': customer_guid,
+                    'filename': filename,
+                    'to_be_deleted': result.to_be_deleted,
+                    'delete_request_timestamp': result.delete_request_timestamp,
+                    'delete_status': result.delete_status
+                })
+
+            session.commit()
+            logger.info(f"Marked file {filename} for deletion for customer {customer_guid}")
+            return True
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error marking file for deletion: {e}")
+            session.rollback()
+            return None
+        finally:
+            session.close()
+
+    def get_deletion_status(self, customer_guid: str, filename: str):
+        """Get current deletion status and retry count"""
+        session = self._session_factory()
+        try:
+            query = """
+            SELECT delete_status, error_retry 
+            FROM common_db.customer_file_status 
+            WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            result = session.execute(text(query), {
+                'customer_guid': customer_guid,
+                'filename': filename
+            }).fetchone()
+            return result if result else None
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting deletion status: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_pending_deletions(self, max_threads):
+        """Get files marked for deletion that need processing"""
+        session = self._session_factory()
+        try:
+            num_of_records = max_threads * 4
+            query = """
+            SELECT customer_guid, filename 
+            FROM common_db.customer_file_status 
+            WHERE to_be_deleted = TRUE
+            ORDER BY delete_request_timestamp ASC
+            LIMIT :num_of_records
+            """
+            return session.execute(text(query), {"num_of_records": num_of_records}).fetchall()
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching pending deletions: {e}")
+            return []
+        finally:
+            session.close()
+
+    def update_deletion_status(self, customer_guid, filename, new_status, error, error_retry):
+        """Mirrors update_status exactly but for deletion status fields"""
+        session = self._session_factory()
+        try:
+            # Update common_db.customer_file_status
+            update_common_query = """
+                UPDATE common_db.customer_file_status
+                SET delete_status = :new_status,
+                errors = :error,
+                error_retry = :error_retry,
+                current_activity_updated_time = CURRENT_TIMESTAMP(6)
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            session.execute(text(update_common_query), {
+                'new_status': new_status,
+                'error': error,
+                'error_retry': error_retry,
+                'customer_guid': customer_guid,
+                'filename': filename
+            })
+
+            # Update customer-specific uploadedfile_status
+            customer_db = self.get_customer_db(customer_guid)
+            update_customer_query = f"""
+                UPDATE `{customer_db}`.uploadedfile_status
+                SET delete_status = :new_status,
+                errors = :error,
+                error_retry = :error_retry,
+                current_activity_updated_time = CURRENT_TIMESTAMP(6)
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            session.execute(text(update_customer_query), {
+                'new_status': new_status,
+                'error': error,
+                'error_retry': error_retry,
+                'customer_guid': customer_guid,
+                'filename': filename
+            })
+
+            session.commit()
+            logger.info(
+                f"Updated deletion status for {filename} to {new_status} "
+                f"with error: {error} for customer: {customer_guid}"
+            )
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating deletion status for {filename}: {e}")
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def finalize_deletion(self, customer_guid: str, filename: str, error):
+        session = self._session_factory()
+        try:
+            customer_db = self.get_customer_db(customer_guid)
+            if error:
+                # Mark as error in both tables
+                update_common_query = """
+                    UPDATE common_db.customer_file_status
+                    SET delete_status = 'error'
+                    WHERE customer_guid = :customer_guid AND filename = :filename
+                """
+                session.execute(text(update_common_query), {
+                    'customer_guid': customer_guid,
+                    'filename': filename
+                })
+
+                update_customer_query = f"""
+                    UPDATE `{customer_db}`.uploadedfile_status
+                    SET delete_status = 'error'
+                    WHERE customer_guid = :customer_guid AND filename = :filename
+                """
+                session.execute(text(update_customer_query), {
+                    'customer_guid': customer_guid,
+                    'filename': filename
+                })
+            else:
+                # Update customer_db.uploadedfile_status
+                update_customer_query = f"""
+                    UPDATE `{customer_db}`.uploadedfile_status
+                    SET delete_status = 'completed',
+                    final_delete_timestamp = CURRENT_TIMESTAMP(6)
+                    WHERE customer_guid = :customer_guid AND filename = :filename
+                """
+                session.execute(text(update_customer_query), {
+                    'customer_guid': customer_guid,
+                    'filename': filename
+                })
+
+                # Delete from common_db.customer_file_status
+                delete_common_query = """
+                    DELETE FROM common_db.customer_file_status
+                    WHERE customer_guid = :customer_guid AND filename = :filename
+                """
+                session.execute(text(delete_common_query), {
+                    'customer_guid': customer_guid,
+                    'filename': filename
+                })
+            session.commit()
+            logger.info(f"Deletion {'completed' if error else 'failed'} for file '{filename}'")
+        except SQLAlchemyError as e:
+            logger.error(f"Error finalizing deletion: {e}")
+            session.rollback()
+            raise
+        finally:
+            session.close()

@@ -157,14 +157,15 @@ async def list_files(request: Request, auth=Depends(auth_admin_dependency)):
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-        # Call MinioManager to get the file list
-        file_list = minio_manager.list_files(bucket_name=customer_guid)
-        if file_list:
-            logger.info(f"Files retrieved for bucket '{customer_guid}':{file_list}")
-        else:
-            logger.info(f"No files found in bucket '{customer_guid}'")
+        # Get filenames from the database
+        filenames = db_manager.get_filenames_from_database(customer_guid)
 
-        return {"files": file_list}
+        if not filenames:
+            logger.info(f"No files found for customer_guid: {customer_guid}")
+            return {"files": []}
+
+        logger.info(f"Returning {len(filenames)} files for customer_guid: {customer_guid}")
+        return {"files": filenames}
     except HTTPException as e:
         raise e    
     except Exception as e:
@@ -220,6 +221,27 @@ async def download_file(filename: str, request: Request, auth=Depends(auth_admin
             raise HTTPException(status_code=500, detail="Error downloading file")
     finally:
         logger.debug(f"Exiting download_file() with Correlation ID:{request.state.correlation_id}")
+
+@app.delete("/deletefile", tags=["File Management"])
+async def delete_file(filename: str,request: Request,auth=Depends(auth_admin_dependency)):
+    logger.debug(f"Entering delete_file() with filename: {filename}")
+    try:
+        # Get customer_guid from the token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
+        # Mark file for deletion
+        db_manager.mark_file_for_deletion(customer_guid, filename)
+
+        return {"message": "File marked for deletion", "filename": filename}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in delete_file: {e}")
+        raise HTTPException(status_code=500, detail="Error processing delete request")
+    finally:
+        logger.debug(f"Exiting delete_file() with filename: {filename}")
 
 @app.get("/file/{file_id}/embeddingstatus", tags=["Vectorize Management"])
 async def get_file_embedding_status(file_id: str, request: Request, auth=Depends(auth_admin_dependency)):
