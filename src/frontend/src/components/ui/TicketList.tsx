@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import { useOrganization } from '@clerk/nextjs';
 import { ArrowRightIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -6,9 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { ClipLoader } from 'react-spinners';
 import { toast, ToastContainer } from 'react-toastify';
 
+import { fetchTicketsByCustomer, updatePartialTicket } from '@/api/backend-sdk/ticketServiceApiCalls';
 import { TicketListSkeleton } from '@/components/ui/Skeletons';
-
-import BrokenTicket from './NoTicketFoundView';
 
 const FETCH_SIZE = 150;
 const PAGE_SIZE = 10;
@@ -30,103 +30,57 @@ type TicketListProps = {
 };
 
 const TicketList: React.FC<TicketListProps> = ({ page, setTotalPages, setDisableNext }) => {
+  const { organization } = useOrganization();
   const [data, setData] = useState<Ticket[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isFinalBatch, setIsFinalBatch] = useState<boolean>(false);
-  const [loadingState, setLoadingState] = useState<{ [key: string]: boolean }>({}); // Track updates
+  const [loadingState, setLoadingState] = useState<{ [key: string]: boolean }>({});
 
   const batchNumber = Math.floor((page - 1) / 15) + 1;
-  const customerGuid = '9a376cd0-396e-4a5a-9313-f8dfcfcba174'; // Replace with actual GUID
-
   useEffect(() => {
     const fetchTickets = async () => {
+      // console.log(organization?.id);
       setLoading(true);
       try {
-        const response = await fetch(
-          `http://localhost:8000/tickets/customer/${customerGuid}?page=${batchNumber}&page_size=${FETCH_SIZE}`,
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to fetch tickets');
-        }
-
-        const result: Ticket[] = await response.json();
-
-        if (batchNumber > 1 && result.length === 0) {
-          setIsFinalBatch(true);
-          setData([]);
-        } else {
-          setData(result);
-          setIsFinalBatch(result.length < FETCH_SIZE);
-        }
+        const result = await fetchTicketsByCustomer(batchNumber, FETCH_SIZE);
+        setData(result);
+        setIsFinalBatch(result.length < FETCH_SIZE);
       } catch (error: any) {
         setError(error.message);
       } finally {
         setLoading(false);
       }
     };
-
     fetchTickets();
-  }, [batchNumber, customerGuid]);
+  }, [organization?.id, batchNumber]);
 
   useEffect(() => {
-    const pagesInBatch = data.length > 0 ? Math.ceil(data.length / PAGE_SIZE) : (isFinalBatch ? 0 : 15);
-    const computedTotalPages = isFinalBatch
-      ? (batchNumber - 1) * 15 + pagesInBatch
-      : (batchNumber - 1) * 15 + 15;
-
+    const pagesInBatch = data.length > 0 ? Math.ceil(data.length / PAGE_SIZE) : 1;
+    const computedTotalPages = isFinalBatch ? (batchNumber - 1) * 15 + pagesInBatch : (batchNumber - 1) * 15 + 15;
     setTotalPages(computedTotalPages);
     setDisableNext(isFinalBatch && page >= computedTotalPages);
   }, [data, isFinalBatch, page, batchNumber, setTotalPages, setDisableNext]);
 
-  // Do not modify updateTicket
   const updateTicket = async (ticketId: string, field: 'status' | 'priority', value: string) => {
-    setLoadingState(prev => ({ ...prev, [`${ticketId}-${field}`]: true })); // Show small spinner
-
+    setLoadingState(prev => ({ ...prev, [`${ticketId}-${field}`]: true }));
     try {
-      const response = await fetch(`http://localhost:8000/tickets/${ticketId}?customer_guid=${customerGuid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update ticket');
-      }
-
-      console.log(ticketId, field, value);
-
+      await updatePartialTicket(ticketId, field, value);
       setData(prevData =>
         prevData.map(ticket =>
           ticket.ticket_id === ticketId ? { ...ticket, [field]: value } : ticket,
         ),
       );
-
       toast.success(`Ticket ${field} updated successfully!`);
     } catch (error: any) {
       toast.error(`Error updating ticket: ${error.message}`);
     } finally {
-      setLoadingState(prev => ({ ...prev, [`${ticketId}-${field}`]: false })); // Hide spinner
+      setLoadingState(prev => ({ ...prev, [`${ticketId}-${field}`]: false }));
     }
   };
 
-  if (error) {
-    if (error.includes('No tickets found')) {
-      setDisableNext(true);
-      return <BrokenTicket />;
-    }
-    return <p className="text-red-500">Failed to load tickets.</p>;
-  }
-
   if (loading) {
     return <TicketListSkeleton />;
-  }
-
-  // When no tickets are found, render BrokenTicket without rendering the header/pagination
-  if (data.length === 0) {
-    return <BrokenTicket />;
   }
 
   const localPage = ((page - 1) % 15) + 1;
@@ -134,111 +88,72 @@ const TicketList: React.FC<TicketListProps> = ({ page, setTotalPages, setDisable
   const tickets = data.slice(startIndex, startIndex + PAGE_SIZE);
 
   return (
-    <div className="custom-scrollbar relative max-h-[500px] w-full overflow-y-auto rounded-md border shadow-md">
+    <div className="custom-scrollbar relative w-full rounded-md border shadow-md">
       <ToastContainer position="top-right" autoClose={3000} />
-      <ul className="sticky top-0 z-10 bg-white shadow">
-        <li className="grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 border-b p-3 font-semibold">
+      <ul className="custom-scrollbar max-h-[90vh] overflow-auto rounded-md bg-white shadow">
+        {/* Sticky Header Row */}
+        <li className="sticky top-0 z-10 grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 border-b bg-white p-3 font-semibold">
           <div>ID</div>
           <div>Title</div>
           <div>Reported By</div>
           <div>Assignee</div>
           <div>Status</div>
           <div>Priority</div>
-          <div className="text-right">Created</div>
+          <div className="text-center">Created</div>
           <div className="text-center">Action</div>
         </li>
-      </ul>
-
-      <ul>
-        {tickets.map(ticket => (
-          <li
-            key={ticket.ticket_id}
-            className="grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-lg border-transparent bg-white p-4 hover:bg-gray-100"
-          >
-            <div className="font-semibold">{ticket.ticket_id}</div>
-            <div
-              className="cursor-pointer truncate font-semibold text-blue-600"
-              style={{ maxWidth: '200px' }}
-              role="button"
-              tabIndex={0}
-              onClick={e => e.currentTarget.classList.toggle('whitespace-normal')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.currentTarget.classList.toggle('whitespace-normal');
-                }
-              }}
-            >
-              {ticket.title}
-            </div>
-
-            <div
-              className="cursor-pointer truncate font-semibold text-gray-700"
-              style={{ maxWidth: '200px' }}
-              role="button"
-              tabIndex={0}
-              onClick={e => e.currentTarget.classList.toggle('whitespace-normal')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.currentTarget.classList.toggle('whitespace-normal');
-                }
-              }}
-            >
-              {ticket.reported_by}
-            </div>
-            <div
-              className="cursor-pointer truncate font-semibold text-gray-700"
-              style={{ maxWidth: '200px' }}
-              role="button"
-              tabIndex={0}
-              onClick={e => e.currentTarget.classList.toggle('whitespace-normal')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.currentTarget.classList.toggle('whitespace-normal');
-                }
-              }}
-            >
-              {ticket.assigned}
-            </div>
-
-            <div className="relative">
-              <select
-                className="min-w-[100px] cursor-pointer rounded p-1 text-xs font-semibold focus:outline-none"
-                value={ticket.status}
-                onChange={e => updateTicket(ticket.ticket_id, 'status', e.target.value)}
-              >
-                <option value="OPEN">Open</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="CLOSED">Closed</option>
-              </select>
-              {loadingState[`${ticket.ticket_id}-priority`] && (
-                <ClipLoader size={15} color="#000" className="absolute right-2 top-1.5" />
-              )}
-            </div>
-
-            <div className="relative">
-              <select
-                className="min-w-[100px] cursor-pointer rounded p-1 text-xs font-semibold focus:outline-none"
-                value={ticket.priority}
-                onChange={e => updateTicket(ticket.ticket_id, 'priority', e.target.value)}
-              >
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
-              {loadingState[`${ticket.ticket_id}-priority`] && (
-                <ClipLoader size={15} color="#000" className="absolute right-2 top-1.5" />
-              )}
-            </div>
-
-            <div className="text-right text-gray-700">
-              {ticket.created_at ? format(new Date(ticket.created_at), 'dd MMM yyyy') : 'N/A'}
-            </div>
-
-            <Link href={`/dashboard/tickets/${ticket.ticket_id}`} className="text-blue-600">
-              <ArrowRightIcon className="size-5" />
-            </Link>
-          </li>
-        ))}
+        {tickets.length === 0
+          ? (
+              <div className="flex flex-col items-center justify-center gap-4 p-4">
+                <h1 className="text-lg text-gray-800">No Tickets</h1>
+                <div className="flex gap-4">
+                  <Link href="/dashboard">
+                    <button className="mb-2 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white shadow-md hover:bg-blue-700" type="button">
+                      <span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                          <path fillRule="evenodd" d="M9.53 2.47a.75.75 0 0 1 0 1.06L4.81 8.25H15a6.75 6.75 0 0 1 0 13.5h-3a.75.75 0 0 1 0-1.5h3a5.25 5.25 0 1 0 0-10.5H4.81l4.72 4.72a.75.75 0 1 1-1.06 1.06l-6-6a.75.75 0 0 1 0-1.06l6-6a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                      Back To Dashboard
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            )
+          : tickets.map(ticket => (
+            <li key={ticket.ticket_id} className="grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-lg border-transparent bg-white p-4 hover:bg-gray-100">
+              <div className="font-semibold">{ticket.ticket_id}</div>
+              <div className="truncate font-semibold text-blue-600">{ticket.title}</div>
+              <div className="truncate font-semibold text-gray-700">{ticket.reported_by}</div>
+              <div className="truncate font-semibold text-gray-700">{ticket.assigned}</div>
+              <div>
+                {loadingState[`${ticket.ticket_id}-status`]
+                  ? <ClipLoader size={20} color="#36d7b7" />
+                  : (
+                      <select value={ticket.status} onChange={e => updateTicket(ticket.ticket_id, 'status', e.target.value)}>
+                        <option value="OPEN">Open</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="CLOSED">Closed</option>
+                      </select>
+                    )}
+              </div>
+              <div>
+                {loadingState[`${ticket.ticket_id}-priority`]
+                  ? <ClipLoader size={20} color="#36d7b7" />
+                  : (
+                      <select value={ticket.priority} onChange={e => updateTicket(ticket.ticket_id, 'priority', e.target.value)}>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    )}
+              </div>
+              <div className="text-right text-gray-700">{ticket.created_at ? format(new Date(ticket.created_at), 'dd MMM yyyy') : 'N/A'}</div>
+              <Link href={`/dashboard/tickets/${ticket.ticket_id}`} className="text-blue-600">
+                <ArrowRightIcon className="size-5" />
+              </Link>
+            </li>
+          ))}
       </ul>
     </div>
   );
