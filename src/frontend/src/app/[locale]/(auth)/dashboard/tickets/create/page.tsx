@@ -7,14 +7,23 @@ import { toast } from 'react-toastify';
 import { createTicket, fetchCustomFields } from '@/api/backend-sdk/ticketServiceApiCalls';
 
 const CreateTicketPage = () => {
+  type FormDataType = {
+    chat_id: string | null;
+    title: string;
+    description: string;
+    priority: string;
+    reported_by: string;
+    assigned: string;
+    custom_fields: Record<string, string>; // Ensure custom fields are key-value pairs of strings
+  };
   const router = useRouter();
   const [customFields, setCustomFields] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataType>({
     chat_id: null,
     title: '',
     description: '',
-    priority: 'Medium', // Default value
+    priority: 'Medium',
     reported_by: '',
     assigned: '',
     custom_fields: {},
@@ -81,8 +90,25 @@ const CreateTicketPage = () => {
           <div key={name}>
             <label htmlFor={name} className="text-sm font-medium">{label}</label>
             {type === 'textarea'
-              ? <textarea id={name} name={name} value={typeof formData[name as keyof typeof formData] === 'object' ? '' : formData[name as keyof typeof formData] || ''} onChange={handleChange} className="w-full rounded border p-2" />
-              : <input id={name} name={name} type="text" value={formData[name as keyof typeof formData]} onChange={handleChange} className="w-full rounded border p-2" />}
+              ? (
+                  <textarea
+                    id={name}
+                    name={name}
+                    value={formData[name as keyof FormDataType] ? String(formData[name as keyof FormDataType]) : ''}
+                    onChange={handleChange}
+                    className="w-full rounded border p-2"
+                  />
+                )
+              : (
+                  <input
+                    id={name}
+                    name={name}
+                    type="text"
+                    value={formData[name as keyof FormDataType] ? String(formData[name as keyof FormDataType]) : ''}
+                    onChange={handleChange}
+                    className="w-full rounded border p-2"
+                  />
+                )}
           </div>
         ))}
 
