@@ -12,7 +12,7 @@ from src.backend.db.database_manager import DatabaseManager  # Assuming the prov
 from src.backend.lib.utils import CustomerService, auth_admin_dependency
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(filename)s:%(lineno)d %(funcName)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +38,7 @@ class CustomFieldResponse(BaseModel):
 # Tickets Pydantic Model
 class Ticket(BaseModel):
     ticket_id: Union[str, int]
-    chat_id: str
+    chat_id: Optional[str]
     title: str
     description: Optional[str]
     priority: str
@@ -50,7 +50,7 @@ class Ticket(BaseModel):
     custom_fields: Optional[Dict[str, Union[Any, None]]] = None
 
 class TicketRequest(BaseModel):
-    chat_id: str
+    chat_id: Optional[str]
     title: str
     description: Optional[str]
     priority: str
@@ -78,7 +78,7 @@ class TicketByChatId(BaseModel):
     created_at: datetime
 
 class TicketByCustomerId(BaseModel):
-    ticket_id: str
+    ticket_id: int
     title: str
     status: str
     priority:str
@@ -736,7 +736,7 @@ async def delete_comment(ticket_id: str, comment_id: str, request: Request, auth
             detail="An unexpected error occurred while deleting the comment."
         )
 
-@app.get("/tickets/customer/", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
+@app.get("/customer/tickets/", response_model=List[TicketByCustomerId], tags=["Ticket Management"])
 async def get_tickets_by_customer_guid(
     request: Request,
     auth=Depends(auth_admin_dependency),
