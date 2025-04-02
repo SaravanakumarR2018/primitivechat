@@ -33,7 +33,7 @@ export default async function DashboardLayout(props: { children: React.ReactNode
 
   return (
     <>
-      <div className="fixed z-50 w-full bg-white shadow-md">
+      <div className="sticky top-0 z-50 w-full bg-white shadow-md">
         <div className="mx-auto flex max-w-screen-xl items-center justify-between px-3 py-4">
           <DashboardHeader
             menu={[
@@ -51,8 +51,8 @@ export default async function DashboardLayout(props: { children: React.ReactNode
                 label: t('tickets'),
               },
               {
-                href: '/dashboard/chats',
-                label: t('chats'),
+                href: '/dashboard/chat',
+                label: t('chat'),
               },
               {
                 href: '/dashboard/organization-profile',
@@ -61,10 +61,6 @@ export default async function DashboardLayout(props: { children: React.ReactNode
               {
                 href: '/dashboard/checkclerk',
                 label: 'Checkclerk',
-              },
-              {
-                href: '/dashboard/chat',
-                label: ('Chatbot'),
               },
               // PRO: Link to the /dashboard/billing page
             ]}
