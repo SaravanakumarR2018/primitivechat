@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { useOrganization } from '@clerk/nextjs';
 import { ArrowRightIcon } from '@heroicons/react/24/solid';
 import { format } from 'date-fns';
@@ -32,7 +31,6 @@ type TicketListProps = {
 const TicketList: React.FC<TicketListProps> = ({ page, setTotalPages, setDisableNext }) => {
   const { organization } = useOrganization();
   const [data, setData] = useState<Ticket[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isFinalBatch, setIsFinalBatch] = useState<boolean>(false);
   const [loadingState, setLoadingState] = useState<{ [key: string]: boolean }>({});
@@ -47,7 +45,7 @@ const TicketList: React.FC<TicketListProps> = ({ page, setTotalPages, setDisable
         setData(result);
         setIsFinalBatch(result.length < FETCH_SIZE);
       } catch (error: any) {
-        setError(error.message);
+        console.error(error);
       } finally {
         setLoading(false);
       }
