@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+/* eslint-disable unused-imports/no-unused-vars */
 'use client';
 
 import 'react-toastify/dist/ReactToastify.css';
@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
+
+import { fetchTicketByID, updateTicketDetails } from '@/api/backend-sdk/ticketServiceApiCalls';
 import { TicketDetailSkeleton } from '@/components/ui/Skeletons';
 
 const TicketDetailPage = () => {
@@ -24,13 +26,9 @@ const TicketDetailPage = () => {
   });
 
   useEffect(() => {
-    const fetchTicket = async () => {
+    const loadTicket = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/tickets/${params.id}?customer_guid=9a376cd0-396e-4a5a-9313-f8dfcfcba174`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch ticket');
-        }
-        const data = await response.json();
+        const data = await fetchTicketByID(params.id as string);
         setTicket(data);
         setFormData({
           title: data.title || '',
@@ -42,13 +40,12 @@ const TicketDetailPage = () => {
         });
       } catch (error) {
         toast.error('Error fetching ticket');
-        console.log(error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTicket();
+    loadTicket();
   }, [params.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -57,26 +54,16 @@ const TicketDetailPage = () => {
 
   const handleUpdate = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/tickets/${params.id}?customer_guid=9a376cd0-396e-4a5a-9313-f8dfcfcba174`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        toast.success('Ticket updated successfully!');
-        setTimeout(() => router.push('/dashboard/tickets'), 2000);
-      } else {
-        toast.error('Failed to update ticket.');
-      }
+      await updateTicketDetails(params.id as string, formData);
+      toast.success('Ticket updated successfully!');
+      setTimeout(() => router.push('/dashboard/tickets'), 2000);
     } catch (error) {
-      toast.error('Error updating ticket.');
-      console.log(error);
+      toast.error('Failed to update ticket.');
     }
   };
 
   if (loading) {
-    return <TicketDetailSkeleton/>;
+    return <TicketDetailSkeleton />;
   }
   if (!ticket) {
     return <p className="text-center text-red-500">Ticket not found</p>;
@@ -111,7 +98,7 @@ const TicketDetailPage = () => {
           <label htmlFor="status" className="block text-sm font-medium">Status</label>
           <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 w-full rounded border p-2">
             <option value="OPEN">Open</option>
-            <option value="IN PROGRESS">In Progress</option>
+            <option value="IN_PROGRESS">In Progress</option>
             <option value="RESOLVED">Resolved</option>
           </select>
         </div>
