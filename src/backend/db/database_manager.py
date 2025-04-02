@@ -137,14 +137,14 @@ class DatabaseManager:
         return None  # Success case when `raise_exception=True`
 
     def validate_chat_id(self, chat_id, session):
-        # Check if the chat_id exists in the chat_messages table
-        chat_exists = session.execute(
-            text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
-            {"chat_id": chat_id}
-        ).fetchone()
-        if not chat_exists:
-            logger.error(f"Invalid chat_id: {chat_id}")
-            raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
+        if chat_id:  # Only validate if chat_id is provided
+            chat_exists = session.execute(
+                text("SELECT 1 FROM chat_messages WHERE chat_id = :chat_id LIMIT 1"),
+                {"chat_id": chat_id}
+            ).fetchone()
+            if not chat_exists:
+                logger.error(f"Invalid chat_id: {chat_id}")
+                raise ValueError(f"Invalid chat_id: {chat_id} does not exist.")
 
     def validate_ticket_id(self, session, ticket_id, return_response=False):
         logger.debug(f"Checking existence of ticket_id: {ticket_id}")
@@ -222,7 +222,7 @@ class DatabaseManager:
             create_tickets_table_query = """
             CREATE TABLE IF NOT EXISTS tickets (
                 ticket_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                chat_id VARCHAR(255) NOT NULL,
+                chat_id VARCHAR(255) NULL,
                 title VARCHAR(255) NOT NULL,
                 description TEXT,
                 priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
@@ -1560,13 +1560,13 @@ class DatabaseManager:
 
             logger.debug(f"Switching to customer database: {customer_db_name}")
             session.execute(text(f"USE `{customer_db_name}`"))
-
+            session.commit()
             # Pagination logic
             offset = (page - 1) * page_size
             logger.debug(f"Fetching tickets with pagination: page={page}, page_size={page_size}, offset={offset}")
 
             query = """
-                SELECT ticket_id, chat_id, title, description, priority, status, reported_by, assigned, created_at
+                SELECT ticket_id, title, description, priority, status, reported_by, assigned, created_at
                 FROM tickets
                 ORDER BY created_at DESC
                 LIMIT :page_size OFFSET :offset
@@ -1578,7 +1578,7 @@ class DatabaseManager:
             logger.info(f"Retrieved Tickets: {results}")
             return [
                 {column: value for column, value in zip(row.keys(), row) if
-                 column in ("ticket_id", "chat_id", "title", "status", 'description', 'priority', 'reported_by', 'assigned', "created_at")}
+                 column in ("ticket_id", "title", "status", 'description', 'priority', 'reported_by', 'assigned', "created_at")}
                 for row in results
             ]
 
