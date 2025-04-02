@@ -13,7 +13,6 @@ from src.backend.lib.utils import CustomerService, auth_admin_dependency
 from src.backend.lib.logging_config import log_format
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(filename)s:%(lineno)d %(funcName)s %(levelname)s %(message)s')
 logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
 
