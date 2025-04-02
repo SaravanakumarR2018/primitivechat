@@ -134,19 +134,27 @@ class FileVectorizer:
         except Exception as e:
             logger.error(f"Error processing {filename}: {e}")
 
-    def process_deletion(self, customer_guid: str, filename: str):
-        """Process file deletion with identical pattern to process_file"""
-        logger.info(f"Processing deletion for {filename} (customer: {customer_guid})")
+    def process_deletion(self, customer_guid: str, file_id: str):
+
+        logger.info(f"Processing deletion for {file_id} (customer: {customer_guid})")
 
         try:
-            # Get current status
-            deletion_record = db_manager.get_deletion_status(customer_guid, filename)
-            if not deletion_record:
-                logger.warning(f"File {filename} not marked for deletion")
+            # Get file record by ID
+            file_record = db_manager.get_file_record_by_id(customer_guid, file_id)
+            if not file_record:
+                logger.warning(f"File with ID {file_id} not found")
                 return
-            current_status, error_retry = deletion_record
 
-            if current_status in ["todo", "in_progress"]:
+            filename = file_record.filename  # used for weaviate and minio for filename
+
+            # Get current status
+            deletion_record = db_manager.get_deletion_status(customer_guid, file_id)
+            if not deletion_record:
+                logger.warning(f"File {file_id} not marked for deletion")
+                return
+            delete_status, error_retry = deletion_record
+
+            if delete_status in ["todo", "in_progress"]:
 
                 # Step 1: Delete from Weaviate
                 try:
@@ -155,9 +163,9 @@ class FileVectorizer:
                 except Exception as e:
                     error_message = str(e)
                     logger.error(f"Weaviate deletion failed: {error_message}")
-                    db_manager.update_deletion_status(customer_guid,filename,'in_progress',error_message,error_retry + 1)
+                    db_manager.update_deletion_status(customer_guid, file_id, 'in_progress', error_message,error_retry + 1)
                     if error_retry >= 7:
-                        db_manager.finalize_deletion(customer_guid, filename, error=True)
+                        db_manager.finalize_deletion(customer_guid, file_id, error=True)
                         return
 
                 # Step 2: Delete a from MinIO
@@ -167,14 +175,14 @@ class FileVectorizer:
                 except Exception as e:
                     error_message = str(e)
                     logger.error(f"MinIO deletion failed: {error_message}")
-                    db_manager.update_deletion_status(customer_guid,filename,'in_progress',error_message,error_retry + 1)
+                    db_manager.update_deletion_status(customer_guid, file_id, 'in_progress', error_message,error_retry + 1)
                     if error_retry >= 7:
-                        db_manager.finalize_deletion(customer_guid, filename, error=True)
+                        db_manager.finalize_deletion(customer_guid, file_id, error=True)
                     return
 
                 # Finalize success
-                db_manager.finalize_deletion(customer_guid, filename, error=False)
-                logger.info(f"Completed deletion for {filename}")
+                db_manager.finalize_deletion(customer_guid, file_id, error=False)
+                logger.info(f"Completed deletion for {file_id}")
 
         except Exception as e:
             error_message = str(e)
@@ -220,9 +228,9 @@ class FileVectorizer:
                     continue
 
                 futures = []
-                for customer_guid, filename in pending_deletions:
+                for customer_guid, file_id in pending_deletions:
                     futures.append(
-                        self.executor.submit(self.process_deletion, customer_guid, filename))
+                        self.executor.submit(self.process_deletion, customer_guid, file_id))
 
                 for future in as_completed(futures):
                     future.result()

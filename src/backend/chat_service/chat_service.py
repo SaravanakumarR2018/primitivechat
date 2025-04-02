@@ -231,6 +231,11 @@ async def delete_file(filename: str,request: Request,auth=Depends(auth_admin_dep
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
+        # Check if the filename already delete for the customer
+        if db_manager.check_delete_filename_already_exists(customer_guid, filename):
+            logger.info(f"File '{filename}' already exists for customer_guid: {customer_guid}")
+            return {"message": "File already marked for deletion"}
+
         # Mark file for deletion
         db_manager.mark_file_for_deletion(customer_guid, filename)
 
@@ -242,6 +247,7 @@ async def delete_file(filename: str,request: Request,auth=Depends(auth_admin_dep
         raise HTTPException(status_code=500, detail="Error processing delete request")
     finally:
         logger.debug(f"Exiting delete_file() with filename: {filename}")
+
 
 @app.get("/file/{file_id}/embeddingstatus", tags=["Vectorize Management"])
 async def get_file_embedding_status(file_id: str, request: Request, auth=Depends(auth_admin_dependency)):
