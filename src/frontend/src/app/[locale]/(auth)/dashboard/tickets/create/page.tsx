@@ -60,7 +60,7 @@ const CreateTicketPage = () => {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      toast.error(`Error creating ticket: ${error.message}`);
+      toast.error(`Error creating ticket`);
       console.error('Error creating ticket:', error);
     } finally {
       setLoading(false);
