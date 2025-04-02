@@ -1,10 +1,10 @@
-/* eslint-disable no-console */
+/* eslint-disable no-alert */
 'use client';
 
 import { useOrganization } from '@clerk/nextjs';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 
 import Pagination from '@/components/ui/Pagination';
 import Sidebar from '@/components/ui/SideBar';
@@ -22,45 +22,34 @@ const TicketManagementPage = () => {
   const [disableNext, setDisableNext] = useState(false);
 
   const handlePageChange = (newPage: number) => {
-    console.log('📢 handlePageChange Triggered in TicketManagementPage - New Page:', newPage);
     setCurrentPage(newPage);
+    router.push(`/dashboard/tickets?page=${newPage}`);
   };
 
-  useEffect(() => {
-    console.log('🔄 Current Page Updated:', currentPage);
-  }, [currentPage]);
-
-  useEffect(() => {
-    const newPage = Number(searchParams.get('page')) || 1;
-    console.log('🔄 URL Page Param Updated:', newPage);
-    setCurrentPage(newPage);
-  }, [searchParams]);
-
-  console.log('🎬 TicketManagementPage Rendered');
-
   return (
-    <div className="flex h-screen flex-col rounded-md bg-white md:flex-row">
+    <div className="flex h-screen flex-col md:flex-row">
       <Sidebar organizationName={organization?.name || null} />
-      <main className="flex-1 overflow-x-auto p-4 text-sm">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(newPage: number) => {
-            console.log('🖱 Pagination Clicked: New Page =', newPage);
-            handlePageChange(newPage);
-            if (newPage > 1) {
-              router.push(`/dashboard/tickets?page=${newPage}`, { scroll: true });
-            } else {
-              router.push('/dashboard/tickets', { scroll: false });
-            }
-          }}
-          disableNext={disableNext}
-        />
-        <div className="w-full overflow-x-auto">
-          <Suspense fallback={<TicketListSkeleton />}>
-            <TicketList page={currentPage} setTotalPages={setTotalPages} setDisableNext={setDisableNext} />
-          </Suspense>
+      <main className="min-h-screen flex-1 p-4 text-sm">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => router.push('/dashboard/tickets/create')} // Navigate instead of opening a modal
+            className="mb-2 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white shadow-md hover:bg-blue-700"
+          >
+            <span className="text-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                <path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
+              </svg>
+            </span>
+            <span>Create Ticket</span>
+          </button>
         </div>
+
+        <Suspense fallback={<TicketListSkeleton />}>
+          <TicketList page={currentPage} setTotalPages={setTotalPages} setDisableNext={setDisableNext} />
+        </Suspense>
+
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} disableNext={disableNext} />
       </main>
     </div>
   );
