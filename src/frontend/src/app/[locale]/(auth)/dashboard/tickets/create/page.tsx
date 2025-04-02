@@ -81,8 +81,8 @@ const CreateTicketPage = () => {
           <div key={name}>
             <label htmlFor={name} className="text-sm font-medium">{label}</label>
             {type === 'textarea'
-              ? <textarea id={name} name={name} value={formData[name]} onChange={handleChange} className="w-full rounded border p-2" />
-              : <input id={name} name={name} type="text" value={formData[name]} onChange={handleChange} className="w-full rounded border p-2" />}
+              ? <textarea id={name} name={name} value={typeof formData[name as keyof typeof formData] === 'object' ? '' : formData[name as keyof typeof formData] || ''} onChange={handleChange} className="w-full rounded border p-2" />
+              : <input id={name} name={name} type="text" value={formData[name as keyof typeof formData]} onChange={handleChange} className="w-full rounded border p-2" />}
           </div>
         ))}
 
