@@ -2098,9 +2098,8 @@ class DatabaseManager:
             raise
         finally:
             session.close()
-
+            
     def get_files_with_deletion_status(self, customer_guid: str, page: int = 1, page_size: int = 10):
-        logger.debug("Entering get_files_with_deletion_status method")
         session = self._session_factory()
         try:
             # Get the customer-specific database name
@@ -2142,4 +2141,4 @@ class DatabaseManager:
             return []
         finally:
             logger.debug("Exiting get_files_with_deletion_status method")
-            session.close()
+            session.close()        
