@@ -99,7 +99,7 @@ const TicketDetailPage = () => {
           <select id="status" name="status" value={formData.status} onChange={handleChange} className="mt-1 w-full rounded border p-2">
             <option value="OPEN">Open</option>
             <option value="IN_PROGRESS">In Progress</option>
-            <option value="RESOLVED">Resolved</option>
+            <option value="CLOSED">Closed</option>
           </select>
         </div>
 

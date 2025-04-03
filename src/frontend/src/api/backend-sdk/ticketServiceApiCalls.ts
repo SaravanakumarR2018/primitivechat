@@ -100,7 +100,7 @@ export async function updateTicketDetails(ticketId: string, formData: any) {
   const token = await getAuthToken();
 
   try {
-    const response = await fetch(`${API_BASE_URL}/${ticketId}`, {
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
