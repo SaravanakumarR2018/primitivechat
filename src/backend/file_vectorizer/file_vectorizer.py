@@ -24,7 +24,9 @@ class FileVectorizer:
         self.polling_interval = polling_interval
         self.shutdown_event = threading.Event()
         self.worker_thread = threading.Thread(target=self.worker_loop, daemon=True)
+        self.deletion_thread = threading.Thread(target=self.deletion_loop, daemon=True)
         self.worker_thread.start()
+        self.deletion_thread.start()
 
         # Initialize components
         self.minio=MinioManager()
@@ -132,6 +134,60 @@ class FileVectorizer:
         except Exception as e:
             logger.error(f"Error processing {filename}: {e}")
 
+    def process_deletion(self, customer_guid: str, file_id: str):
+
+        logger.info(f"Processing deletion for {file_id} (customer: {customer_guid})")
+
+        try:
+            # Get file record by ID
+            file_record = db_manager.get_file_record_by_id(customer_guid, file_id)
+            if not file_record:
+                logger.warning(f"File with ID {file_id} not found")
+                return
+
+            filename = file_record.filename  # used for weaviate and minio for filename
+
+            # Get current status
+            deletion_record = db_manager.get_deletion_status(customer_guid, file_id)
+            if not deletion_record:
+                logger.warning(f"File {file_id} not marked for deletion")
+                return
+            delete_status, error_retry = deletion_record
+
+            if delete_status in ["todo", "in_progress"]:
+
+                # Step 1: Delete from Weaviate
+                try:
+                    self.vectorizer.delete_objects_by_customer_and_filename(customer_guid, filename)
+                    logger.info(f"Successfully deleted from Weaviate: {filename}")
+                except Exception as e:
+                    error_message = str(e)
+                    logger.error(f"Weaviate deletion failed: {error_message}")
+                    db_manager.update_deletion_status(customer_guid, file_id, 'in_progress', error_message,error_retry + 1)
+                    if error_retry >= 7:
+                        db_manager.finalize_deletion(customer_guid, file_id, error=True)
+                        return
+
+                # Step 2: Delete a from MinIO
+                try:
+                    self.minio.delete_file(customer_guid, filename)
+                    logger.info(f"Successfully deleted from MinIO: {filename}")
+                except Exception as e:
+                    error_message = str(e)
+                    logger.error(f"MinIO deletion failed: {error_message}")
+                    db_manager.update_deletion_status(customer_guid, file_id, 'in_progress', error_message,error_retry + 1)
+                    if error_retry >= 7:
+                        db_manager.finalize_deletion(customer_guid, file_id, error=True)
+                    return
+
+                # Finalize success
+                db_manager.finalize_deletion(customer_guid, file_id, error=False)
+                logger.info(f"Completed deletion for {file_id}")
+
+        except Exception as e:
+            error_message = str(e)
+            logger.error(f"Deletion process failed: {error_message}")
+
     def worker_loop(self):
         logger.info("Starting background worker thread...")
         while not self.shutdown_event.is_set():
@@ -157,6 +213,31 @@ class FileVectorizer:
 
             except Exception as e:
                 logger.error(f"Worker thread crashed: {e}", exc_info=True)
+
+    def deletion_loop(self):
+        """Background thread to process file deletions"""
+        logger.info("Starting background deletion thread...")
+        while not self.shutdown_event.is_set():
+            try:
+                logger.debug("Checking todo files for deleting a file")
+                pending_deletions = db_manager.get_pending_deletions(self.max_threads)
+
+                if not pending_deletions:
+                    logger.debug("No files to process for delete. Sleeping...")
+                    time.sleep(self.polling_interval)
+                    continue
+
+                futures = []
+                for customer_guid, file_id in pending_deletions:
+                    futures.append(
+                        self.executor.submit(self.process_deletion, customer_guid, file_id))
+
+                for future in as_completed(futures):
+                    future.result()
+                time.sleep(self.polling_interval)
+
+            except Exception as e:
+                logger.error(f"Deletion thread error: {e}", exc_info=True)
 
     def stop(self):
         logger.info("Stopping background worker...")
