@@ -352,6 +352,49 @@ async def paginated_list_files(
         logger.error(f"Unexpected error in list_files: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail="An unexpected error occurred")
 
+@app.get("/files/deletionstatus", tags=["Vectorize Management"])
+async def get_files_deletion_status(request: Request, page: int = 1, page_size: int = 10, auth=Depends(auth_admin_dependency)
+):
+    logger.debug(f"Entering get_files_deletion_status (page:{page}, size:{page_size}")
+    try:
+        # Get customer_guid from token
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            logger.error("Invalid or missing customer_guid in token")
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
+        files = db_manager.get_files_with_deletion_status(customer_guid, page, page_size)
+
+        if not files:
+            logger.info(f"No files found for customer_guid: {customer_guid}")
+            return []
+
+        # Status mapping
+        status_mapping = {
+            "todo": "PENDING_DELETION",
+            "in_progress": "DELETION_IN_PROGRESS",
+            "completed": "DELETION_COMPLETED",
+            "error": "DELETION_FAILED"
+        }
+
+        # Format response with mapped status
+        response = [
+            {
+                "file_id": file["file_id"],
+                "filename": file["filename"],
+                "deletion_status": status_mapping.get(file["delete_status"],"UNKNOWN_STATUS")
+            }
+            for file in files
+        ]
+
+        logger.info(f"Returning {len(response)} files with deletion status")
+        return response
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error in get_files_deletion_status: {e}")
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,detail="An unexpected error occurred")
 
 @app.post("/chat", tags=["Chat Management"])
 async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_admin_dependency)):
