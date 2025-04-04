@@ -2098,3 +2098,47 @@ class DatabaseManager:
             raise
         finally:
             session.close()
+            
+    def get_files_with_deletion_status(self, customer_guid: str, page: int = 1, page_size: int = 10):
+        session = self._session_factory()
+        try:
+            # Get the customer-specific database name
+            customer_db = self.get_customer_db(customer_guid)
+
+            # Calculate the offset for pagination
+            offset = (page - 1) * page_size
+
+            # Query to fetch paginated files with deletion status
+            query = f"""
+                SELECT file_id, filename, delete_status 
+                FROM `{customer_db}`.uploadedfile_status
+                WHERE customer_guid = :customer_guid
+                AND to_be_deleted = TRUE
+                ORDER BY delete_request_timestamp DESC
+                LIMIT :limit OFFSET :offset
+            """
+            result = session.execute(text(query), {
+                "customer_guid": customer_guid,
+                "limit": page_size,
+                "offset": offset
+
+            }).fetchall()
+
+            files_list = [
+                {
+                    "file_id": file.file_id,
+                    "filename": file.filename,
+                    "delete_status": file.delete_status
+                }
+                for file in result
+            ]
+
+            logger.info(f"Retrieved {len(files_list)} files with deletion status for customer_guid: {customer_guid}")
+            return files_list
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching files with deletion status: {e}")
+            return []
+        finally:
+            logger.debug("Exiting get_files_with_deletion_status method")
+            session.close()        
