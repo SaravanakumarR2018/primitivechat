@@ -28,7 +28,7 @@ export default function middleware(
   event: NextFetchEvent,
 ) {
   // Apply Clerk middleware for API routes instead of skipping them
-  if (request.nextUrl.pathname.startsWith('/api')) {
+  if (request.nextUrl.pathname.startsWith('/api/backend')) {
     return clerkMiddleware((_auth, _req) => NextResponse.next())(request, event);
   }
 
