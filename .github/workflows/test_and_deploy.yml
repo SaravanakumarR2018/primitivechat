@@ -115,6 +115,19 @@ jobs:
         env:
           PROJECT_ROOT: ${{ github.workspace }}
         run: docker-compose up -d
+      
+      - name: Restore Database Snapshot (100 Tickets)
+        run: |
+          echo "Checking if MySQL has existing data..."
+          MYSQL_DATA_COUNT=$(docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}';" | tail -n 1)
+
+          if [ "$MYSQL_DATA_COUNT" -eq 0 ]; then
+              echo "No existing data found. Restoring database from snapshot..."
+              docker exec -i mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < "$PROJECT_ROOT/test/db_snapshot/db_snapshot.sql"
+              echo "✅ Database restoration complete."
+          else
+              echo "✅ MySQL already contains data. Skipping restoration."
+          fi
 
       - name: Install dependencies and build frontend
         run: |
