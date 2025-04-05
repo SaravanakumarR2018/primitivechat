@@ -49,6 +49,7 @@ class TestChatAPI(unittest.TestCase):
         self.assertEqual(chat_response.status_code, 200)
         chat_data = chat_response.json()
         self.valid_chat_id = chat_data["chat_id"]
+        self.user_id = chat_data["user_id"]
         logger.info(f"OUTPUT: Received valid chat_id: {self.valid_chat_id}")
         logger.info("=== setUp completed successfully ===\n")
 
@@ -292,6 +293,60 @@ class TestChatAPI(unittest.TestCase):
 
         logger.info("=== Test Case 11 Completed ===\n")    
 
+    def test_correct_customer_guid_and_correct_user_id(self):
+        """Test case 4: Valid customer_guid and valid user_id"""
+        logger.info("=== Starting Test Case 12: Correct customer_guid and correct user_id ===")
+
+        # Step 1: Create a chat first to get a valid chat_id
+        chat_request_payload = {"question": "Test message"}
+        response_chat = requests.post(f"{self.BASE_URL}/chat", headers=self.headers, json=chat_request_payload)
+        self.assertEqual(response_chat.status_code, 200, "Failed to create chat.")
+        chat_id = response_chat.json().get("chat_id")
+
+        # Step 2: Call /getallchats with the valid chat_id
+        url = f"{self.BASE_URL}/getallchats?chat_id={chat_id}"
+        logger.info(f"INPUT: Sending request to: {url}")
+
+        response = requests.get(url, headers=self.headers)
+
+        logger.info(f"OUTPUT: Response status code: {response.status_code}")
+        logger.info(f"OUTPUT: Response content: {response.text}")
+
+        # Step 3: Validate the response
+        self.assertEqual(response.status_code, 200, "Expected status code 200 for valid customer_guid and user_id.")
+
+        logger.info("=== Test Case 12 Completed ===\n")
+
+    def test_correct_user_id_and_wrong_customer_guid(self):
+        """Test case 5: Valid user_id but invalid customer_guid"""
+        logger.info("=== Starting Test Case 13: Correct user_id and wrong customer_guid ===")
+
+        # Step 1: Create a chat first to get a valid chat_id
+        chat_request_payload = {"question": "Test message"}
+        response_chat = requests.post(f"{self.BASE_URL}/chat", headers=self.headers, json=chat_request_payload)
+        self.assertEqual(response_chat.status_code, 200, "Failed to create chat.")
+        chat_id = response_chat.json().get("chat_id")
+
+        # Step 2: Generate an invalid token (wrong customer_guid)
+        invalid_token = create_test_token(org_id="invalid_org_id", org_role=ORG_ADMIN_ROLE)
+        invalid_headers = {'Authorization': f'Bearer {invalid_token}'}
+
+        # Step 3: Call /getallchats with wrong customer_guid
+        url = f"{self.BASE_URL}/getallchats?chat_id={chat_id}"
+        logger.info(f"INPUT: Sending request to: {url}")
+
+        response = requests.get(url, headers=invalid_headers)
+
+        logger.info(f"OUTPUT: Response status code: {response.status_code}")
+        logger.info(f"OUTPUT: Response content: {response.text}")
+
+        # Step 4: Validate response for invalid customer_guid
+        self.assertEqual(response.status_code, 404, "Expected status code 404 for wrong customer_guid.")
+
+        response_json = response.json()
+        self.assertEqual(response_json.get("detail"), "Invalid customer_guid provided")
+
+        logger.info("=== Test Case 13 Completed ===\n")
 
 if __name__ == "__main__":
     unittest.main()
