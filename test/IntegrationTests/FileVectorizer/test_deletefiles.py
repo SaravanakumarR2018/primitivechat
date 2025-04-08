@@ -376,6 +376,10 @@ class TestDeleteFileAPI(unittest.TestCase):
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to control file_vectorize_main via supervisorctl inside container: {e}")
             raise
+            
+    def tearDown(self):
+        """Teardown function to log the completion of the test case."""
+        logger.info(f"=== Finished execution of test: {self._testMethodName} ===")        
 
 if __name__ == '__main__':
     unittest.main()
