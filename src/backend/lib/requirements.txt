@@ -34,3 +34,4 @@ torchaudio==2.1.0+cpu
 
 # Install sentence-transformers after CPU torch is available
 sentence-transformers==3.4.1
+huggingface_hub[hf_xet]>=0.23.0
