@@ -12,6 +12,9 @@ RUN apt-get update && \
 COPY ./src/backend/lib/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
+# Install hf_xet to speed up model downloads from Hugging Face
+RUN pip install --no-cache-dir "huggingface_hub[hf_xet]"
+
 # Set environment variable for model directory
 ENV MODEL_DIR=/models
 
