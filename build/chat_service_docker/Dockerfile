@@ -8,12 +8,12 @@ RUN apt-get update && \
     apt-get install -y curl default-mysql-client libmagic1 libmagic-dev tesseract-ocr && \
     apt-get clean
 
+# Install hf_xet to speed up model downloads from Hugging Face
+RUN pip install --no-cache-dir "huggingface_hub[hf_xet]"
+
 # Copy requirements and install dependencies
 COPY ./src/backend/lib/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
-
-# Install hf_xet to speed up model downloads from Hugging Face
-RUN pip install --no-cache-dir "huggingface_hub[hf_xet]"
 
 # Set environment variable for model directory
 ENV MODEL_DIR=/models
