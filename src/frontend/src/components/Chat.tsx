@@ -5,27 +5,37 @@ import { useEffect, useRef, useState } from 'react';
 type Message = {
   question: string;
   answer: string;
+  timestamp: number;
 };
 
 export default function Chat({ chatId, isSidebarOpen }: { chatId: string; isSidebarOpen: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [isNewChat, setIsNewChat] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Load chat history when `chatId` changes
   useEffect(() => {
     if (chatId) {
       const savedChats = sessionStorage.getItem(`chat-${chatId}`);
-      setMessages(savedChats ? JSON.parse(savedChats) : []);
+      if (savedChats) {
+        setMessages(JSON.parse(savedChats));
+        setIsNewChat(true);
+      } else {
+        setMessages([]);
+        setIsNewChat(false);
+      }
     }
   }, [chatId]);
 
   // Save messages to `sessionStorage`
   useEffect(() => {
-    if (chatId && messages.length > 0) {
+    if (chatId && (messages.length > 0 || isNewChat)) {
       sessionStorage.setItem(`chat-${chatId}`, JSON.stringify(messages));
+      window.dispatchEvent(new Event('storage'));
+      setIsNewChat(true);
     }
-  }, [messages, chatId]);
+  }, [messages, chatId, isNewChat]);
 
   // Auto-scroll to the latest message
   useEffect(() => {
@@ -37,7 +47,12 @@ export default function Chat({ chatId, isSidebarOpen }: { chatId: string; isSide
       return;
     } // Prevent empty messages
 
-    const userMessage: Message = { question: input, answer: '...' };
+    const userMessage: Message = {
+      question: input,
+      answer: '...',
+      timestamp: Date.now(),
+    };
+
     setMessages(prev => [...prev, userMessage]); // Show user message first
     setInput('');
 
@@ -52,8 +67,8 @@ export default function Chat({ chatId, isSidebarOpen }: { chatId: string; isSide
         },
         body: JSON.stringify(
           storedChatId
-            ? { message: input, chatId: storedChatId } // Send `chatId` for ongoing chats
-            : { message: input }, // Only send `message` for new chats
+            ? { message: input, chatId: storedChatId }
+            : { message: input },
         ),
       });
 
@@ -65,21 +80,25 @@ export default function Chat({ chatId, isSidebarOpen }: { chatId: string; isSide
 
       // Store new chat_id only if it's the first message
       if (!storedChatId && data.chat_id) {
-        sessionStorage.setItem('chat_id', data.chat_id);
+        sessionStorage.setItem(`chat-session-${chatId}`, data.chat_id);
         storedChatId = data.chat_id; // Update variable for later use
       }
 
       // Update the last message with the response
       setMessages(prev =>
         prev.map((msg, index) =>
-          index === prev.length - 1 ? { ...msg, answer: data.answer || 'Try Again!' } : msg,
+          index === prev.length - 1
+            ? { ...msg, answer: data.answer || 'Try Again!', timestamp: Date.now() }
+            : msg,
         ),
       );
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev =>
         prev.map((msg, index) =>
-          index === prev.length - 1 ? { ...msg, answer: 'Try Again!' } : msg,
+          index === prev.length - 1
+            ? { ...msg, answer: 'Try Again!', timestamp: Date.now() }
+            : msg,
         ),
       );
     }
