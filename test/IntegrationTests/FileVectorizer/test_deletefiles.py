@@ -198,7 +198,7 @@ class TestDeleteFileAPI(unittest.TestCase):
             "table.json", "sivu.jpeg", "Full_Pitch.pptx",
             "CEN_files2.pdf", "gitClass.cpp", "extract_file.py"
         ]
-        TEST_DIR = "FilesTesting"
+        TEST_DIR = os.path.join(os.path.dirname(__file__), "FilesTesting")
 
         if not os.path.exists(TEST_DIR):
             self.fail(f" Test directory '{TEST_DIR}' not found")
@@ -241,7 +241,7 @@ class TestDeleteFileAPI(unittest.TestCase):
                         headers=customer["headers"]
                     )
 
-                self.assertEqual(response.status_code, 200, f"❌ Failed to upload {filename}")
+                self.assertEqual(response.status_code, 200, f"Failed to upload {filename}")
                 file_id = response.json().get("file_id")
                 customer["uploaded_files"].append((filename, file_id))
                 logger.info(f"Uploaded {filename} (ID: {file_id})")
@@ -295,7 +295,7 @@ class TestDeleteFileAPI(unittest.TestCase):
                     params={"filename": filename},
                     headers=customer["headers"]
                 )
-                self.assertEqual(response.status_code, 200, f"❌ Failed to delete {filename}")
+                self.assertEqual(response.status_code, 200, f"Failed to delete {filename}")
 
             # Monitor deletion with vectorizer control
             last_control_time = time.time()
