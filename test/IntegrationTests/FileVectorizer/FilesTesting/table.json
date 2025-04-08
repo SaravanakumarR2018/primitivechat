@@ -1,0 +1,27 @@
+{
+  "table_name": "Student_Info",
+  "columns": ["Student_ID", "Name", "Age", "Course", "Grade", "GPA", "Email"],
+  "rows": [
+    {"Student_ID": 1, "Name": "Alice", "Age": 21, "Course": "Math", "Grade": "A", "GPA": 3.9, "Email": "alice@example.com"},
+    {"Student_ID": 2, "Name": "Bob", "Age": 22, "Course": "Science", "Grade": "B+", "GPA": 3.5, "Email": "bob@example.com"},
+    {"Student_ID": 3, "Name": "Charlie", "Age": 23, "Course": "History", "Grade": "B", "GPA": 3.2, "Email": "charlie@example.com"},
+    {"Student_ID": 4, "Name": "Diana", "Age": 20, "Course": "Computer Science", "Grade": "A-", "GPA": 3.8, "Email": "diana@example.com"},
+    {"Student_ID": 5, "Name": "Eva", "Age": 21, "Course": "Literature", "Grade": "A", "GPA": 4.0, "Email": "eva@example.com"},
+    {"Student_ID": 6, "Name": "Frank", "Age": 24, "Course": "Physics", "Grade": "C+", "GPA": 2.8, "Email": "frank@example.com"},
+    {"Student_ID": 7, "Name": "Grace", "Age": 22, "Course": "Mathematics", "Grade": "B+", "GPA": 3.6, "Email": "grace@example.com"},
+    {"Student_ID": 8, "Name": "Hank", "Age": 23, "Course": "Engineering", "Grade": "B-", "GPA": 3.1, "Email": "hank@example.com"},
+    {"Student_ID": 9, "Name": "Ivy", "Age": 20, "Course": "Psychology", "Grade": "A", "GPA": 3.9, "Email": "ivy@example.com"},
+    {"Student_ID": 10, "Name": "Jack", "Age": 22, "Course": "Biology", "Grade": "C", "GPA": 2.5, "Email": "jack@example.com"},
+    {"Student_ID": 11, "Name": "Kathy", "Age": 21, "Course": "Sociology", "Grade": "A-", "GPA": 3.7, "Email": "kathy@example.com"},
+    {"Student_ID": 12, "Name": "Leo", "Age": 22, "Course": "Philosophy", "Grade": "B", "GPA": 3.3, "Email": "leo@example.com"},
+    {"Student_ID": 13, "Name": "Mona", "Age": 24, "Course": "Chemistry", "Grade": "A", "GPA": 4.0, "Email": "mona@example.com"},
+    {"Student_ID": 14, "Name": "Nina", "Age": 23, "Course": "Economics", "Grade": "B-", "GPA": 3.1, "Email": "nina@example.com"},
+    {"Student_ID": 15, "Name": "Oscar", "Age": 20, "Course": "Music", "Grade": "A+", "GPA": 4.0, "Email": "oscar@example.com"},
+    {"Student_ID": 16, "Name": "Paul", "Age": 21, "Course": "Art", "Grade": "B", "GPA": 3.2, "Email": "paul@example.com"},
+    {"Student_ID": 17, "Name": "Quincy", "Age": 24, "Course": "Engineering", "Grade": "C+", "GPA": 2.9, "Email": "quincy@example.com"},
+    {"Student_ID": 18, "Name": "Rachel", "Age": 22, "Course": "Linguistics", "Grade": "A-", "GPA": 3.8, "Email": "rachel@example.com"},
+    {"Student_ID": 19, "Name": "Steve", "Age": 23, "Course": "Computer Science", "Grade": "B+", "GPA": 3.6, "Email": "steve@example.com"},
+    {"Student_ID": 20, "Name": "Tina", "Age": 21, "Course": "Mathematics", "Grade": "A", "GPA": 4.0, "Email": "tina@example.com"}
+  ]
+}
+
