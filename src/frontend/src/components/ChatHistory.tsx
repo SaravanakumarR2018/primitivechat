@@ -43,26 +43,43 @@ export default function ChatHistory({
     const savedChats = Object.keys(sessionStorage)
       .filter(key => key.startsWith('chat-'))
       .map((key) => {
-        const messages = JSON.parse(sessionStorage.getItem(key) || '[]');
+        try {
+          const item = sessionStorage.getItem(key);
+          if (!item) {
+            return null;
+          }
 
-        if (messages.length === 0) {
+          // Skip if the item doesn't start with [ or { (not JSON)
+          if (!(item.startsWith('[') || item.startsWith('{'))) {
+            console.warn(`Skipping invalid chat data for key ${key}`);
+            return null;
+          }
+
+          const messages = JSON.parse(item);
+
+          if (!Array.isArray(messages) || messages.length === 0) {
+            return null;
+          }
+
+          // Get the first question instead of looking for sender
+          const firstMessage = messages[0];
+          const preview = firstMessage?.question?.slice(0, 20) || 'New Chat';
+          const timestamp = firstMessage?.timestamp || 0;
+
+          return {
+            id: key.replace('chat-', ''),
+            preview,
+            timestamp,
+          };
+        } catch (error) {
+          console.error(`Error parsing chat data for key ${key}:`, error);
           return null;
         }
-
-        // Get the first user message instead of the last
-        const firstUserMessage = messages.find((msg: { sender: string }) => msg.sender === 'user');
-        const firstTimestamp = messages.length ? messages[0].timestamp : 0; // Get first message timestamp
-
-        return {
-          id: key.replace('chat-', ''),
-          preview: firstUserMessage ? firstUserMessage.text.slice(0, 20) : 'New Chat',
-          timestamp: firstTimestamp, // Use first message timestamp for sorting
-        };
       })
       .filter(chat => chat !== null) as { id: string; preview: string; timestamp: number }[];
 
     const uniqueChats = Array.from(new Map(savedChats.map(chat => [chat.id, chat])).values());
-    const sortedChats = uniqueChats.sort((a, b) => b.timestamp - a.timestamp); // Sort by first message timestamp
+    const sortedChats = uniqueChats.sort((a, b) => b.timestamp - a.timestamp);
 
     setChats(sortedChats);
   };
