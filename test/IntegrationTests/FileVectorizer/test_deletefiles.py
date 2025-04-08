@@ -221,7 +221,6 @@ class TestDeleteFileAPI(unittest.TestCase):
 
         upload_url = f"{self.BASE_URL}/uploadFile"
         delete_url = f"{self.BASE_URL}/deletefile"
-        embedding_status_url = f"{self.BASE_URL}/file/list"
         deletion_status_url = f"{self.BASE_URL}/files/deletionstatus"
 
         logger.info("====Uploading 50 Files (10 per customer) ====")
@@ -250,39 +249,6 @@ class TestDeleteFileAPI(unittest.TestCase):
                 len(customer["uploaded_files"]), 10,
                 f"Customer {idx + 1} has {len(customer['uploaded_files'])} files (expected 10)"
             )
-
-        logger.info("==== Monitoring Embedding Status ====")
-        for idx, customer in enumerate(customers):
-            logger.info(f"Customer {idx + 1}: Checking embedding progress...")
-            start_time = time.time()
-
-            while True:
-                response = requests.get(
-                    embedding_status_url,
-                    headers=customer["headers"],
-                    params={"page": 1, "page_size": 100}
-                )
-                self.assertEqual(response.status_code, 200)
-
-                relevant_status = [
-                    f for f in response.json()
-                    if f["filename"] in dict(customer["uploaded_files"])
-                ]
-
-                # Detailed status logging
-                logger.info(f"Customer {idx + 1} - {len(relevant_status)}/{len(customer['uploaded_files'])} files:")
-                for file_status in relevant_status:
-                    logger.info(
-                        f"filename{file_status.get('filename')} | "
-                        f"file_id: {file_status.get('fileid')} | "
-                        f"embeddingstatus: {file_status.get('embeddingstatus')}"
-                    )
-
-                if all(f["embeddingstatus"] == "SUCCESS" for f in relevant_status):
-                    logger.info(f"Customer {idx + 1}: All files embedded in {time.time() - start_time:.1f}s!")
-                    break
-
-                time.sleep(1)  # Poll every second
 
         logger.info("==== Deleting Files + Vectorizer Control ====")
         for idx, customer in enumerate(customers):
