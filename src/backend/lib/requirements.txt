@@ -23,6 +23,7 @@ python-pptx==1.0.2
 pillow==11.1.0
 spacy==3.8.4
 python-magic==0.4.27
+transformers==4.41.2 
 
 # Install CPU-specific PyTorch components
 numpy<2
