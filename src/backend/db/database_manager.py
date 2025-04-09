@@ -37,6 +37,8 @@ class DatabaseManager:
         """Create the common_db database and org_customer_guid_mapping table with updated schema."""
         session = DatabaseManager._session_factory()
         try:
+            # Drop common_db if it exists
+            session.execute(text("DROP DATABASE IF EXISTS common_db"))
             # Ensure common_db exists
             session.execute(text("CREATE DATABASE IF NOT EXISTS common_db"))
             session.execute(text("USE common_db"))

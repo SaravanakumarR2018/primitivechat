@@ -5,8 +5,11 @@ WORKDIR /app
 
 # Install curl and necessary build dependencies for healthcheck and Python packages
 RUN apt-get update && \
-    apt-get install -y curl default-mysql-client libmagic1 libmagic-dev tesseract-ocr && \
+    apt-get install -y curl default-mysql-client libmagic1 libmagic-dev tesseract-ocr procps && \
     apt-get clean
+
+# Install hf_xet
+RUN pip install --no-cache-dir hf_xet
 
 # Copy requirements and install dependencies
 COPY ./src/backend/lib/requirements.txt /app/requirements.txt
