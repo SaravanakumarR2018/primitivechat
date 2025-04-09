@@ -282,7 +282,7 @@ class TestDeleteFileAPI(unittest.TestCase):
                     logger.info(f"Customer {idx + 1}: All files embedded in {time.time() - start_time:.1f}s!")
                     break
 
-                time.sleep(1)  # Poll every second
+                time.sleep(3)
 
         logger.info("==== Deleting Files + Vectorizer Control ====")
         for idx, customer in enumerate(customers):
@@ -295,7 +295,7 @@ class TestDeleteFileAPI(unittest.TestCase):
                     params={"filename": filename},
                     headers=customer["headers"]
                 )
-                self.assertEqual(response.status_code, 200, f"❌ Failed to delete {filename}")
+                self.assertEqual(response.status_code, 200, f"Failed to delete {filename}")
 
             # Monitor deletion with vectorizer control
             last_control_time = time.time()
@@ -340,7 +340,7 @@ class TestDeleteFileAPI(unittest.TestCase):
                         logger.info(f"Customer {idx + 1}: All files deleted in {time.time() - start_time:.1f}s!")
                         break
 
-                    time.sleep(1)  # Poll every second
+                    time.sleep(2)  # Poll every second
 
                 except Exception as e:
                     logger.error(f"Deletion monitoring error: {str(e)}")
