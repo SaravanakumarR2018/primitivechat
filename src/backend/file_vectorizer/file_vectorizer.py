@@ -74,6 +74,11 @@ class FileVectorizer:
                 return
 
             status, error_retry = file_record
+            
+            # If already completed, skip processing
+            if status == "completed":
+                logger.info(f"File {filename} is already completed, skipping...")
+                return
 
             if status in ["todo", "extract_error"]:
                 try:
