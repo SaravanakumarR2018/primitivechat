@@ -1699,7 +1699,9 @@ class DatabaseManager:
             # Update common_db.customer_file_status
             update_common_query = """
                 UPDATE common_db.customer_file_status
-                SET status = :new_status, errors = :error, error_retry = :error_retry, completed_time = CURRENT_TIMESTAMP(6)
+                SET status = :new_status, errors = :error, error_retry = :error_retry, completed_time = CASE WHEN :new_status = 'completed' 
+                                      THEN CURRENT_TIMESTAMP(6) 
+                                      ELSE completed_time END
                 WHERE customer_guid = :customer_guid AND filename = :filename
             """
             session.execute(text(update_common_query), {
@@ -1714,7 +1716,9 @@ class DatabaseManager:
             customer_db = self.get_customer_db(customer_guid)
             update_customer_query = f"""
                 UPDATE `{customer_db}`.uploadedfile_status
-                SET status = :new_status, errors = :error, error_retry = :error_retry, completed_time = CURRENT_TIMESTAMP(6)
+                SET status = :new_status, errors = :error, error_retry = :error_retry, completed_time = CASE WHEN :new_status = 'completed' 
+                                      THEN CURRENT_TIMESTAMP(6) 
+                                      ELSE completed_time END
                 WHERE customer_guid = :customer_guid AND filename = :filename
             """
             session.execute(text(update_customer_query), {
