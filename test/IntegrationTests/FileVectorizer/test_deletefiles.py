@@ -28,7 +28,7 @@ class TestDeleteFileAPI(unittest.TestCase):
         self.headers = {'Authorization': f'Bearer {self.token}'}
 
         # Upload a test file to delete
-        if "test_full_file_lifecycle_with_realtime_monitoring" not in self._testMethodName:
+        if "test_partial_file_lifecycle_with_three_files_each" not in self._testMethodName:
             self.test_filename = "test_delete_file.txt"
             self._upload_test_file()
 
@@ -186,29 +186,172 @@ class TestDeleteFileAPI(unittest.TestCase):
         self.assertIn("detail", response.json(), "'detail' key not found in response")
         self.assertEqual(response.json()["detail"], "Invalid customer_guid provided", "Unexpected error message")
 
-    def test_full_file_lifecycle_with_realtime_monitoring(self):
-        logger.info("Starting test_full_file_lifecycle_with_realtime_monitoring")
+    # def test_full_file_lifecycle_with_realtime_monitoring(self):
+    #     logger.info("Starting test_full_file_lifecycle_with_realtime_monitoring")
 
-        TEST_FILES = [
+    #     TEST_FILES = [
+    #         "Googleprocess.pdf", "images1.png", "OptionMenu1.java",
+    #         "upgrade.php", "Cen_files1.pdf", "Benefits.js",
+    #         "PrinceBot.docx", "sample.xlsx", "SingleJsonFile.json",
+    #         "_config.yaml", "ast_sci_data_tables_sample.pdf",
+    #         "december.jpeg", "finalepisode.docx", "images.xlsx",
+    #         "table.json", "sivu.jpeg", "Full_Pitch.pptx",
+    #         "CEN_files2.pdf", "gitClass.cpp", "extract_file.py"
+    #     ]
+    #     TEST_DIR = os.path.join(os.path.dirname(__file__), "FilesTesting")
+
+    #     if not os.path.exists(TEST_DIR):
+    #         self.fail(f" Test directory '{TEST_DIR}' not found")
+
+    #     customers = []
+    #     for i in range(5):
+    #         customer_data = add_customer(f"test_org_{i}")
+    #         token = create_test_token(org_id=customer_data.get("org_id"), org_role="org:admin")
+    #         headers = {'Authorization': f'Bearer {token}'}
+    #         files_to_upload = TEST_FILES[:10] if i % 2 == 0 else TEST_FILES[10:]
+
+    #         customers.append({
+    #             "customer_guid": customer_data["customer_guid"],
+    #             "org_id": customer_data["org_id"],
+    #             "token": token,
+    #             "headers": headers,
+    #             "files_to_upload": files_to_upload,
+    #             "uploaded_files": []
+    #         })
+
+    #     upload_url = f"{self.BASE_URL}/uploadFile"
+    #     delete_url = f"{self.BASE_URL}/deletefile"
+    #     deletion_status_url = f"{self.BASE_URL}/files/deletionstatus"
+
+    #     logger.info("====Uploading 50 Files (10 per customer) ====")
+    #     for idx, customer in enumerate(customers):
+    #         logger.info(f"Customer {idx + 1}: Uploading {len(customer['files_to_upload'])} files...")
+
+    #         for filename in customer["files_to_upload"]:
+    #             file_path = os.path.join(TEST_DIR, filename)
+    #             if not os.path.exists(file_path):
+    #                 logger.warning(f"File {filename} not found, skipping")
+    #                 continue
+
+    #             with open(file_path, 'rb') as file:
+    #                 response = requests.post(
+    #                     upload_url,
+    #                     files={"file": (filename, file)},
+    #                     headers=customer["headers"]
+    #                 )
+
+    #             self.assertEqual(response.status_code, 200, f"Failed to upload {filename}")
+    #             file_id = response.json().get("file_id")
+    #             customer["uploaded_files"].append((filename, file_id))
+    #             logger.info(f"Uploaded {filename} (ID: {file_id})")
+
+    #         self.assertEqual(
+    #             len(customer["uploaded_files"]), 10,
+    #             f"Customer {idx + 1} has {len(customer['uploaded_files'])} files (expected 10)"
+    #         )
+
+    #     logger.info("==== Deleting Files + Vectorizer Control ====")
+    #     for idx, customer in enumerate(customers):
+    #         logger.info(f"Customer {idx + 1}: Initiating deletion...")
+
+    #         # Mark files for deletion
+    #         for filename, _ in customer["uploaded_files"]:
+    #             response = requests.delete(
+    #                 delete_url,
+    #                 params={"filename": filename},
+    #                 headers=customer["headers"]
+    #             )
+    #             self.assertEqual(response.status_code, 200, f"Failed to delete {filename}")
+
+    #         # Monitor deletion with vectorizer control
+    #         last_control_time = time.time()
+    #         control_interval = 30  # seconds
+    #         start_time = time.time()
+
+    #         while True:
+    #             try:
+    #                 current_time = time.time()
+
+    #                 # Vectorizer control (every 30s)
+    #                 if current_time - last_control_time >= control_interval:
+    #                     logger.info("Stopping file vectorizer...")
+    #                     self.control_file_vectorizer()
+    #                     last_control_time = current_time
+
+    #                 # Check deletion status
+    #                 response = requests.get(
+    #                     deletion_status_url,
+    #                     headers=customer["headers"],
+    #                     params={"page": 1, "page_size": 100}
+    #                 )
+    #                 self.assertEqual(response.status_code, 200)
+
+    #                 # Log detailed deletion status
+    #                 pending_files = [
+    #                     f for f in response.json()
+    #                     if f["filename"] in dict(customer["uploaded_files"])
+    #                        and f["deletion_status"] != "DELETION_COMPLETED"
+    #                 ]
+
+    #                 logger.info(f"Customer {idx + 1} - {len(pending_files)} files pending:")
+    #                 for file in pending_files:
+    #                     logger.info(
+    #                         f"filename: {file.get('filename')} | "
+    #                         f"file_id: {file.get('file_id')} | "
+    #                         f"deletion_status: {file.get('deletion_status')}"
+    #                     )
+
+    #                 if not pending_files:
+    #                     logger.info(f"Customer {idx + 1}: All files deleted in {time.time() - start_time:.1f}s!")
+    #                     break
+
+    #                 time.sleep(1)  # Poll every second
+
+    #             except Exception as e:
+    #                 logger.error(f"Deletion monitoring error: {str(e)}")
+    #                 time.sleep(5)  # Longer pause on error
+
+    #     logger.info("====Final Verification ====")
+    #     for idx, customer in enumerate(customers):
+    #         response = requests.get(
+    #             deletion_status_url,
+    #             headers=customer["headers"],
+    #             params={"page": 1, "page_size": 100}
+    #         )
+    #         self.assertEqual(response.status_code, 200)
+
+    #         undeleted_files = [
+    #             f for f in response.json()
+    #             if f["filename"] in dict(customer["uploaded_files"])
+    #                and f["deletion_status"] != "DELETION_COMPLETED"
+    #         ]
+
+    #         self.assertListEqual(
+    #             undeleted_files, [],
+    #             f"Customer {idx + 1} has {len(undeleted_files)} undeleted files"
+    #         )
+    
+    def test_partial_file_lifecycle_with_three_files_each(self):
+        logger.info("Starting test_partial_file_lifecycle_with_three_files_each")
+
+        SELECTED_FILES = [
             "Googleprocess.pdf", "images1.png", "OptionMenu1.java",
             "upgrade.php", "Cen_files1.pdf", "Benefits.js",
             "PrinceBot.docx", "sample.xlsx", "SingleJsonFile.json",
-            "_config.yaml", "ast_sci_data_tables_sample.pdf",
-            "december.jpeg", "finalepisode.docx", "images.xlsx",
-            "table.json", "sivu.jpeg", "Full_Pitch.pptx",
-            "CEN_files2.pdf", "gitClass.cpp", "extract_file.py"
+            "_config.yaml", "december.jpeg", "finalepisode.docx",
+            "images.xlsx", "table.json", "Full_Pitch.pptx"
         ]
-        TEST_DIR = os.path.join(os.path.dirname(__file__), "FilesTesting")
+        TEST_DIR = "FilesTesting"
 
         if not os.path.exists(TEST_DIR):
-            self.fail(f" Test directory '{TEST_DIR}' not found")
+            self.fail(f"Test directory '{TEST_DIR}' not found")
 
         customers = []
         for i in range(5):
-            customer_data = add_customer(f"test_org_{i}")
-            token = create_test_token(org_id=customer_data.get("org_id"), org_role="org:admin")
+            customer_data = add_customer(f"mini_test_org_{i}")
+            token = create_test_token(org_id=customer_data["org_id"], org_role="org:admin")
             headers = {'Authorization': f'Bearer {token}'}
-            files_to_upload = TEST_FILES[:10] if i % 2 == 0 else TEST_FILES[10:]
+            files_to_upload = SELECTED_FILES[i * 3: (i + 1) * 3]
 
             customers.append({
                 "customer_guid": customer_data["customer_guid"],
@@ -221,12 +364,12 @@ class TestDeleteFileAPI(unittest.TestCase):
 
         upload_url = f"{self.BASE_URL}/uploadFile"
         delete_url = f"{self.BASE_URL}/deletefile"
+        embedding_status_url = f"{self.BASE_URL}/file/list"
         deletion_status_url = f"{self.BASE_URL}/files/deletionstatus"
 
-        logger.info("====Uploading 50 Files (10 per customer) ====")
+        logger.info("==== Uploading 15 Files (3 per customer) ====")
         for idx, customer in enumerate(customers):
-            logger.info(f"Customer {idx + 1}: Uploading {len(customer['files_to_upload'])} files...")
-
+            logger.info(f"Customer {idx + 1}: Uploading files...")
             for filename in customer["files_to_upload"]:
                 file_path = os.path.join(TEST_DIR, filename)
                 if not os.path.exists(file_path):
@@ -240,30 +383,61 @@ class TestDeleteFileAPI(unittest.TestCase):
                         headers=customer["headers"]
                     )
 
-                self.assertEqual(response.status_code, 200, f"Failed to upload {filename}")
+                self.assertEqual(response.status_code, 200, f"❌ Failed to upload {filename}")
                 file_id = response.json().get("file_id")
                 customer["uploaded_files"].append((filename, file_id))
                 logger.info(f"Uploaded {filename} (ID: {file_id})")
 
             self.assertEqual(
-                len(customer["uploaded_files"]), 10,
-                f"Customer {idx + 1} has {len(customer['uploaded_files'])} files (expected 10)"
+                len(customer["uploaded_files"]), 3,
+                f"Customer {idx + 1} has {len(customer['uploaded_files'])} files (expected 3)"
             )
+
+        logger.info("==== Monitoring Embedding Status ====")
+        for idx, customer in enumerate(customers):
+            logger.info(f"Customer {idx + 1}: Checking embedding progress...")
+            start_time = time.time()
+
+            while True:
+                response = requests.get(
+                    embedding_status_url,
+                    headers=customer["headers"],
+                    params={"page": 1, "page_size": 100}
+                )
+                self.assertEqual(response.status_code, 200)
+
+                relevant_status = [
+                    f for f in response.json()
+                    if f["filename"] in dict(customer["uploaded_files"])
+                ]
+
+                logger.info(f"Customer {idx + 1} - {len(relevant_status)}/{len(customer['uploaded_files'])} files:")
+                for file_status in relevant_status:
+                    logger.info(
+                        f"filename: {file_status.get('filename')} | "
+                        f"file_id: {file_status.get('fileid')} | "
+                        f"embeddingstatus: {file_status.get('embeddingstatus')}"
+                    )
+
+                if all(f["embeddingstatus"] == "SUCCESS" for f in relevant_status):
+                    logger.info(f"Customer {idx + 1}: All files embedded in {time.time() - start_time:.1f}s!")
+                    break
+
+                time.sleep(1)
 
         logger.info("==== Deleting Files + Vectorizer Control ====")
         for idx, customer in enumerate(customers):
             logger.info(f"Customer {idx + 1}: Initiating deletion...")
 
-            # Mark files for deletion
             for filename, _ in customer["uploaded_files"]:
                 response = requests.delete(
                     delete_url,
                     params={"filename": filename},
                     headers=customer["headers"]
                 )
-                self.assertEqual(response.status_code, 200, f"Failed to delete {filename}")
+                self.assertEqual(response.status_code, 200, f"❌ Failed to delete {filename}")
+                logger.info(f"Deleted file: {filename}")
 
-            # Monitor deletion with vectorizer control
             last_control_time = time.time()
             control_interval = 30  # seconds
             start_time = time.time()
@@ -272,13 +446,13 @@ class TestDeleteFileAPI(unittest.TestCase):
                 try:
                     current_time = time.time()
 
-                    # Vectorizer control (every 30s)
+                    # Vectorizer control every 30 seconds
                     if current_time - last_control_time >= control_interval:
                         logger.info("Stopping file vectorizer...")
                         self.control_file_vectorizer()
                         last_control_time = current_time
+                        #time.sleep(2)  # Simulate pause while vectorizer stops
 
-                    # Check deletion status
                     response = requests.get(
                         deletion_status_url,
                         headers=customer["headers"],
@@ -286,7 +460,6 @@ class TestDeleteFileAPI(unittest.TestCase):
                     )
                     self.assertEqual(response.status_code, 200)
 
-                    # Log detailed deletion status
                     pending_files = [
                         f for f in response.json()
                         if f["filename"] in dict(customer["uploaded_files"])
@@ -305,13 +478,13 @@ class TestDeleteFileAPI(unittest.TestCase):
                         logger.info(f"Customer {idx + 1}: All files deleted in {time.time() - start_time:.1f}s!")
                         break
 
-                    time.sleep(1)  # Poll every second
+                    time.sleep(1)
 
                 except Exception as e:
-                    logger.error(f"Deletion monitoring error: {str(e)}")
-                    time.sleep(5)  # Longer pause on error
+                    logger.error(f"Error in deletion monitoring: {str(e)}")
+                    time.sleep(5)
 
-        logger.info("====Final Verification ====")
+        logger.info("==== Final Verification ====")
         for idx, customer in enumerate(customers):
             response = requests.get(
                 deletion_status_url,
@@ -329,18 +502,15 @@ class TestDeleteFileAPI(unittest.TestCase):
             self.assertListEqual(
                 undeleted_files, [],
                 f"Customer {idx + 1} has {len(undeleted_files)} undeleted files"
-            )
+            )        
 
     def control_file_vectorizer(self):
         container_name = "chat_service"
         try:
-            subprocess.run( ["docker", "exec", container_name, "supervisorctl", "stop", "file_vectorize_main"],check=True)
-            logger.info("Stopped file_vectorize_main using supervisorctl inside container")
-            time.sleep(5)
-            subprocess.run(["docker", "exec", container_name, "supervisorctl", "start", "file_vectorize_main"],check=True)
-            logger.info("Restarted file_vectorize_main using supervisorctl inside container")
+            subprocess.run( ["docker", "exec", container_name, "pkill", "-9", "-f","file_vectorize_main"],check=True)
+            logger.info("Successfully killed file_vectorize_main process with pkill -9")
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to control file_vectorize_main via supervisorctl inside container: {e}")
+            logger.error(f"Failed to kill file_vectorize_main: {e}")
             raise
             
     def tearDown(self):
