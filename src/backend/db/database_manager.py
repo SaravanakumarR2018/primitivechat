@@ -1818,7 +1818,6 @@ class DatabaseManager:
                 SELECT file_id, filename, status 
                 FROM `{customer_db}`.uploadedfile_status
                 WHERE customer_guid = :customer_guid
-                AND status != 'completed'
                 ORDER BY uploaded_time DESC
                 LIMIT :limit OFFSET :offset
             """
