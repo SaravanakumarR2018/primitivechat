@@ -81,10 +81,6 @@ class FileVectorizer:
 
             if status in ["todo", "extract_error"]:
                 try:
-                    current_status = db_manager.get_file_status(customer_guid, filename)[0]
-                    if current_status == "completed":
-                        logger.warning(f"File {filename} already completed before extraction, skipping")
-                        return
                     if self.extract_file(customer_guid, filename):
                         db_manager.update_status(customer_guid, filename, "extracted", "", error_retry)
                     else:
@@ -101,10 +97,6 @@ class FileVectorizer:
 
             if status in ["extracted", "chunk_error"]:
                 try:
-                    current_status = db_manager.get_file_status(customer_guid, filename)[0]
-                    if current_status == "completed":
-                        logger.warning(f"File {filename} already completed before extraction, skipping")
-                        return
                     if self.chunk_file(customer_guid, filename):
                         db_manager.update_status(customer_guid, filename, "chunked", "", error_retry)
                     else:
@@ -121,10 +113,6 @@ class FileVectorizer:
 
             if status in ["chunked", "vectorize_error"]:
                 try:
-                    current_status = db_manager.get_file_status(customer_guid, filename)[0]
-                    if current_status == "completed":
-                        logger.warning(f"File {filename} already completed before extraction, skipping")
-                        return
                     if self.vectorize_file(customer_guid, filename):
                         db_manager.update_status(customer_guid, filename, "completed", "", error_retry)
                         # Delete extracted and chunked files from MinIO
