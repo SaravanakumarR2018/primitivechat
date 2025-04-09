@@ -1667,6 +1667,7 @@ class DatabaseManager:
                 SELECT customer_guid, filename, error_retry 
                 FROM common_db.customer_file_status 
                 WHERE to_be_deleted = FALSE
+                AND status NOT IN ('completed', 'file_vectorization_failed')
                 ORDER BY current_activity_updated_time ASC
                 LIMIT :num_of_records
             """
