@@ -1,4 +1,3 @@
-/* eslint-disable no-alert */
 'use client';
 
 import { useOrganization } from '@clerk/nextjs';
