@@ -2,33 +2,35 @@
 export const TicketListSkeleton = () => {
   return (
     <div className="relative w-full rounded-md border shadow-md">
-      {/* Skeleton Table with Scrollable Area */}
-      <ul className="custom-scrollbar max-h-[90vh] overflow-y-auto rounded-md bg-white shadow">
+      <ul className="custom-scrollbar max-h-[80vh] overflow-y-auto rounded-md bg-white shadow">
         {/* Sticky Header Row */}
-        <li className="sticky top-0 z-10 grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1fr_1fr_1fr_auto] gap-4 border-b bg-white p-3 font-semibold">
-          <div>ID</div>
-          <div>Title</div>
-          <div>Reported By</div>
-          <div>Assignee</div>
-          <div>Status</div>
-          <div>Priority</div>
-          <div className="text-center">Created</div>
-          <div className="text-center">Action</div>
+        <li className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white px-4 py-3 text-sm font-semibold md:text-base">
+          <div className="w-[10%]">ID</div>
+          <div className="w-1/2 md:w-1/5">Title</div>
+          <div className="hidden w-[15%] md:block">Reported By</div>
+          <div className="hidden w-[15%] md:block">Assignee</div>
+          <div className="hidden w-[10%] md:flex">Status</div>
+          <div className="hidden w-[10%] md:flex">Priority</div>
+          <div className="hidden w-1/5 justify-center text-center md:flex md:w-[10%]">Created</div>
+          <div className="w-[10%] text-center md:w-[5%]">Action</div>
         </li>
-        {/* Skeleton Rows */}
+
         {[...Array(10)].map((_, index) => (
           <li
             key={index}
-            className="grid animate-pulse grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1fr_1fr_1fr_auto] items-center gap-4 rounded-lg border-transparent bg-white p-4 hover:bg-gray-100"
+            className="flex items-center justify-between gap-4 bg-white px-4 py-3"
           >
-            <div className="h-4 w-12 rounded bg-gray-300"></div>
-            <div className="h-4 w-40 rounded bg-gray-300"></div>
-            <div className="h-4 w-28 rounded bg-gray-300"></div>
-            <div className="h-4 w-28 rounded bg-gray-300"></div>
-            <div className="h-4 w-20 rounded bg-gray-300"></div>
-            <div className="h-4 w-24 rounded bg-gray-300"></div>
-            <div className="h-4 w-24 rounded bg-gray-300"></div>
-            <div className="flex size-8 items-center justify-center rounded-full bg-gray-300"></div>
+            <div className="h-4 w-[10%] animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200 md:w-1/5" />
+            <div className="hidden h-4 w-[15%] animate-pulse rounded bg-gray-200 md:block" />
+            <div className="hidden h-4 w-[15%] animate-pulse rounded bg-gray-200 md:block" />
+            <div className="hidden h-6 w-[10%] animate-pulse rounded bg-gray-200 md:flex" />
+            <div className="hidden h-6 w-[10%] animate-pulse rounded bg-gray-200 md:flex" />
+            <div className="hidden h-4 w-1/5 animate-pulse justify-center rounded bg-gray-200 text-center md:flex md:w-[10%]" />
+            <div className="flex w-[10%] items-center justify-center gap-2 md:w-[5%]">
+              <div className="size-5 animate-pulse rounded-full bg-gray-300" />
+              <div className="size-5 animate-pulse rounded-full bg-gray-300" />
+            </div>
           </li>
         ))}
       </ul>
@@ -38,55 +40,75 @@ export const TicketListSkeleton = () => {
 
 export const TicketDetailSkeleton = () => {
   return (
-    <div className="mx-auto max-w-2xl animate-pulse rounded-lg bg-white p-6 shadow-md">
-      <div className="mb-4 h-6 w-40 rounded bg-gray-300"></div>
+    <div className="mx-auto max-w-5xl animate-pulse rounded-lg bg-white p-6 shadow-md">
+      <div className="mb-6 h-8 w-32 rounded bg-gray-300"></div>
 
-      <div className="space-y-4">
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
+      <div className="flex flex-col gap-8 md:flex-row">
+        {/* Left Pane */}
+        <div className="space-y-4 md:w-1/2">
+          <div className="h-5 w-20 rounded bg-gray-300"></div>
           <div className="h-10 w-full rounded bg-gray-300"></div>
-        </div>
 
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
+          <div className="h-5 w-24 rounded bg-gray-300"></div>
           <div className="h-20 w-full rounded bg-gray-300"></div>
-        </div>
 
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
+          <div className="h-5 w-24 rounded bg-gray-300"></div>
           <div className="h-10 w-full rounded bg-gray-300"></div>
         </div>
 
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
-          <div className="h-10 w-full rounded bg-gray-300"></div>
-        </div>
+        {/* Vertical Divider */}
+        <div className="hidden w-px bg-gray-300 md:block" />
 
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
+        {/* Right Pane */}
+        <div className="space-y-4 md:w-1/2">
+          <div className="h-5 w-24 rounded bg-gray-300"></div>
           <div className="h-10 w-full rounded bg-gray-300"></div>
-        </div>
 
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
+          <div className="h-5 w-28 rounded bg-gray-300"></div>
           <div className="h-10 w-full rounded bg-gray-300"></div>
-        </div>
 
-        <div>
-          <div className="mb-1 h-4 w-20 rounded bg-gray-300"></div>
+          <div className="h-5 w-20 rounded bg-gray-300"></div>
           <div className="h-10 w-full rounded bg-gray-300"></div>
-        </div>
 
-        {/* Custom Fields Placeholder */}
-        <div className="mt-4">
-          <div className="mb-2 h-5 w-32 rounded bg-gray-300"></div>
-          <div className="h-10 w-full rounded bg-gray-300"></div>
-        </div>
+          <div className="h-5 w-24 rounded bg-gray-300"></div>
+          <div className="h-10 w-full rounded bg-gray-200"></div>
 
-        <div className="mt-4 h-10 w-full rounded bg-gray-300"></div>
+          {/* Custom Fields */}
+          <div>
+            <div className="mb-2 h-6 w-32 rounded bg-gray-300"></div>
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="mb-4">
+                <div className="mb-1 h-4 w-24 rounded bg-gray-300"></div>
+                <div className="h-10 w-full rounded bg-gray-200"></div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="mt-4 h-5 w-32 rounded bg-gray-300"></div>
+      {/* Comments */}
+      <div className="mt-10">
+        <div className="mb-4 h-6 w-32 rounded bg-gray-300"></div>
+        <div className="mb-4 h-20 w-full rounded bg-gray-300"></div>
+        <div className="mb-6 h-10 w-32 rounded bg-gray-400"></div>
+
+        {/* Simulated Comments */}
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="mb-4 rounded border bg-gray-100 p-3">
+            <div className="mb-2 h-4 w-3/4 rounded bg-gray-300"></div>
+            <div className="h-3 w-1/2 rounded bg-gray-200"></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer Actions */}
+      <div className="mt-8 flex justify-between">
+        <div className="h-4 w-32 rounded bg-gray-300"></div>
+        <div className="flex gap-4">
+          <div className="h-10 w-24 rounded bg-gray-400"></div>
+          <div className="h-10 w-24 rounded bg-gray-400"></div>
+        </div>
+      </div>
     </div>
   );
 };
