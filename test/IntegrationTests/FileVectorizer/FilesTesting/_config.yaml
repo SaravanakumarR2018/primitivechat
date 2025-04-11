@@ -1,0 +1,10 @@
+[
+    {
+        "metadata": {
+            "page_number": 1,
+            "customer_guid": "264d71be-b07c-4c18-849d-4ce13bab4029",
+            "filename": "_config.yaml"
+        },
+        "text": "title: FOSS@RIT Profiles\nrepository: FOSSRIT/people\nauthor: RIT\nemail: foss@rit.edu\ndescription: Interactive directory of FOSS@RIT community members\ngithub_username: FOSSRIT\nbaseurl: /people\nlsi: False\nsafe: True\nincremental: False\nhighlighter: rouge\ngist:\n  noscript: False\nplugins:\n  - jekyll-coffeescript\n  - jekyll-default-layout\n  - jekyll-gist\n  - jekyll-github-metadata\n  - jekyll-optional-front-matter\n  - jekyll-paginate\n  - jekyll-readme-index\n  - jekyll-titles-from-headings\n  - jekyll-relative-links\ntheme: minima\nheader_pages:\n  - faculty.html\n  - student.html\n  - mentor.html\n  - alum.html\nexclude:\n  - _ignore\n  - example_profile.yaml\n  - Gemfile\n  - Gemfile.lock\n  - LICENSE.txt\n  - Rakefile\n  - README.md\n  - vendor\nkramdown:\n  math_engine: mathjax\n  syntax_highlighter: rouge\npermalink: pretty"
+    }
+]
