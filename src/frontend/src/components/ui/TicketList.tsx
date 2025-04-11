@@ -122,6 +122,42 @@ const TicketList: React.FC<TicketListProps> = ({ page, setTotalPages, setDisable
     setDisableNext(isFinalBatch && page >= computedTotalPages);
   }, [data, isFinalBatch, page, batchNumber, setTotalPages, setDisableNext]);
 
+  const pagesInBatch = data.length > 0 ? Math.ceil(data.length / PAGE_SIZE) : 1;
+  const computedTotalPages = isFinalBatch ? (batchNumber - 1) * 15 + pagesInBatch : (batchNumber - 1) * 15 + 15;
+
+  if (page > computedTotalPages) {
+    return (
+      <div className="custom-scrollbar relative w-full rounded-md border shadow-md">
+        <ul className="custom-scrollbar max-h-[80vh] overflow-auto rounded-md bg-white shadow">
+          {/* Sticky Header Row */}
+          <li className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white px-4 py-3 text-sm font-semibold md:text-base">
+            <div className="w-[10%]">ID</div>
+            <div className="w-1/2 md:w-1/5">Title</div>
+            <div className="hidden w-[15%] md:block">Reported By</div>
+            <div className="hidden w-[15%] md:block">Assignee</div>
+            <div className="hidden w-[10%] md:flex">Status</div>
+            <div className="hidden w-[10%] md:flex">Priority</div>
+            <div className="hidden w-1/5 justify-center text-center md:flex md:w-[10%]">Created</div>
+            <div className="w-[10%] text-center md:w-[5%]">Action</div>
+          </li>
+          <h1 className="mb-2 flex justify-center text-lg text-gray-800">Ticket Page out of Range</h1>
+          <div className="flex justify-center">
+            <Link href="/dashboard">
+              <button className="mb-2 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white shadow-md hover:bg-blue-700" type="button">
+                <span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                    <path fillRule="evenodd" d="M9.53 2.47a.75.75 0 0 1 0 1.06L4.81 8.25H15a6.75 6.75 0 0 1 0 13.5h-3a.75.75 0 0 1 0-1.5h3a5.25 5.25 0 1 0 0-10.5H4.81l4.72 4.72a.75.75 0 1 1-1.06 1.06l-6-6a.75.75 0 0 1 0-1.06l6-6a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                  </svg>
+                </span>
+                Back To Dashboard
+              </button>
+            </Link>
+          </div>
+        </ul>
+      </div>
+    );
+  }
+
   const updateTicket = async (ticketId: string, field: 'status' | 'priority', value: string) => {
     setLoadingState(prev => ({ ...prev, [`${ticketId}-${field}`]: true }));
     try {

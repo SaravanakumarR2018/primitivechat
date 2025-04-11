@@ -1,3 +1,4 @@
+/* eslint-disable ts/no-use-before-define */
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -78,7 +79,6 @@ const CreateTicketPage = () => {
     } catch (error) {
       toast.error('Error creating ticket');
       console.error('Error creating ticket:', error);
-    } finally {
       setLoading(false);
     }
   };

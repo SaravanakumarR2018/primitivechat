@@ -3,7 +3,7 @@
 import { useOrganization } from '@clerk/nextjs';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 import Pagination from '@/components/ui/Pagination';
 import Sidebar from '@/components/ui/SideBar';
@@ -20,6 +20,12 @@ const TicketManagementPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [disableNext, setDisableNext] = useState(false);
 
+  // 👇 Watch for URL param changes and update `currentPage`
+  useEffect(() => {
+    const pageFromParams = Number(searchParams.get('page')) || 1;
+    setCurrentPage(pageFromParams);
+  }, [searchParams]);
+
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     router.push(`/dashboard/tickets?page=${newPage}`);
@@ -32,7 +38,7 @@ const TicketManagementPage = () => {
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => router.push('/dashboard/tickets/create')} // Navigate instead of opening a modal
+            onClick={() => router.push('/dashboard/tickets/create')}
             className="mb-2 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white shadow-md hover:bg-blue-700"
           >
             <span className="text-xl">

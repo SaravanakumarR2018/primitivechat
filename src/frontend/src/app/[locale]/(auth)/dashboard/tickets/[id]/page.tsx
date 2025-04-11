@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable react/no-array-index-key */
 'use client';
 
@@ -21,6 +22,7 @@ import {
 import DeleteConfirmationModal from '@/components/ui/DeleteConfirmationModal';
 import BrokenTicket from '@/components/ui/NoTicketFoundView';
 import { TicketDetailSkeleton } from '@/components/ui/Skeletons';
+import UnsavedChangesModal from '@/components/ui/UnSavedChangesModal';
 
 const PAGE_SIZE = 20;
 
@@ -50,6 +52,9 @@ const TicketDetailPage = () => {
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   // Add this state at the top inside your component
   const [currentUserName, setCurrentUserName] = useState('');
@@ -93,6 +98,33 @@ const TicketDetailPage = () => {
 
     loadTicket();
   }, [params.id]);
+
+  useEffect(() => {
+    const handleWindowClose = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleWindowClose);
+    return () => window.removeEventListener('beforeunload', handleWindowClose);
+  }, [hasUnsavedChanges]);
+
+  const originalPush = useRef(router.push);
+
+  useEffect(() => {
+    const interceptedPush = (url: string) => {
+      if (hasUnsavedChanges) {
+        setPendingNavigation(url);
+        setShowUnsavedModal(true);
+      } else {
+        originalPush.current(url);
+      }
+    };
+
+    router.push = interceptedPush as typeof router.push;
+  }, [hasUnsavedChanges, router]);
 
   // Load first page of comments once on mount
   useEffect(() => {
@@ -207,20 +239,25 @@ const TicketDetailPage = () => {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
+    setHasUnsavedChanges(true);
+
     if (name.startsWith('custom_field_')) {
-      const fieldKey = name.replace('custom_field_', '');
-      setFormData(prev => ({
+      const key = name.replace('custom_field_', '');
+      setFormData((prev: any) => ({
         ...prev,
         custom_fields: {
           ...prev.custom_fields,
-          [fieldKey]: value,
+          [key]: value,
         },
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev: any) => ({
+        ...prev,
+        [name]: value,
+      }));
     }
   };
 
@@ -243,8 +280,13 @@ const TicketDetailPage = () => {
   const handleUpdate = async () => {
     try {
       await updateTicketDetails(params.id as string, formData);
+      setHasUnsavedChanges(false);
       toast.success('Ticket updated successfully!');
-      setTimeout(() => router.push('/dashboard/tickets'), 2000);
+
+      // Delay navigation to allow `hasUnsavedChanges` to update
+      setTimeout(() => {
+        router.push('/dashboard/tickets');
+      }, 0);
     } catch (error) {
       console.error(error);
       toast.error('Failed to update ticket.');
@@ -289,6 +331,23 @@ const TicketDetailPage = () => {
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete comment.');
+    }
+  };
+
+  const handleConfirmNavigation = async () => {
+    if (pendingNavigation) {
+      await handleUpdate();
+      console.log(pendingNavigation);
+      setShowUnsavedModal(false);
+      router.push(pendingNavigation);
+    }
+  };
+
+  const handleDiscardNavigation = () => {
+    if (pendingNavigation) {
+      setHasUnsavedChanges(false);
+      setShowUnsavedModal(false);
+      router.push(pendingNavigation);
     }
   };
 
@@ -507,6 +566,11 @@ const TicketDetailPage = () => {
         <button onClick={handleUpdate} type="button" className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600">
           Save
         </button>
+        <UnsavedChangesModal
+          isOpen={showUnsavedModal}
+          onConfirm={handleConfirmNavigation}
+          onCancel={handleDiscardNavigation}
+        />
       </div>
     </div>
   );
