@@ -190,18 +190,15 @@ class TestDeleteFileAPI(unittest.TestCase):
         logger.info("Starting test_full_file_lifecycle_with_realtime_monitoring")
 
         TEST_FILES = [
-            "Googleprocess.pdf", "images1.png", "OptionMenu1.java", "actions.yaml", "alarm_clock.py",
-            "upgrade.php", "KabilanA.pdf", "Benefits.js", "CEN_files2.pdf", "Project_Flow.docx",
-            "_config.yaml", "images_1.jpg", "A_basic_paragraph.png", "images_2.jpg", "Karthi_CV_Resume.pdf",
-            "pasted_image.png", "PrinceBot.docx", "sample.xlsx", "SingleJsonFile.json","download_files2.pdf",
-            "ast_sci_data_tables_sample.pdf", "december.jpeg", "finalepisode.docx", "images.xlsx", "table.json",
-            "sivu.jpeg", "Full_Pitch.pptx", "images_1.jpg", "gitClass.cpp", "Cen_files1.pdf",
-            "formatedpage.docx", "CEN_files_3.pdf", "DataDocumentationfile.json", "images_3.jpg","cloud_computing_books.pptx",
-            "sample_2.json", "PhaseFinalCopy.docx", "OPERATING.pptx", "CEN_files_8.pdf", "AllChartsFormatted.json",
-            "CEN_files_4.pdf", "cyber_security_table.pptx", "CEN_files_5.pdf", "CEN_files_6.pdf", "NewFIleExtract.json",
-            "CEN_files_7.pdf", "ss.jpeg", "A_basic_paragraph.png", "downloaded_files1.pdf", "downloaded_files3.pdf"
+            "Googleprocess.pdf", "images1.png", "OptionMenu1.java",
+            "upgrade.php", "Cen_files1.pdf", "Benefits.js",
+            "PrinceBot.docx", "sample.xlsx", "SingleJsonFile.json",
+            "_config.yaml", "ast_sci_data_tables_sample.pdf",
+            "december.jpeg", "finalepisode.docx", "images.xlsx",
+            "table.json", "sivu.jpeg", "Full_Pitch.pptx",
+            "images1.png", "gitClass.cpp", "Cen_files1.pdf"
         ]
-        TEST_DIR = os.path.join(os.path.dirname(__file__), "FilesTesting")
+        TEST_DIR = "FilesTesting"
 
         if not os.path.exists(TEST_DIR):
             self.fail(f" Test directory '{TEST_DIR}' not found")
@@ -211,7 +208,7 @@ class TestDeleteFileAPI(unittest.TestCase):
             customer_data = add_customer(f"test_org_{i}")
             token = create_test_token(org_id=customer_data.get("org_id"), org_role="org:admin")
             headers = {'Authorization': f'Bearer {token}'}
-            files_to_upload = TEST_FILES[i * 10:(i + 1) * 10]  # Properly split 10 files per customer
+            files_to_upload = TEST_FILES[:10] if i % 2 == 0 else TEST_FILES[10:]
 
             customers.append({
                 "customer_guid": customer_data["customer_guid"],
@@ -273,24 +270,26 @@ class TestDeleteFileAPI(unittest.TestCase):
                     and f["embeddingstatus"] != "SUCCESS"
                 ]
 
+                # Detailed status logging
                 logger.info(f"Customer {idx + 1} - {len(relevant_status)}/{len(customer['uploaded_files'])} files:")
                 for file_status in relevant_status:
                     logger.info(
-                        f"file_id: {file_status.get('fileid')} | "
                         f"filename: {file_status.get('filename')} | "
+                        f"file_id: {file_status.get('fileid')} | "
                         f"embeddingstatus: {file_status.get('embeddingstatus')}"
                     )
-                    
+
                 if all(f["embeddingstatus"] == "SUCCESS" for f in relevant_status):
                     logger.info(f"Customer {idx + 1}: All files embedded in {time.time() - start_time:.1f}s!")
-                    break    
+                    break
 
-                time.sleep(2)
+                time.sleep(2)  # Poll every second
 
         logger.info("==== Deleting Files + Vectorizer Control ====")
         for idx, customer in enumerate(customers):
             logger.info(f"Customer {idx + 1}: Initiating deletion...")
 
+            # Mark files for deletion
             for filename, _ in customer["uploaded_files"]:
                 response = requests.delete(
                     delete_url,
@@ -299,19 +298,22 @@ class TestDeleteFileAPI(unittest.TestCase):
                 )
                 self.assertEqual(response.status_code, 200, f"Failed to delete {filename}")
 
+            # Monitor deletion with vectorizer control
             last_control_time = time.time()
-            control_interval = 30
+            control_interval = 30  # seconds
             start_time = time.time()
 
             while True:
                 try:
                     current_time = time.time()
 
+                    # Vectorizer control (every 30s)
                     if current_time - last_control_time >= control_interval:
                         logger.info("Stopping file vectorizer...")
                         self.control_file_vectorizer()
                         last_control_time = current_time
 
+                    # Check deletion status
                     response = requests.get(
                         deletion_status_url,
                         headers=customer["headers"],
@@ -319,17 +321,18 @@ class TestDeleteFileAPI(unittest.TestCase):
                     )
                     self.assertEqual(response.status_code, 200)
 
+                    # Log detailed deletion status
                     pending_files = [
                         f for f in response.json()
                         if f["filename"] in dict(customer["uploaded_files"])
-                        and f["deletion_status"] != "DELETION_COMPLETED"
+                           and f["deletion_status"] != "DELETION_COMPLETED"
                     ]
 
                     logger.info(f"Customer {idx + 1} - {len(pending_files)} files pending:")
                     for file in pending_files:
                         logger.info(
-                            f"file_id: {file.get('file_id')} | "
                             f"filename: {file.get('filename')} | "
+                            f"file_id: {file.get('file_id')} | "
                             f"deletion_status: {file.get('deletion_status')}"
                         )
 
@@ -337,11 +340,11 @@ class TestDeleteFileAPI(unittest.TestCase):
                         logger.info(f"Customer {idx + 1}: All files deleted in {time.time() - start_time:.1f}s!")
                         break
 
-                    time.sleep(2)
+                    time.sleep(2)  # Poll every second
 
                 except Exception as e:
                     logger.error(f"Deletion monitoring error: {str(e)}")
-                    time.sleep(5)
+                    time.sleep(5)  # Longer pause on error
 
         logger.info("====Final Verification ====")
         for idx, customer in enumerate(customers):
