@@ -192,8 +192,8 @@ class TestDeleteFileAPI(unittest.TestCase):
         TEST_FILES = [
             "Googleprocess.pdf", "images1.png", "OptionMenu1.java", "actions.yaml", "alarm_clock.py",
             "upgrade.php", "KabilanA.pdf", "Benefits.js", "CEN_files2.pdf", "Project_Flow.docx",
-            "download_files2.pdf", "images_1.jpg", "ATM.docx", "images_2.jpg", "Karthi_CV_Resume.pdf",
-            "pasted_image.png", "PrinceBot.docx", "sample.xlsx", "SingleJsonFile.json", "_config.yaml",
+            "_config.yaml", "images_1.jpg", "A_basic_paragraph.png", "images_2.jpg", "Karthi_CV_Resume.pdf",
+            "pasted_image.png", "PrinceBot.docx", "sample.xlsx", "SingleJsonFile.json","download_files2.pdf",
             "ast_sci_data_tables_sample.pdf", "december.jpeg", "finalepisode.docx", "images.xlsx", "table.json",
             "sivu.jpeg", "Full_Pitch.pptx", "images_1.jpg", "gitClass.cpp", "Cen_files1.pdf",
             "formatedpage.docx", "CEN_files_3.pdf", "DataDocumentationfile.json", "images_3.jpg","cloud_computing_books.pptx",
