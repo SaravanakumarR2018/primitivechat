@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestDeleteFileAPI(unittest.TestCase):
-    BASE_URL="http://localhost:8000"
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     def setUp(self):
         logger.info("=== Setting up test environment for DeleteFile API ===")
@@ -257,6 +257,7 @@ class TestDeleteFileAPI(unittest.TestCase):
         logger.info("==== Monitoring Embedding Status ====")
         for idx, customer in enumerate(customers):
             logger.info(f"Customer {idx + 1}: Checking embedding progress...")
+            start_time = time.time()
 
             while True:
                 response = requests.get(
@@ -279,6 +280,10 @@ class TestDeleteFileAPI(unittest.TestCase):
                         f"filename: {file_status.get('filename')} | "
                         f"embeddingstatus: {file_status.get('embeddingstatus')}"
                     )
+                    
+                if all(f["embeddingstatus"] == "SUCCESS" for f in relevant_status):
+                    logger.info(f"Customer {idx + 1}: All files embedded in {time.time() - start_time:.1f}s!")
+                    break    
 
                 time.sleep(2)
 
