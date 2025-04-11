@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Exit immediately on error
+# Exit on any error
 set -e
 
-# Get the script directory and navigate to project root
+# Get the directory of the script and navigate to project root
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR/.."
+echo "Script directory: $SCRIPT_DIR"
+PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
 
 export PROJECT_ROOT
 echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
 
-# Load environment variables from .env file (unchanged as per your request)
+# Load environment variables from .env file
 if [ -f "$PROJECT_ROOT/src/backend/.env" ]; then
     echo "Loading environment variables from .env file..."
     export $(grep -v '^#' "$PROJECT_ROOT/src/backend/.env" | xargs)
@@ -30,29 +31,43 @@ fi
 cd "$PROJECT_ROOT/src/backend" || exit 1
 echo "Changed directory to src/backend"
 
-# Execute get_env_file.sh script
-echo "Running get_env_file.sh script..."
-"$PROJECT_ROOT/src/frontend/scripts/get_env_file.sh" || { echo "❌ get_env_file.sh failed! Exiting..."; exit 1; }
+# Call the get_env_file.sh script from the root of the project
+echo "Calling get_env_file.sh script..."
+$PROJECT_ROOT/src/frontend/scripts/get_env_file.sh
 
-# Kill any existing servers
-"$PROJECT_ROOT/build/kill_server.sh" || { echo "❌ kill_server.sh failed! Exiting..."; exit 1; }
+# Check if the get_env_file.sh script executed successfully
+if [ $? -ne 0 ]; then
+    echo "get_env_file.sh script failed. Exiting..."
+    exit 1
+fi
 
-# Build the Docker image
-echo "Building Docker image chat_service_image..."
-docker build -t chat_service_image:latest -f "${PROJECT_ROOT}/build/chat_service_docker/Dockerfile" "${PROJECT_ROOT}" || { echo "❌ Docker build failed! Exiting..."; exit 1; }
+$PROJECT_ROOT/build/kill_server.sh
 
-# Start Docker containers
-echo "Starting Docker containers..."
+# Check if the kill_server.sh script executed successfully
+if [ $? -ne 0 ]; then
+    echo "kill_server.sh script failed. Exiting..."
+    exit 1
+fi
+
+#Start Docker build command
+echo "Building Docker image chat_service_image"
+docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT}
+if [ $? -ne 0 ]; then
+  echo "Docker build failed. Exiting..."
+  exit 1
+fi
+
+# Start Docker containers in detached mode
+echo "Starting Docker containers in detached mode..."
 docker-compose up -d
 
-# Path for log file
+# Path for the log file (create it in the build directory with a timestamp)
 LOG_FILE="$PROJECT_ROOT/build/docker_logs_$(date +"%Y-%m-%d_%H-%M-%S").log"
-echo "Logging Docker output to: $LOG_FILE"
-docker-compose logs -f > "$LOG_FILE" &
+echo "Logs will be saved to: $LOG_FILE"
 
-# Capture the logs process ID to kill it on exit
-LOG_PID=$!
-trap 'kill $LOG_PID 2>/dev/null' EXIT
+# Start Docker containers in detached mode
+echo "Starting Docker containers in detached mode..."
+docker-compose up -d
 
 ### --- 🛠️ MySQL Database Restoration --- ###
 echo "Waiting for MySQL to become available..."
@@ -62,19 +77,45 @@ until docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1
 done
 echo "✅ MySQL is up and running."
 
-# Check if MySQL has existing data
-echo "Checking if MySQL database is empty..."
-MYSQL_DATA_COUNT=$(docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}';" | tail -n 1)
+# Check for table presence instead of entire DB
+TABLES_TO_CHECK=("tickets" "ticket_comments" "chat_messages" "custom_fields" "custom_field_values" )  # Add all relevant tables here
+RESTORE_NEEDED=false
 
-if [ "$MYSQL_DATA_COUNT" -eq 0 ]; then
-    echo "⚠️ No data found in MySQL. Restoring database from snapshot..."
-    docker exec -i mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < "$PROJECT_ROOT/test/db_snapshot/db_snapshot.sql"
-    echo "✅ Database restoration complete."
+for table in "${TABLES_TO_CHECK[@]}"; do
+    echo "Checking if table '$table' is empty..."
+    ROW_COUNT=$(docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -N -e "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "0")
+    if [[ "$ROW_COUNT" -eq 0 ]]; then
+        echo "⚠️ Table '$table' is empty. Restoration needed."
+        RESTORE_NEEDED=true
+        break
+    else
+        echo "✅ Table '$table' has data. Skipping restoration."
+    fi
+done
+
+if [ "$RESTORE_NEEDED" = true ]; then
+    echo "⏳ Restoring database from snapshot..."
+    SANITIZED_SQL="/tmp/sanitized_snapshot.sql"
+    grep -v -i -E 'DROP TABLE|DROP DATABASE|USE `' "$PROJECT_ROOT/test/db_snapshot/db_snapshot.sql" > "$SANITIZED_SQL"
+
+    docker cp "$SANITIZED_SQL" mysql_db:/tmp/sanitized_snapshot.sql
+    docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < /tmp/sanitized_snapshot.sql
+    echo "✅ Database restoration completed (safely merged)."
 else
-    echo "✅ Existing MySQL data found. Skipping restoration."
+    echo "✅ All necessary tables contain data. Skipping restoration."
 fi
 
-### --- 🛠️ Check Ollama Server --- ###
+# Print logs to a file immediately after starting, appending with timestamps
+echo "Printing logs from Docker containers to $LOG_FILE..."
+docker-compose logs -f > "$LOG_FILE" &
+
+# Save the process ID of the logs command so it can be killed when the script ends
+LOG_PID=$!
+
+# Ensure logs are captured until the script ends
+trap 'kill $LOG_PID 2>/dev/null' EXIT
+
+# Check if the Ollama server is up by hitting the health endpoint
 URL="http://localhost:${OLLAMA_PORT}/"
 MAX_WAIT_TIME=1200  # 20 minutes
 CHECK_INTERVAL=5    # 5 seconds
@@ -82,59 +123,107 @@ elapsed_time=0
 
 while [ "$elapsed_time" -lt "$MAX_WAIT_TIME" ]; do
     echo "Checking Ollama server status at $URL..."
+
+    # Capture the response and status code from curl
     RESPONSE=$(curl -s -w "%{http_code}" "$URL")
+
+    # Check if the response code is 200 (successful)
     HTTP_CODE="${RESPONSE: -3}"
+    BODY="${RESPONSE%${HTTP_CODE}}"
+
+    # Print the full response
+    echo "Response Body: $BODY"
+    echo "HTTP Status Code: $HTTP_CODE"
 
     if [ "$HTTP_CODE" -eq 200 ]; then
-        echo "✅ Ollama server is up and running!"
+        echo "Ollama server is up and running!"
         break
     else
-        echo "⏳ Ollama server not up yet. Response code: $HTTP_CODE. Retrying in $CHECK_INTERVAL seconds..."
+        echo "Server is not up yet. Response code: $HTTP_CODE. Checking again in $CHECK_INTERVAL seconds..."
     fi
 
+    remaining_time=$((MAX_WAIT_TIME - elapsed_time))
+    echo "Remaining time: $remaining_time seconds"
     sleep "$CHECK_INTERVAL"
     elapsed_time=$((elapsed_time + CHECK_INTERVAL))
 done
 
 if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-    echo "❌ Ollama server did not start in time. Exiting..."
+    echo "Ollama server did not come up within the expected time. Exiting..."
     exit 1
 fi
 
-# Pull the model (llama3.2:3b)
+# Pull the model (llama3.2:3b) once the server is up
 echo "Pulling the llama3.2:3b model..."
-PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/pull -d '{"name": "llama3.2:3b"}')
+PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/pull -d '{
+  "name": "llama3.2:3b"
+}')
+
 PULL_HTTP_CODE="${PULL_RESPONSE: -3}"
+PULL_BODY="${PULL_RESPONSE%${PULL_HTTP_CODE}}"
+
+# Print the full pull response
+echo "Response Body: $PULL_BODY"
+echo "HTTP Status Code: $PULL_HTTP_CODE"
 
 if [ "$PULL_HTTP_CODE" -eq 200 ]; then
-    echo "✅ Model llama3.2:3b pulled successfully."
+  echo "Model llama3.2:3b pulled successfully."
 else
-    echo "❌ Failed to pull model. Response code: $PULL_HTTP_CODE"
-    exit 1
+  echo "Failed to pull model. Response code: $PULL_HTTP_CODE"
+  exit 1
 fi
 
-### --- 🛠️ Check Chat Server --- ###
-URL="http://localhost:${CHAT_SERVICE_PORT}"
+# Check if the model was successfully pulled by generating a response
+echo "Checking if model is working by generating a response..."
+GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/generate -d '{
+  "model": "llama3.2:3b",
+  "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
+  "stream": false
+}')
+
+GEN_HTTP_CODE="${GEN_RESPONSE: -3}"
+GEN_BODY="${GEN_RESPONSE%${GEN_HTTP_CODE}}"
+
+# Print the full generate response
+echo "Response Body: $GEN_BODY"
+echo "HTTP Status Code: $GEN_HTTP_CODE"
+
+if [ "$GEN_HTTP_CODE" -eq 200 ]; then
+  echo "Ollama server is working fine. Model generated a response. Now checking HTTP Server..."
+else
+  echo "Ollama server failed to generate a response. Response code: $GEN_HTTP_CODE"
+  exit 1
+fi
+# Check if the server is up (replace http://localhost:${CHAT_SERVICE_PORT} with the actual URL if needed)
+URL="http://localhost:${CHAT_SERVICE_PORT}"  # Updated URL to localhost
 EXPECTED_OUTPUT='{"message":"The server is up and running!"}'
 MAX_WAIT_TIME=4300  # 70 minutes
 CHECK_INTERVAL=5    # 5 seconds
 elapsed_time=0
 
 while [ "$elapsed_time" -lt "$MAX_WAIT_TIME" ]; do
-    echo "Checking Chat Service status at $URL..."
+    echo "Checking server status at $URL..."
+
+    # Capture the response from curl
     RESPONSE=$(curl -s "$URL" || echo "curl failed")
 
+    # Check if the response matches the expected output
     if [ "$RESPONSE" = "$EXPECTED_OUTPUT" ]; then
-        echo "✅ Chat Service is up and running!"
-        echo "🔗 Server URL: $URL"
+        echo "Docker logs: $LOG_FILE"
+        echo "Server is up and running!"
+        echo "Server is up: $URL"
         exit 0
     else
-        echo "⏳ Chat Service not up yet. Retrying in $CHECK_INTERVAL seconds..."
+        echo "Server response does not match expected output. Received: $RESPONSE"
+        echo "Server is not up yet. Checking again in $CHECK_INTERVAL seconds..."
     fi
 
+    remaining_time=$((MAX_WAIT_TIME - elapsed_time))
+    echo "Remaining time: $remaining_time seconds"
     sleep "$CHECK_INTERVAL"
     elapsed_time=$((elapsed_time + CHECK_INTERVAL))
 done
 
-echo "❌ Chat Service did not start in time. Check logs at: $LOG_FILE"
+echo "Docker logs: $LOG_FILE"
+echo "Server did not come up within the expected time. Exiting..."
 exit 1
