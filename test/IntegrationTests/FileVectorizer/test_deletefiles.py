@@ -198,7 +198,7 @@ class TestDeleteFileAPI(unittest.TestCase):
             "table.json", "sivu.jpeg", "Full_Pitch.pptx",
             "images1.png", "gitClass.cpp", "Cen_files1.pdf"
         ]
-        TEST_DIR = "FilesTesting"
+        TEST_DIR = os.path.join(os.path.dirname(__file__), "FilesTesting")
 
         if not os.path.exists(TEST_DIR):
             self.fail(f" Test directory '{TEST_DIR}' not found")
