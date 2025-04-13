@@ -9,10 +9,8 @@ from langchain_core.runnables import RunnableLambda
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain.memory import ConversationBufferWindowMemory
-
-
-# Default log format (can be overridden later)
-log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+from src.backend.db.database_manager import DatabaseManager
+from src.backend.lib.logging_config import log_format
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -20,8 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    def __init__(self, max_conversations=200, buffer_size=30):
+    def __init__(self, max_conversations=200, buffer_size=32):
         logger.info("Initializing LLMService")
+
+        # Initialize DatabaseManager
+        self.db_manager = DatabaseManager()
 
         # Read host and port from environment variables
         ollama_host = os.getenv("OLLAMA_HOST")
@@ -52,10 +53,25 @@ class LLMService:
             oldest_key, _ = self.histories.popitem(last=False)
             logger.info(f"Evicted LRU conversation: {oldest_key}")
 
-    def get_or_create_history(self, session_id):
+    def get_or_create_history(self, session_id, user_id, customer_guid, chat_id):
         if session_id not in self.histories:
             history = ConversationBufferWindowMemory(k=self.buffer_size)
             history.chat_memory.add_message(SystemMessage(content="You are a helpful assistant."))
+
+            # Fetch messages from the database
+            messages = self.db_manager.get_paginated_chat_messages(customer_guid, chat_id, page=1, page_size=self.buffer_size * 2)
+
+            # Sort messages by timestamp in increasing order
+            messages.sort(key=lambda msg: msg['timestamp'])
+
+            # Transform and add messages to chat_memory
+            for i, msg in enumerate(messages):
+                if msg['sender_type'] == 'customer':
+                    history.chat_memory.add_message(HumanMessage(content=msg['message']))
+                elif msg['sender_type'] == 'system':
+                    history.chat_memory.add_message(AIMessage(content=msg['message']))
+                # Add more conditions if there are other sender types
+
             self.histories[session_id] = history
             self._evict_if_needed()
             logger.info(f"New buffered conversation history created for session_id: {session_id}")
@@ -67,18 +83,20 @@ class LLMService:
         session_id = f"{user_id}:{customer_guid}:{chat_id}"
         
         # Get or create the conversation history
-        history = self.get_or_create_history(session_id)
+        history = self.get_or_create_history(session_id, user_id, customer_guid, chat_id)
         
         # Add the user message to history
         history.chat_memory.add_message(HumanMessage(content=question))
         
         # Get all messages from history
-        messages = history.chat_memory.messages        
+        messages = history.chat_memory.messages
         # Generate response
         response = self.llm.invoke(messages)
         
         # Add the assistant's response to history
         history.chat_memory.add_message(AIMessage(content=response.content))
+        logger.info(f"For chat_id: {chat_id}, customer_guid: {customer_guid}, user_id: {user_id}, Messages: {messages}")        
+        
         
         return response
 
