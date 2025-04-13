@@ -9,6 +9,7 @@ from langchain_community.chat_models import ChatOllama
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.lib.logging_config import log_format
 from pydantic import BaseModel
+from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -104,7 +105,7 @@ class LLMService:
 
         llm_response_mode = self.get_llm_response()
         if llm_response_mode == "NONLLM":
-            response_content = "Default AI response from the backend: Skipping Ollama or LLM responses: Use llm_service/use_llm_response API to use LLM responses"
+            response_content = DEFAULTAIRESPONSE
             logger.debug("LLM_RESPONSE set to NONLLM. Returning default response for session_id: %s", session_id)  # Fixed logging
             response = AIMessage(content=response_content)
         else:
