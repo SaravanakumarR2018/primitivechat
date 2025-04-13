@@ -8,6 +8,7 @@ from src.backend.chat_service.chat_service import app as chat_router
 from src.backend.ticket_service.ticket_service import app as ticket_router
 from src.backend.auth_router.auth_router import app as auth_router
 from src.backend.lib.logging_config import log_format
+from src.backend.chat_service.llm_service import app as llm_service_router  # Import the LLMService router
 
 # Create the main FastAPI app
 main_app = FastAPI()
@@ -15,12 +16,13 @@ main_app = FastAPI()
 
 logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # Mount chat_service and ticket_service to different paths
 main_app.include_router(chat_router)
 main_app.include_router(ticket_router)
 main_app.include_router(auth_router)
-
+main_app.include_router(llm_service_router, prefix="/llm_service")  # Include the LLMService router
 
 main_app.add_middleware(
     CORSMiddleware,
@@ -34,7 +36,7 @@ main_app.add_middleware(
 async def add_correlation_id(request: Request, call_next):
     correlation_id = str(uuid.uuid4())
     request.state.correlation_id = correlation_id
-    logger.info(f"Request received with Correlation ID: {correlation_id}")
+    logger.debug(f"Request received with Correlation ID: {correlation_id}")
 
     response = await call_next(request)
 

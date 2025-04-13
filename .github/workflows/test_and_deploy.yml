@@ -1,4 +1,4 @@
-name: Deploy and Test
+name: Deploy and Test - Entire Application
 
 on:
   workflow_dispatch:

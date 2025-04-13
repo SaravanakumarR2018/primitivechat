@@ -1,4 +1,4 @@
-name: Pull Environment File
+name: Check Frontend server is up and running
 
 on:
     push:

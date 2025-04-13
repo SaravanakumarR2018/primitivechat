@@ -12,6 +12,7 @@ from src.backend.lib.logging_config import log_format
 # Setup logging configuration
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 db_manager = DatabaseManager()
 
