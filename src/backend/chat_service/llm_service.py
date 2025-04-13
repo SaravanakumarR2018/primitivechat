@@ -2,11 +2,13 @@ import os
 import sys
 import logging
 from collections import OrderedDict
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_models import ChatOllama
 from langchain_core.runnables import RunnableLambda
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain.memory import ConversationBufferWindowMemory
 
 
 # Default log format (can be overridden later)
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    def __init__(self, max_conversations=200):
+    def __init__(self, max_conversations=200, buffer_size=30):
         logger.info("Initializing LLMService")
 
         # Read host and port from environment variables
@@ -42,6 +44,7 @@ class LLMService:
             raise RuntimeError(f"Failed to initialize ChatOllama: {e}")
 
         self.max_conversations = max_conversations
+        self.buffer_size = buffer_size
         self.histories = OrderedDict()
 
     def _evict_if_needed(self):
@@ -51,11 +54,11 @@ class LLMService:
 
     def get_or_create_history(self, session_id):
         if session_id not in self.histories:
-            history = ChatMessageHistory()
-            history.add_message(SystemMessage(content="You are a helpful assistant."))
+            history = ConversationBufferWindowMemory(k=self.buffer_size)
+            history.chat_memory.add_message(SystemMessage(content="You are a helpful assistant."))
             self.histories[session_id] = history
             self._evict_if_needed()
-            logger.info(f"New conversation history created for session_id: {session_id}")
+            logger.info(f"New buffered conversation history created for session_id: {session_id}")
         else:
             self.histories.move_to_end(session_id)
         return self.histories[session_id]
@@ -67,16 +70,15 @@ class LLMService:
         history = self.get_or_create_history(session_id)
         
         # Add the user message to history
-        history.add_message(HumanMessage(content=question))
+        history.chat_memory.add_message(HumanMessage(content=question))
         
         # Get all messages from history
-        messages = history.messages
-        
+        messages = history.chat_memory.messages        
         # Generate response
         response = self.llm.invoke(messages)
         
         # Add the assistant's response to history
-        history.add_message(response)
+        history.chat_memory.add_message(AIMessage(content=response.content))
         
         return response
 
