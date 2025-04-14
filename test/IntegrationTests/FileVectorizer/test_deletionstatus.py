@@ -134,34 +134,101 @@ class TestFileDeletionStatusAPI(unittest.TestCase):
             self.assertIn("deletion_status", file, "'deletion_status' not found in response")
 
     def test_retrieve_with_large_page_size(self):
-        logger.info("Executing test_retrieve_with_large_page_size")
+        logger.info("===== STARTING test_retrieve_with_large_page_size =====")
+        logger.info(f"BASE_URL: {self.BASE_URL}")
+        logger.info(f"Organization ID: {self.org_id}")
+        logger.info(f"Auth token: {self.token[:10]}...")  # Only log first 10 chars for security
+        logger.info(f"Headers: {self.headers}")
+
+        # Log the environment variables
+        logger.info(f"CHAT_SERVICE_HOST: {os.getenv('CHAT_SERVICE_HOST')}")
+        logger.info(f"CHAT_SERVICE_PORT: {os.getenv('CHAT_SERVICE_PORT')}")
 
         expected_file_count = 50
-        logger.info(f"Testing with {expected_file_count} uploaded files")
-
+        logger.info(f"Testing with expected {expected_file_count} uploaded files")
+        
+        # Log uploaded filenames for verification
+        logger.info(f"Number of uploaded files: {len(self.uploaded_filenames)}")
+        logger.info(f"First 5 filenames: {self.uploaded_filenames[:5]}")
+        
         # Test with large page_size (100)
         url = f"{self.BASE_URL}/files/deletionstatus?page=1&page_size=100"
-        logger.info(f"Sending GET request to {url}")
+        logger.info(f"Sending GET request to URL: {url}")
 
-        response = requests.get(url, headers=self.headers)
-        logger.info(f"Received response status code: {response.status_code}")
-
-        # Expect a 200 status code
-        self.assertEqual(response.status_code, HTTPStatus.OK, f"Expected status code 200 but got {response.status_code}")
-
-        # Check if the response contains files
-        data = response.json()
-        logger.info(f"Received {len(data)} files in response")
-
-        self.assertIsInstance(data, list, "Response is not a list")
-        self.assertTrue(len(data) <= 100,"Expected at most 100 files in the response")
-        self.assertEqual(len(data), expected_file_count, f"Expected {expected_file_count} files but got {len(data)}")
-
-        # Verify each file has required fields and valid status
-        for file in data:
-            self.assertIn("file_id", file, "'file_id' not found in response")
-            self.assertIn("filename", file, "'filename' not found in response")
-            self.assertIn("deletion_status", file, "'deletion_status' not found in response")
+        try:
+            logger.info("Attempting to make the request...")
+            response = requests.get(url, headers=self.headers, timeout=30)
+            logger.info(f"Request completed with status code: {response.status_code}")
+            logger.info(f"Response headers: {response.headers}")
+            
+            # Log the raw response content for debugging
+            logger.info(f"Raw response content: {response.text[:1000]}")  # Limit to first 1000 chars
+            
+            # Expect a 200 status code
+            self.assertEqual(response.status_code, HTTPStatus.OK, 
+                             f"Expected status code 200 but got {response.status_code}. Response: {response.text}")
+            
+            # Check if the response contains files
+            try:
+                logger.info("Attempting to parse JSON response...")
+                data = response.json()
+                logger.info(f"JSON parsing successful. Data type: {type(data)}")
+                logger.info(f"Received {len(data)} files in response")
+                
+                # Log each file's basic info for debugging
+                for i, file in enumerate(data[:10]):  # Log first 10 files only
+                    logger.info(f"File {i+1}: ID={file.get('file_id', 'N/A')}, Name={file.get('filename', 'N/A')}, Status={file.get('deletion_status', 'N/A')}")
+                
+                if len(data) != expected_file_count:
+                    logger.error(f"MISMATCH: Expected {expected_file_count} files but got {len(data)}")
+                    # Log more details about the mismatch
+                    if len(data) < expected_file_count:
+                        logger.error(f"Missing {expected_file_count - len(data)} files")
+                    else:
+                        logger.error(f"Got {len(data) - expected_file_count} extra files")
+                
+                self.assertIsInstance(data, list, "Response is not a list")
+                self.assertTrue(len(data) <= 100, f"Expected at most 100 files in the response, got {len(data)}")
+                self.assertEqual(len(data), expected_file_count, 
+                                f"Expected {expected_file_count} files but got {len(data)}. First few files: {data[:3]}")
+                
+                # Verify each file has required fields and valid status
+                missing_fields = []
+                for i, file in enumerate(data):
+                    missing = []
+                    if "file_id" not in file:
+                        missing.append("file_id")
+                    if "filename" not in file:
+                        missing.append("filename")
+                    if "deletion_status" not in file:
+                        missing.append("deletion_status")
+                    
+                    if missing:
+                        missing_fields.append(f"File {i}: missing {', '.join(missing)}")
+                
+                if missing_fields:
+                    logger.error(f"Files with missing fields: {missing_fields}")
+                
+                for field in ["file_id", "filename", "deletion_status"]:
+                    for i, file in enumerate(data):
+                        self.assertIn(field, file, f"'{field}' not found in response for file {i}: {file}")
+                
+            except ValueError as e:
+                logger.error(f"JSON parsing error: {str(e)}")
+                logger.error(f"Response content that caused the error: {response.text}")
+                raise
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request failed with error: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during test: {str(e)}")
+            logger.error(f"Exception type: {type(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
+            
+        logger.info("===== COMPLETED test_retrieve_with_large_page_size =====")
 
     def test_pagination_for_delete_list_files(self):
         logger.info("Executing test_pagination_for_delete_list_files")

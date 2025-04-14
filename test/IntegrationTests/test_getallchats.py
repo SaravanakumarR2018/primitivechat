@@ -5,6 +5,7 @@ import unittest
 import requests
 
 from src.backend.lib.logging_config import log_format
+from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 from utils.api_utils import add_customer,create_test_token,create_token_without_org_role,create_token_without_org_id
 
 # Set up logging configuration
@@ -331,7 +332,7 @@ class TestGetAllChatsAPI(unittest.TestCase):
         elif retrieved_sender == 'system':
             # If the message is from the system, you may want to check for system responses
             logger.info("Received a system message instead of the expected user message.")
-            self.assertIn(retrieved_message, ["You will get the correct answer once AI is integrated."],
+            self.assertIn(retrieved_message, [DEFAULTAIRESPONSE],
                           "Unexpected system message received.")
 
         logger.info("=== Test Case 6 Completed ===\n")

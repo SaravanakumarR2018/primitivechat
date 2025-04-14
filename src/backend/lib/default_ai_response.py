@@ -1,0 +1,1 @@
+DEFAULTAIRESPONSE = "Default AI response from the backend: Skipping Ollama or LLM responses: Use llm_service/use_llm_response API to use LLM responses"

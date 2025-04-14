@@ -13,6 +13,7 @@ from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 from src.backend.lib.logging_config import log_format
+from src.backend.chat_service.llm_service import LLMService
 
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -27,6 +28,7 @@ db_manager = DatabaseManager()
 minio_manager = MinioManager()
 weaviate_manager = WeaviateManager()
 customer_service = CustomerService()
+llm_service = LLMService()
 
 # Pydantic models for the API inputs
 class ChatRequest(BaseModel):
@@ -425,8 +427,14 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
                 f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
             raise HTTPException(status_code=400, detail=user_response['error'])
 
-        # Now handle the system response
-        system_response = "You will get the correct answer once AI is integrated."
+        # Now handle the system response using LLMService
+        system_response = llm_service.get_response(
+            question=chat_request.question,
+            user_id=user_id,
+            customer_guid=customer_guid,
+            chat_id=user_response['chat_id']
+        ).content
+
         system_response_result = db_manager.add_message(
             user_id,
             customer_guid,

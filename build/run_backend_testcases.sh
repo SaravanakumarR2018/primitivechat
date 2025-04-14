@@ -82,9 +82,29 @@ echo "Creating temporary env file: $TEMP_ENV_FILE"
 # Copy the original .env file to the temporary file
 cp "$PROJECT_ROOT/src/backend/.env" "$TEMP_ENV_FILE"
 
-# Replace the environment variables in the temporary file
-sed -i "s/^CHAT_SERVICE_HOST=.*/CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST/" "$TEMP_ENV_FILE"
-sed -i "s/^OLLAMA_SERVICE_HOST=.*/OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST/" "$TEMP_ENV_FILE"
+# Detect the operating system
+OS="$(uname)"
+
+# Replace the environment variables in the temporary file based on OS
+echo "Replacing environment variables in the temporary file..."
+if [[ "$OS" == "Darwin" ]]; then
+  # macOS
+  sed -i "" "s/^CHAT_SERVICE_HOST=.*/CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST/" "$TEMP_ENV_FILE"
+  sed -i "" "s/^OLLAMA_SERVICE_HOST=.*/OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST/" "$TEMP_ENV_FILE"
+elif [[ "$OS" == "Linux" ]]; then
+  # Linux
+  sed -i "s/^CHAT_SERVICE_HOST=.*/CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST/" "$TEMP_ENV_FILE"
+  sed -i "s/^OLLAMA_SERVICE_HOST=.*/OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST/" "$TEMP_ENV_FILE"
+elif [[ "$OS" =~ MINGW|MSYS|CYGWIN ]]; then
+  # Windows (Git Bash, MSYS2, Cygwin)
+  sed -i "s/^CHAT_SERVICE_HOST=.*/CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST/" "$TEMP_ENV_FILE"
+  sed -i "s/^OLLAMA_SERVICE_HOST=.*/OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST/" "$TEMP_ENV_FILE"
+else
+  echo "Warning: Unrecognized OS: $OS"
+  echo "Attempting to use Linux-compatible commands..."
+  sed -i "s/^CHAT_SERVICE_HOST=.*/CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST/" "$TEMP_ENV_FILE"
+  sed -i "s/^OLLAMA_SERVICE_HOST=.*/OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST/" "$TEMP_ENV_FILE"
+fi
 
 # Construct the test command to run inside the container
 TEST_COMMAND=("bash" "-c" "echo CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST && echo OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST && python3 -m unittest discover -s /app/test/IntegrationTests -p \"$TEST_PATTERN\"")

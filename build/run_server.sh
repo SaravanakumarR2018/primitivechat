@@ -8,6 +8,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "Script directory: $SCRIPT_DIR"
 PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
 
+# Detect macOS and setup docker buildx for amd64 emulation
+IS_MAC=false
+if [ "$(uname -s)" = "Darwin" ]; then
+    IS_MAC=true
+    echo "Detected macOS system. Setting up buildx for amd64 emulation..."
+    docker buildx create --use --name multiarch-builder 2>/dev/null || docker buildx use multiarch-builder
+fi
+
+
 export PROJECT_ROOT
 echo "PROJECT_ROOT is set to: $PROJECT_ROOT"
 
@@ -51,7 +60,16 @@ fi
 
 #Start Docker build command
 echo "Building Docker image chat_service_image"
-docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT}
+if [ "$IS_MAC" = true ]; then
+    docker buildx build \
+        --platform linux/amd64 \
+        -t chat_service_image:latest \
+        -f "$PROJECT_ROOT/build/chat_service_docker/Dockerfile" \
+        "$PROJECT_ROOT" --load
+else
+    docker build -t chat_service_image:latest -f "$PROJECT_ROOT/build/chat_service_docker/Dockerfile" "$PROJECT_ROOT"
+fi
+
 if [ $? -ne 0 ]; then
   echo "Docker build failed. Exiting..."
   exit 1
