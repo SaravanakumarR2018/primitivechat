@@ -71,7 +71,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
 
         # Retrieve tickets for a valid customer GUID
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets/",
             params={
                 "page": 1,
                 "page_size": 10
@@ -118,7 +118,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         new_headers = {'Authorization': f'Bearer {new_token}'}
 
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets/",
             params={
                 "page": 1,
                 "page_size": 10
@@ -178,7 +178,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
             # Fetch tickets page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/customer/"
+                page_url = f"{self.BASE_URL}/customer/tickets/"
                 response = requests.get(
                     page_url,
                     params={
@@ -284,7 +284,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
             # Fetch tickets page by page
             page_num = 1
             while True:
-                page_url = f"{self.BASE_URL}/tickets/customer/"
+                page_url = f"{self.BASE_URL}/customer/tickets/"
                 response = requests.get(
                     page_url,
                     params={
@@ -368,7 +368,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         """Test API request without an authentication token."""
         logger.info("Testing API request without token")
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets",
             params={
                 "page": 1,
                 "page_size": 10
@@ -382,7 +382,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         headers = {"Authorization": "Bearer corrupted_token"}
         logger.info("Testing API request with corrupted token")
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets",
             params={
                 "page": 1,
                 "page_size": 10
@@ -397,7 +397,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         headers = {"Authorization": f"Bearer {token}"}
         logger.info("Testing API request with missing org_id in token")
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets",
             params={
                 "page": 1,
                 "page_size": 10
@@ -414,7 +414,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         headers = {'Authorization': f'Bearer {create_token_without_org_role(org_id)}'}
         logger.info("Testing API request with missing org_role in token")
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets",
             params={
                 "page": 1,
                 "page_size": 10
@@ -435,7 +435,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         headers['Authorization'] = f'Bearer {token}'
 
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets",
             params={
                 "page": 1,
                 "page_size": 10
@@ -452,7 +452,7 @@ class TestGetTicketsByCustomerId(unittest.TestCase):
         headers = {"Authorization": f"Bearer {invalid_token}"}
         logger.info("Testing API request with org_id that has no mapped customer_guid")
         response = requests.get(
-            f"{self.BASE_URL}/tickets/customer/",
+            f"{self.BASE_URL}/customer/tickets",
             params={
                 "page": 1,
                 "page_size": 10

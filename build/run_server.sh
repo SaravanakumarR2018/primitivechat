@@ -87,6 +87,42 @@ echo "Logs will be saved to: $LOG_FILE"
 echo "Starting Docker containers in detached mode..."
 docker-compose up -d
 
+### --- 🛠️ MySQL Database Restoration --- ###
+echo "Waiting for MySQL to become available..."
+until docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" &>/dev/null; do
+    echo "MySQL is not ready yet. Sleeping for 5 seconds..."
+    sleep 5
+done
+echo "✅ MySQL is up and running."
+
+# Check for table presence instead of entire DB
+TABLES_TO_CHECK=("tickets" "ticket_comments" "chat_messages" "custom_fields" "custom_field_values" )  # Add all relevant tables here
+RESTORE_NEEDED=false
+
+for table in "${TABLES_TO_CHECK[@]}"; do
+    echo "Checking if table '$table' is empty..."
+    ROW_COUNT=$(docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -D "${MYSQL_DATABASE}" -N -e "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "0")
+    if [[ "$ROW_COUNT" -eq 0 ]]; then
+        echo "⚠️ Table '$table' is empty. Restoration needed."
+        RESTORE_NEEDED=true
+        break
+    else
+        echo "✅ Table '$table' has data. Skipping restoration."
+    fi
+done
+
+if [ "$RESTORE_NEEDED" = true ]; then
+    echo "⏳ Restoring database from snapshot..."
+    SANITIZED_SQL="/tmp/sanitized_snapshot.sql"
+    grep -v -i -E 'DROP TABLE|DROP DATABASE|USE `' "$PROJECT_ROOT/test/db_snapshot/db_snapshot.sql" > "$SANITIZED_SQL"
+
+    docker cp "$SANITIZED_SQL" mysql_db:/tmp/sanitized_snapshot.sql
+    docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < /tmp/sanitized_snapshot.sql
+    echo "✅ Database restoration completed (safely merged)."
+else
+    echo "✅ All necessary tables contain data. Skipping restoration."
+fi
+
 # Print logs to a file immediately after starting, appending with timestamps
 echo "Printing logs from Docker containers to $LOG_FILE..."
 docker-compose logs -f > "$LOG_FILE" &
