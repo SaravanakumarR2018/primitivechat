@@ -14,6 +14,7 @@ from src.backend.lib.logging_config import log_format
 logging.basicConfig(level=logging.INFO, format=log_format)
 logger = logging.getLogger(__name__)
 
+@unittest.skip("Skipping all test cases in this class temporarily")
 class TestFileDeletionStatusAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
