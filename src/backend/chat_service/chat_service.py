@@ -34,6 +34,7 @@ llm_service = LLMService()
 class ChatRequest(BaseModel):
     question: str
     chat_id: str = None
+    stream: bool = False  # New optional parameter for streaming
 
 
 class GetAllChatsRequest(BaseModel):
@@ -408,7 +409,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-        user_id =customer_service.get_user_id_from_token(request)
+        user_id = customer_service.get_user_id_from_token(request)
         if not user_id:
             raise HTTPException(status_code=404, detail="Missing required parameter: user_id")
 
@@ -427,37 +428,82 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
                 f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
             raise HTTPException(status_code=400, detail=user_response['error'])
 
-        # Now handle the system response using LLMService
-        system_response = llm_service.get_response(
-            question=chat_request.question,
-            user_id=user_id,
-            customer_guid=customer_guid,
-            chat_id=user_response['chat_id']
-        ).content
+        # Collect the system response using LLMService
+        if chat_request.stream:
+            # Stream the response
+            async def response_generator():
+                index = 0  # Assuming single choice for simplicity
+                object_type = "chat.completion.chunk"  # Define the object type
+                complete_response = ""  # Initialize a variable to accumulate the response
 
-        system_response_result = db_manager.add_message(
-            user_id,
-            customer_guid,
-            system_response,
-            sender_type=SenderType.SYSTEM,
-            chat_id=user_response['chat_id']  # Use the chat_id returned from user message
-        )
+                async for response_chunk in llm_service.get_response(
+                    question=chat_request.question,
+                    user_id=user_id,
+                    customer_guid=customer_guid,
+                    chat_id=user_response['chat_id']
+                ):
+                    # Accumulate the response content
+                    complete_response += response_chunk.content
 
-        # Log if the system message was not added successfully
-        if 'error' in system_response_result:
-            logger.error(
-                f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
-            # Do not raise an exception, just log the error
+                    yield f"data: {{\"object\": \"{object_type}\", \"chat_id\": \"{user_response['chat_id']}\", \"user_id\": \"{user_id}\", \"customer_guid\": \"{customer_guid}\", \"choices\": [{{\"delta\": {{\"content\": \"{response_chunk.content}\"}}, \"index\": {index}, \"finish_reason\": null}}]}}\n\n"
 
-        logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
+                # Indicate the end of the stream with an empty delta
+                yield f"data: {{\"object\": \"{object_type}\", \"chat_id\": \"{user_response['chat_id']}\", \"user_id\": \"{user_id}\", \"customer_guid\": \"{customer_guid}\", \"choices\": [{{\"delta\": {{}}, \"index\": {index}, \"finish_reason\": \"stop\"}}]}}\n\n"
 
-        # Return both chat_id and system response, indicating success regardless of the system message status
-        return {
-            "chat_id": user_response['chat_id'],
-            "customer_guid": customer_guid,
-            "user_id": user_id,
-            "answer": system_response
-        }
+                # Add the complete response to the database
+                system_response_result = db_manager.add_message(
+                    user_id,
+                    customer_guid,
+                    complete_response,
+                    sender_type=SenderType.SYSTEM,
+                    chat_id=user_response['chat_id']
+                )
+
+                # Log if the system message was not added successfully
+                if 'error' in system_response_result:
+                    logger.error(
+                        f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
+                    # Do not raise an exception, just log the error
+
+                # Finally, indicate the stream is done
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(response_generator(), media_type="text/event-stream")
+        else:
+            # Collect the complete response
+            system_response = ""
+            async for response_chunk in llm_service.get_response(
+                question=chat_request.question,
+                user_id=user_id,
+                customer_guid=customer_guid,
+                chat_id=user_response['chat_id']
+            ):
+                system_response += response_chunk.content
+
+            # Add the complete response to the database
+            system_response_result = db_manager.add_message(
+                user_id,
+                customer_guid,
+                system_response,
+                sender_type=SenderType.SYSTEM,
+                chat_id=user_response['chat_id']  # Use the chat_id returned from user message
+            )
+
+            # Log if the system message was not added successfully
+            if 'error' in system_response_result:
+                logger.error(
+                    f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
+                # Do not raise an exception, just log the error
+
+            logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
+
+            # Return both chat_id and system response, indicating success regardless of the system message status
+            return {
+                "chat_id": user_response['chat_id'],
+                "customer_guid": customer_guid,
+                "user_id": user_id,
+                "answer": system_response
+            }
     except HTTPException as e:
         logger.error(f"HTTPException in chat(): {e.detail}")
         raise e

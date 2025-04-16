@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class SenderType(Enum):
     CUSTOMER = "customer"
     SYSTEM = "system"
+    NEWCHATID = "newchatid"
 
 
 class DatabaseManager:

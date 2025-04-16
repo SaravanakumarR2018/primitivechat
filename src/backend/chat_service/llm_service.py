@@ -90,7 +90,7 @@ class LLMService:
             self.histories.move_to_end(session_id)
         return self.histories[session_id]
 
-    def get_response(self, question, user_id, customer_guid, chat_id):
+    async def get_response(self, question, user_id, customer_guid, chat_id):
         session_id = f"{user_id}:{customer_guid}:{chat_id}"
         history = self.get_or_create_history(session_id, user_id, customer_guid, chat_id)
 
@@ -108,14 +108,18 @@ class LLMService:
             response_content = DEFAULTAIRESPONSE
             logger.debug("LLM_RESPONSE set to NONLLM. Returning default response for session_id: %s", session_id)  # Fixed logging
             response = AIMessage(content=response_content)
+            history.chat_memory.add_message(AIMessage(content=response.content))
+            yield response
         else:
             messages = history.chat_memory.messages
-            response = self.llm.invoke(messages)
-        
-        history.chat_memory.add_message(AIMessage(content=response.content))
+            complete_response = ""
+            async for response_chunk in self.llm.stream_invoke(messages):
+                complete_response += response_chunk.content
+                yield response_chunk
+            history.chat_memory.add_message(AIMessage(content=complete_response))
+
         logger.debug("Session %s updated with assistant's response.", session_id)  # Fixed logging
         logger.debug("Updated history: %s", history.chat_memory.messages)  # Fixed logging
-        return response
 
     def get_conversation_history(self, user_id, customer_guid, chat_id):
         session_id = f"{user_id}:{customer_guid}:{chat_id}"
@@ -212,21 +216,23 @@ async def chat_unauth(
             raise HTTPException(status_code=500, detail="Failed to add user message")
         
         # Get system response from LLMService
-        system_response = llm_service.get_response(
+        system_response = ""
+        async for response_chunk in llm_service.get_response(
             question=question,
             user_id=user_id,
             customer_guid=customer_guid,
             chat_id=user_response['chat_id']
-        )
+        ):
+            system_response += response_chunk.content
 
         # Ensure system_response has a 'content' attribute
-        if not hasattr(system_response, 'content'):
+        if not system_response:
             logger.error(f"Invalid response from get_response: {system_response}")
             raise HTTPException(status_code=500, detail="Failed to generate system response")
 
         # Add system response to the database
         system_response_result = db_manager.add_message(
-            user_id, customer_guid, system_response.content, sender_type=SenderType.SYSTEM, chat_id=user_response['chat_id']
+            user_id, customer_guid, system_response, sender_type=SenderType.SYSTEM, chat_id=user_response['chat_id']
         )
 
         # Log if the system message was not added successfully
@@ -238,7 +244,7 @@ async def chat_unauth(
             "chat_id": user_response['chat_id'],
             "customer_guid": customer_guid,
             "user_id": user_id,
-            "answer": system_response.content
+            "answer": system_response
         }
     except HTTPException as e:
         logger.error(f"HTTPException in chat_unauth(): {e.detail}")
