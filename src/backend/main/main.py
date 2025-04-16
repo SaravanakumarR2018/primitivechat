@@ -3,6 +3,8 @@ import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.openapi.docs import get_swagger_ui_html
 
 from src.backend.chat_service.chat_service import app as chat_router
 from src.backend.ticket_service.ticket_service import app as ticket_router
@@ -50,6 +52,38 @@ async def check_server_status(request: Request):
     logger.debug(f"Entering check_server_status() with Correlation ID: {request.state.correlation_id}")
     logger.debug(f"Exiting check_server_status() with Correlation ID: {request.state.correlation_id}")
     return {"message": "The server is up and running!"}
+
+# Custom OpenAPI schema with Bearer token support
+def custom_openapi():
+    if main_app.openapi_schema:
+        return main_app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Main Application API",
+        version="1.0.0",
+        description="API with Bearer Token support",
+        routes=main_app.routes,
+    )
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT"  # Optional
+        }
+    }
+    for path in openapi_schema["paths"].values():
+        for operation in path.values():
+            operation.setdefault("security", []).append({"BearerAuth": []})
+    main_app.openapi_schema = openapi_schema
+    return main_app.openapi_schema
+
+main_app.openapi = custom_openapi
+
+@main_app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=main_app.openapi_url,
+        title="Main Application - Swagger UI"
+    )
 
 # Run this file to start the server
 if __name__ == "__main__":
