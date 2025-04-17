@@ -1,4 +1,5 @@
 import logging
+import json
 from http import HTTPStatus
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,6 +9,7 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 from src.backend.lib.auth_utils import get_decoded_token  # Import auth_utils
 from src.backend.lib.utils import CustomerService, auth_admin_dependency
+from sse_starlette.sse import EventSourceResponse
 
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
@@ -18,6 +20,8 @@ from src.backend.chat_service.llm_service import LLMService
 # Setup logging configuration
 logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.getLogger("sse_starlette.sse").setLevel(logging.INFO)
 
 
 app = APIRouter()
@@ -34,6 +38,7 @@ llm_service = LLMService()
 class ChatRequest(BaseModel):
     question: str
     chat_id: str = None
+    stream: bool = False  # Default value is False
 
 
 class GetAllChatsRequest(BaseModel):
@@ -403,16 +408,14 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
     logger.debug(f"Entering chat() with Correlation ID: {request.state.correlation_id}")
 
     try:
-        # Get customer_guid from the token
         customer_guid = customer_service.get_customer_guid_from_token(request)
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
-        user_id =customer_service.get_user_id_from_token(request)
+        user_id = customer_service.get_user_id_from_token(request)
         if not user_id:
             raise HTTPException(status_code=404, detail="Missing required parameter: user_id")
 
-        # Call the add_message function for the user's question
         user_response = db_manager.add_message(
             user_id,
             customer_guid,
@@ -420,51 +423,74 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
             sender_type=SenderType.CUSTOMER,
             chat_id=chat_request.chat_id
         )
-
+        
         # Check if the response indicates an error
         if 'error' in user_response:
             logger.error(
                 f"Error in adding user message (Correlation ID: {request.state.correlation_id}): {user_response['error']}")
             raise HTTPException(status_code=400, detail=user_response['error'])
+        chat_id = user_response['chat_id']
 
-        # Now handle the system response using LLMService
-        system_response = llm_service.get_response(
+        # Get streaming generator from LLM
+        response_stream = llm_service.get_response(
             question=chat_request.question,
             user_id=user_id,
             customer_guid=customer_guid,
-            chat_id=user_response['chat_id']
-        ).content
-
-        system_response_result = db_manager.add_message(
-            user_id,
-            customer_guid,
-            system_response,
-            sender_type=SenderType.SYSTEM,
-            chat_id=user_response['chat_id']  # Use the chat_id returned from user message
+            chat_id=chat_id
         )
 
-        # Log if the system message was not added successfully
-        if 'error' in system_response_result:
-            logger.error(
-                f"Error in adding system message (Correlation ID: {request.state.correlation_id}): {system_response_result['error']}")
-            # Do not raise an exception, just log the error
+        if chat_request.stream:
+            full_answer = ""
+            async def event_generator():
+                nonlocal full_answer
+                async for chunk in response_stream:
+                    yield json.dumps(chunk)  # No "data:" prefix
+                    if "choices" in chunk and chunk["choices"]:
+                        delta = chunk["choices"][0].get("delta", {})
+                        full_answer += delta.get("content", "")
+                yield "[DONE]"
 
-        logger.debug(f"Exiting chat() with Correlation ID: {request.state.correlation_id}")
+            # Save system response to DB after streaming is complete
+            db_manager.add_message(
+                user_id,
+                customer_guid,
+                full_answer,
+                sender_type=SenderType.SYSTEM,
+                chat_id=chat_id
+            )
 
-        # Return both chat_id and system response, indicating success regardless of the system message status
-        return {
-            "chat_id": user_response['chat_id'],
-            "customer_guid": customer_guid,
-            "user_id": user_id,
-            "answer": system_response
-        }
+            return EventSourceResponse(event_generator())
+
+        else:
+            # Not streaming — accumulate response from chunks
+            full_answer = ""
+            async for chunk in response_stream:
+                if "choices" in chunk and chunk["choices"]:
+                    delta = chunk["choices"][0].get("delta", {})
+                    full_answer += delta.get("content", "")
+
+            # Save system response to DB
+            db_manager.add_message(
+                user_id,
+                customer_guid,
+                full_answer,
+                sender_type=SenderType.SYSTEM,
+                chat_id=chat_id
+            )
+
+            return {
+                "chat_id": chat_id,
+                "customer_guid": customer_guid,
+                "user_id": user_id,
+                "answer": full_answer
+            }
+
     except HTTPException as e:
         logger.error(f"HTTPException in chat(): {e.detail}")
         raise e
     except Exception as e:
         logger.error(f"Unexpected error in chat(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred during chat processing")
-
 
 # API endpoint to retrieve chat messages in reverse chronological order (paginated)
 @app.get("/getallchats", tags=["Chat Management"])

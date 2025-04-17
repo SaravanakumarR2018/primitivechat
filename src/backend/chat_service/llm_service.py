@@ -1,7 +1,7 @@
 import os
 import logging
 from collections import OrderedDict
-from typing import Optional
+from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain.memory import ConversationBufferWindowMemory
@@ -23,12 +23,15 @@ class LLMService:
     Service to manage interactions with the LLM and maintain conversation history.
     """
     llm_response = "NONLLM"  # Static variable to toggle response mode
+    max_conversations = 200
+    buffer_size = 32
+    histories = OrderedDict()
+    llm = None
 
     def __init__(self, max_conversations=200, buffer_size=32):
         logger.info("Initializing LLMService")
-        self.max_conversations = max_conversations
-        self.buffer_size = buffer_size
-        self.histories = OrderedDict()
+        LLMService.max_conversations = max_conversations
+        LLMService.buffer_size = buffer_size
 
         # Initialize ChatOllama
         ollama_host = os.getenv("OLLAMA_HOST")
@@ -40,7 +43,7 @@ class LLMService:
             raise ValueError("Missing required environment variables.")
 
         try:
-            self.llm = ChatOllama(
+            LLMService.llm = ChatOllama(
                 model=model_name,
                 base_url=f"http://{ollama_host}:{ollama_port}",
                 temperature=0.7
@@ -62,12 +65,14 @@ class LLMService:
         return cls.llm_response
 
     def _evict_if_needed(self):
-        while len(self.histories) > self.max_conversations:
-            oldest_key, _ = self.histories.popitem(last=False)
+        while len(LLMService.histories) > LLMService.max_conversations:
+            oldest_key, _ = LLMService.histories.popitem(last=False)
             logger.debug(f"Evicted LRU conversation: {oldest_key}")
 
     def get_or_create_history(self, session_id, user_id, customer_guid, chat_id):
-        if session_id not in self.histories:
+        logger.debug(f"Getting or creating history for session_id: {session_id}")
+        if session_id not in LLMService.histories:
+            logger.debug(f"[NEW] Creating new history for session_id: {session_id}")
             history = ConversationBufferWindowMemory(k=self.buffer_size)
             history.chat_memory.add_message(SystemMessage(content="You are a helpful assistant."))
 
@@ -75,6 +80,7 @@ class LLMService:
             messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page=1, page_size=self.buffer_size * 3)
             
             messages.sort(key=lambda msg: msg['timestamp'])
+            logger.debug(f"DB Messages: {messages}")
 
             # Add messages to chat memory
             for msg in messages:
@@ -83,49 +89,106 @@ class LLMService:
                 elif msg['sender_type'] == SenderType.SYSTEM.value:
                     history.chat_memory.add_message(AIMessage(content=msg['message']))
 
-            self.histories[session_id] = history
+            LLMService.histories[session_id] = history
             self._evict_if_needed()
             logger.debug("New buffered conversation history created for session_id: %s", session_id)  # Fixed logging
         else:
-            self.histories.move_to_end(session_id)
-        return self.histories[session_id]
+            logger.debug(f"[SKIP] Session {session_id} already exists in memory.")
+            LLMService.histories.move_to_end(session_id)
+        return LLMService.histories[session_id]
 
-    def get_response(self, question, user_id, customer_guid, chat_id):
+    async def get_response(self, question, user_id, customer_guid, chat_id) -> AsyncGenerator[dict, None]:
         session_id = f"{user_id}:{customer_guid}:{chat_id}"
         history = self.get_or_create_history(session_id, user_id, customer_guid, chat_id)
 
-        # Check if the last message in history is the same and the message type matches
-        if not (history.chat_memory.messages and 
-                isinstance(history.chat_memory.messages[-1], HumanMessage) and 
+        if not (history.chat_memory.messages and
+                isinstance(history.chat_memory.messages[-1], HumanMessage) and
                 history.chat_memory.messages[-1].content == question):
-            # Add the new message if it's not a duplicate
             history.chat_memory.add_message(HumanMessage(content=question))
-        else:
-            logger.debug("Skipping duplicate user message: %s", question)
 
-        llm_response_mode = self.get_llm_response()
+        llm_response_mode = LLMService.get_llm_response()
         if llm_response_mode == "NONLLM":
             response_content = DEFAULTAIRESPONSE
-            logger.debug("LLM_RESPONSE set to NONLLM. Returning default response for session_id: %s", session_id)  # Fixed logging
+            logger.debug("LLM_RESPONSE set to NONLLM. Returning default response for session_id: %s", session_id)
             response = AIMessage(content=response_content)
+            history.chat_memory.add_message(response)
+            yield {
+                "chat_id": chat_id,
+                "customer_guid": customer_guid,
+                "user_id": user_id,
+                "object": "chat.completion",
+                "choices": [
+                    {
+                        "delta": {
+                            "role": "assistant",
+                            "content": response_content
+                        },
+                        "index": 0,
+                        "finish_reason": "stop"
+                    }
+                ]
+            }
         else:
             messages = history.chat_memory.messages
-            response = self.llm.invoke(messages)
-        
-        history.chat_memory.add_message(AIMessage(content=response.content))
-        logger.debug("Session %s updated with assistant's response.", session_id)  # Fixed logging
-        logger.debug("Updated history: %s", history.chat_memory.messages)  # Fixed logging
-        return response
+            logger.debug(f"Messages: {messages}")
+            first_chunk = True
+            full_content = ""
+
+            async for chunk in LLMService.llm.astream(messages):
+                content_piece = chunk.message.content if hasattr(chunk, "message") else chunk.content
+                if not content_piece:
+                    continue
+
+                full_content += content_piece
+
+                yield {
+                    "chat_id": chat_id,
+                    "customer_guid": customer_guid,
+                    "user_id": user_id,
+                    "object": "chat.completion",
+                    "choices": [
+                        {
+                            "delta": {
+                                "role": "assistant" if first_chunk else None,
+                                "content": content_piece
+                            },
+                            "index": 0,
+                            "finish_reason": None
+                        }
+                    ]
+                }
+
+                first_chunk = False
+
+            history.chat_memory.add_message(AIMessage(content=full_content))
+
+            # Final stop chunk
+            yield {
+                "chat_id": chat_id,
+                "customer_guid": customer_guid,
+                "user_id": user_id,
+                "object": "chat.completion",
+                "choices": [
+                    {
+                        "delta": {
+                            "role": "assistant",
+                            "content": ""
+                        },
+                        "index": 0,
+                        "finish_reason": "stop"
+                    }
+                ]
+            }
 
     def get_conversation_history(self, user_id, customer_guid, chat_id):
         session_id = f"{user_id}:{customer_guid}:{chat_id}"
-        return self.histories.get(session_id)
+        return LLMService.histories.get(session_id)
     
     def clear_histories(self):
         """
         Clear all conversation histories.
         """
-        self.histories.clear()
+        LLMService.histories.clear()
         logger.info("All conversation histories have been cleared.")
 
 
