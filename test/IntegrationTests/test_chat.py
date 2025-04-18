@@ -108,7 +108,25 @@ class TestChatAPI(unittest.TestCase):
 
         response = requests.post(url, headers=self.headers, json=payload, stream=True)
         self.assertEqual(response.status_code, 200)
-        full_answer = self._parse_stream_response(response)
+        full_answer = ""
+
+        for line in response.iter_lines():
+            if line and line.decode().startswith("data:"):
+                raw = line.decode().replace("data: ", "")
+                if raw != "[DONE]":
+                    data = json.loads(raw)
+                    # Verify fields in each stream
+                    self.assertEqual(data["chat_id"], self.valid_chat_id)
+                    self.assertEqual(data["customer_guid"], self.valid_customer_guid)
+                    self.assertEqual(data["user_id"], self.user_id)
+                    self.assertEqual(data["object"], "chat.completion")
+                    self.assertIn("choices", data)
+                    for choice in data["choices"]:
+                        self.assertIn("delta", choice)
+                        self.assertIn("index", choice)
+                        self.assertIn("finish_reason", choice)
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    full_answer += delta.get("content", "")
 
         self.assertEqual(full_answer, DEFAULTAIRESPONSE)
 
@@ -125,7 +143,25 @@ class TestChatAPI(unittest.TestCase):
 
         response = requests.post(url, headers=self.headers, json=payload, stream=True)
         self.assertEqual(response.status_code, 200)
-        full_answer = self._parse_stream_response(response)
+        full_answer = ""
+
+        for line in response.iter_lines():
+            if line and line.decode().startswith("data:"):
+                raw = line.decode().replace("data: ", "")
+                if raw != "[DONE]":
+                    data = json.loads(raw)
+                    # Verify fields in each stream
+                    self.assertEqual(data["chat_id"], self.valid_chat_id)
+                    self.assertEqual(data["customer_guid"], self.valid_customer_guid)
+                    self.assertEqual(data["user_id"], self.user_id)
+                    self.assertEqual(data["object"], "chat.completion")
+                    self.assertIn("choices", data)
+                    for choice in data["choices"]:
+                        self.assertIn("delta", choice)
+                        self.assertIn("index", choice)
+                        self.assertIn("finish_reason", choice)
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    full_answer += delta.get("content", "")
 
         self.assertNotEqual(full_answer, DEFAULTAIRESPONSE)
         self.assertTrue(len(full_answer) > 0)
@@ -146,6 +182,11 @@ class TestChatAPI(unittest.TestCase):
         answer = response.json().get("answer")
 
         self.assertEqual(answer, DEFAULTAIRESPONSE)
+        # Verify other output fields for LLM disabled
+        response_data = response.json()
+        self.assertEqual(response_data["chat_id"], self.valid_chat_id)
+        self.assertEqual(response_data["customer_guid"], self.valid_customer_guid)
+        self.assertEqual(response_data["user_id"], self.user_id)
 
     def test_non_stream_response_llm_enabled(self):
         TestChatAPI.use_llm_response(True)
@@ -164,6 +205,11 @@ class TestChatAPI(unittest.TestCase):
 
         self.assertNotEqual(answer, DEFAULTAIRESPONSE)
         self.assertTrue(len(answer) > 0)
+        # Verify other output fields for LLM enabled
+        response_data = response.json()
+        self.assertEqual(response_data["chat_id"], self.valid_chat_id)
+        self.assertEqual(response_data["customer_guid"], self.valid_customer_guid)
+        self.assertEqual(response_data["user_id"], self.user_id)
 
     def test_clear_histories_api(self):
         url = f"{self.BASE_URL}/llm_service/clear_histories"
