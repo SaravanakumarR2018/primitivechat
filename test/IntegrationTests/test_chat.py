@@ -1,11 +1,13 @@
 import logging
 import os
 import unittest
+import json
 
 import requests
 
 from src.backend.lib.logging_config import log_format
 from utils.api_utils import add_customer,create_test_token, create_token_without_org_id,create_token_without_org_role
+from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 
 # Set up logging configuration
 logging.basicConfig(
@@ -22,10 +24,24 @@ INVALID_GUID = "invalid-guid"
 class TestChatAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
+    @staticmethod
+    def use_llm_response(flag: bool):
+        url = f"{TestChatAPI.BASE_URL}/llm_service/use_llm_response"
+        res = requests.post(url, json={"use_llm": flag})
+        res.raise_for_status()
+        return res.json()
+
+    @staticmethod
+    def get_llm_response_mode():
+        url = f"{TestChatAPI.BASE_URL}/llm_service/get_llm_response_mode"
+        res = requests.get(url)
+        res.raise_for_status()
+        return res.json().get("llm_response_mode")
+
     def setUp(self):
         """Setup function to create valid customer_guid and chat_id"""
-        logger.info("=== Starting setUp process ===")
-
+        logger.info(f"=== Starting setUp process for {self._testMethodName} ===")
+        
         # Get valid customer_guid
         customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
@@ -53,8 +69,160 @@ class TestChatAPI(unittest.TestCase):
         logger.info(f"OUTPUT: Received valid chat_id: {self.valid_chat_id}")
         logger.info("=== setUp completed successfully ===\n")
 
+        # Disable LLM by default
+        TestChatAPI.use_llm_response(False)
+        self.assertEqual(TestChatAPI.get_llm_response_mode(), "NONLLM")
+
+        # Create a base chat_id
+        res = requests.post(f"{self.BASE_URL}/chat", json={"question": "Initial?"}, headers=self.headers)
+        self.valid_chat_id = res.json()["chat_id"]
+
+    def tearDown(self):
+        logger.info(f"=== Starting tearDown process for {self._testMethodName} ===")
+        TestChatAPI.use_llm_response(False)
+        llm_mode = TestChatAPI.get_llm_response_mode()
+        logger.info(f"LLM response mode after test: {llm_mode}")
+        logger.info(f"=== tearDown completed for {self._testMethodName} ===\n")
+
+    def _parse_stream_response(self, response):
+        """Utility: Convert SSE stream response to full string answer"""
+        content = ""
+        for line in response.iter_lines():
+            if line and line.decode().startswith("data:"):
+                raw = line.decode().replace("data: ", "")
+                if raw != "[DONE]":
+                    try:
+                        data = json.loads(raw)
+                        delta = data.get("choices", [{}])[0].get("delta", {})
+                        content += delta.get("content", "")
+                    except Exception:
+                        continue
+        return content.strip()
+
+    def test_streaming_response_llm_disabled(self):
+        TestChatAPI.use_llm_response(False)
+        self.assertEqual(TestChatAPI.get_llm_response_mode(), "NONLLM")
+
+        url = f"{self.BASE_URL}/chat"
+        payload = {
+            "chat_id": self.valid_chat_id,
+            "question": "Who is Modi in a sentence?",
+            "stream": True
+        }
+
+        response = requests.post(url, headers=self.headers, json=payload, stream=True)
+        self.assertEqual(response.status_code, 200)
+        full_answer = ""
+
+        for line in response.iter_lines():
+            if line and line.decode().startswith("data:"):
+                raw = line.decode().replace("data: ", "")
+                if raw != "[DONE]":
+                    data = json.loads(raw)
+                    # Verify fields in each stream
+                    self.assertEqual(data["chat_id"], self.valid_chat_id)
+                    self.assertEqual(data["customer_guid"], self.valid_customer_guid)
+                    self.assertEqual(data["user_id"], self.user_id)
+                    self.assertEqual(data["object"], "chat.completion")
+                    self.assertIn("choices", data)
+                    for choice in data["choices"]:
+                        self.assertIn("delta", choice)
+                        self.assertIn("index", choice)
+                        self.assertIn("finish_reason", choice)
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    full_answer += delta.get("content", "")
+
+        self.assertEqual(full_answer, DEFAULTAIRESPONSE)
+
+    def test_streaming_response_llm_enabled(self):
+        TestChatAPI.use_llm_response(True)
+        self.assertEqual(TestChatAPI.get_llm_response_mode(), "LLM")
+
+        url = f"{self.BASE_URL}/chat"
+        payload = {
+            "chat_id": self.valid_chat_id,
+            "question": "What is a car in a sentence?",
+            "stream": True
+        }
+
+        response = requests.post(url, headers=self.headers, json=payload, stream=True)
+        self.assertEqual(response.status_code, 200)
+        full_answer = ""
+
+        for line in response.iter_lines():
+            if line and line.decode().startswith("data:"):
+                raw = line.decode().replace("data: ", "")
+                if raw != "[DONE]":
+                    data = json.loads(raw)
+                    # Verify fields in each stream
+                    self.assertEqual(data["chat_id"], self.valid_chat_id)
+                    self.assertEqual(data["customer_guid"], self.valid_customer_guid)
+                    self.assertEqual(data["user_id"], self.user_id)
+                    self.assertEqual(data["object"], "chat.completion")
+                    self.assertIn("choices", data)
+                    for choice in data["choices"]:
+                        self.assertIn("delta", choice)
+                        self.assertIn("index", choice)
+                        self.assertIn("finish_reason", choice)
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    full_answer += delta.get("content", "")
+
+        self.assertNotEqual(full_answer, DEFAULTAIRESPONSE)
+        self.assertTrue(len(full_answer) > 0)
+
+    def test_non_stream_response_llm_disabled(self):
+        TestChatAPI.use_llm_response(False)
+        self.assertEqual(TestChatAPI.get_llm_response_mode(), "NONLLM")
+
+        url = f"{self.BASE_URL}/chat"
+        payload = {
+            "chat_id": self.valid_chat_id,
+            "question": "Who is Modi in a sentence?",
+            "stream": False
+        }
+
+        response = requests.post(url, headers=self.headers, json=payload)
+        self.assertEqual(response.status_code, 200)
+        answer = response.json().get("answer")
+
+        self.assertEqual(answer, DEFAULTAIRESPONSE)
+        # Verify other output fields for LLM disabled
+        response_data = response.json()
+        self.assertEqual(response_data["chat_id"], self.valid_chat_id)
+        self.assertEqual(response_data["customer_guid"], self.valid_customer_guid)
+        self.assertEqual(response_data["user_id"], self.user_id)
+
+    def test_non_stream_response_llm_enabled(self):
+        TestChatAPI.use_llm_response(True)
+        self.assertEqual(TestChatAPI.get_llm_response_mode(), "LLM")
+
+        url = f"{self.BASE_URL}/chat"
+        payload = {
+            "chat_id": self.valid_chat_id,
+            "question": "What is a car in a sentence?",
+            "stream": False
+        }
+
+        response = requests.post(url, headers=self.headers, json=payload)
+        self.assertEqual(response.status_code, 200)
+        answer = response.json().get("answer")
+
+        self.assertNotEqual(answer, DEFAULTAIRESPONSE)
+        self.assertTrue(len(answer) > 0)
+        # Verify other output fields for LLM enabled
+        response_data = response.json()
+        self.assertEqual(response_data["chat_id"], self.valid_chat_id)
+        self.assertEqual(response_data["customer_guid"], self.valid_customer_guid)
+        self.assertEqual(response_data["user_id"], self.user_id)
+
+    def test_clear_histories_api(self):
+        url = f"{self.BASE_URL}/llm_service/clear_histories"
+        response = requests.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get("message"), "All conversation histories have been cleared.")
+
     def test_wrong_customer_guid_and_wrong_chat_id(self):
-        """Test case 1: Invalid customer_guid and chat_id"""
+        """Test case 1: Invalid customer_guid and wrong chat_id"""
         logger.info("=== Starting Test Case 1: Wrong customer_guid and wrong chat_id ===")
 
         # Simulate a token with an invalid or missing customer_guid
