@@ -40,8 +40,8 @@ class TestChatAPI(unittest.TestCase):
 
     def setUp(self):
         """Setup function to create valid customer_guid and chat_id"""
-        logger.info("=== Starting setUp process ===")
-
+        logger.info(f"=== Starting setUp process for {self._testMethodName} ===")
+        
         # Get valid customer_guid
         customer_data = add_customer("test_org")
         self.valid_customer_guid = customer_data["customer_guid"]
@@ -78,7 +78,11 @@ class TestChatAPI(unittest.TestCase):
         self.valid_chat_id = res.json()["chat_id"]
 
     def tearDown(self):
+        logger.info(f"=== Starting tearDown process for {self._testMethodName} ===")
         TestChatAPI.use_llm_response(False)
+        llm_mode = TestChatAPI.get_llm_response_mode()
+        logger.info(f"LLM response mode after test: {llm_mode}")
+        logger.info(f"=== tearDown completed for {self._testMethodName} ===\n")
 
     def _parse_stream_response(self, response):
         """Utility: Convert SSE stream response to full string answer"""
