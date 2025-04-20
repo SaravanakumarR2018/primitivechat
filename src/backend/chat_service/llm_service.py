@@ -1,11 +1,15 @@
 import os
 import logging
+import certifi
+import httpx
+
 from collections import OrderedDict
 from typing import AsyncGenerator, Optional
 from fastapi import APIRouter, HTTPException
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_community.chat_models import ChatOllama
+from langchain_openai import ChatOpenAI
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.lib.logging_config import log_format
 from pydantic import BaseModel
@@ -14,7 +18,7 @@ from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 db_manager = DatabaseManager()
 
@@ -35,25 +39,60 @@ class LLMService:
         LLMService.max_conversations = max_conversations
         LLMService.buffer_size = buffer_size
 
-        # Initialize ChatOllama
+        # Initialize LLM
+        LLMService.llm = self._initialize_llm(LLMService.LLMProvider, LLMService.model)
+
+    def _initialize_llm(self, provider, model_name):
+        """
+        Initialize the LLM based on the given provider and model.
+        Returns the initialized LLM object or raises an exception if initialization fails.
+        """
+        if provider == "OLLAMA":
+            return self._initialize_ollama(model_name)
+        elif provider == "KRUTRIM":
+            return self._initialize_krutrim(model_name)
+        else:
+            logger.error(f"Unsupported LLM provider: {provider}")
+            raise ValueError(f"Unsupported LLM provider: {provider}")
+
+    def _initialize_ollama(self, model_name):
         ollama_host = os.getenv("OLLAMA_HOST")
         ollama_port = os.getenv("OLLAMA_PORT")
-        model_name = LLMService.model
+        model_name = os.getenv("OLLAMA_MODEL")
 
         if not ollama_host or not ollama_port or not model_name:
             logger.error("Environment variables OLLAMA_HOST, OLLAMA_PORT, and OLLAMA_MODEL must be set.")
             raise ValueError("Missing required environment variables.")
 
         try:
-            LLMService.llm = ChatOllama(
+            llm = ChatOllama(
                 model=model_name,
                 base_url=f"http://{ollama_host}:{ollama_port}",
                 temperature=0.7
             )
             logger.info("ChatOllama initialized successfully")
+            return llm
         except Exception as e:
             logger.error(f"Failed to initialize ChatOllama: {e}")
             raise RuntimeError(f"Failed to initialize ChatOllama: {e}")
+
+    def _initialize_krutrim(self, model_name):
+        api_key = "6ULmDKVcxiEx7nxuEeDIpX"
+        endpoint = "https://cloud.olakrutrim.com/v1"
+
+        if not api_key or not model_name:
+            logger.error("Environment variables KRUTRIM_API_KEY and MODEL must be set.")
+            raise ValueError("Missing required environment variables.")
+
+        try:
+            chat = ChatOpenAI(api_key=api_key, base_url=endpoint, model=model_name, http_client=httpx.Client(verify=certifi.where()))
+            chat.max_tokens = 1024
+            chat.model_kwargs = {"top_p": 0.7, "frequency_penalty": 0.0, "presence_penalty": 0.0, "stop":["<|eot_id|>","<|im_start|>","<|im_end|>"]}
+            logger.info("Krutrim model initialized successfully")
+            return chat
+        except Exception as e:
+            logger.error(f"Failed to initialize Krutrim model: {e}")
+            raise RuntimeError(f"Failed to initialize Krutrim model: {e}")
 
     @classmethod
     def set_llm_response(cls, mode):
@@ -211,6 +250,33 @@ class LLMService:
         LLMService.histories.clear()
         logger.info("All conversation histories have been cleared.")
 
+    def changing_llm(self, provider, model_name):
+        """
+        Change the LLM provider and model if they differ from the current ones.
+        Initialize the LLM and handle errors if the provider or model is unsupported.
+        Raise exceptions for API use.
+        """
+        if LLMService.LLMProvider == provider and LLMService.model == model_name:
+            logger.info("No change in LLM provider or model. No action taken.")
+            return
+
+        # Attempt to initialize the LLM with the new provider and model
+        try:
+            result = self._initialize_llm(provider, model_name)
+            LLMService.llm = result
+            LLMService.LLMProvider = provider
+            LLMService.model = model_name
+            logger.info(f"LLM provider and model updated to: {LLMService.LLMProvider}, {LLMService.model}")
+        except ValueError as ve:
+            logger.error(f"ValueError: {ve}")
+            raise HTTPException(status_code=400, detail=str(ve))
+        except RuntimeError as re:
+            logger.error(f"RuntimeError: {re}")
+            raise HTTPException(status_code=500, detail=str(re))
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
 
 # FastAPI Router
 app = APIRouter()
@@ -260,13 +326,18 @@ async def use_llm_response(request: LLMModeRequest):
     logger.debug("Entering use_llm_response() with use_llm: %s, llmprovider: %s, model: %s", request.use_llm, request.llmprovider, request.model)
     try:
         if request.use_llm:
+            llmprovider = request.llmprovider if request.llmprovider else "OLLAMA"  
+            model = request.model if request.model else os.getenv("OLLAMA_MODEL")
+            logger.debug("Changing LLM provider and model to: %s, %s", llmprovider, model)
+            llm_service.changing_llm(llmprovider, model)
             LLMService.set_llm_response("LLM")
-            LLMService.set_llm_provider(request.llmprovider if request.llmprovider else "OLLAMA")
-            LLMService.set_model(request.model if request.model else os.getenv("OLLAMA_MODEL"))
             return {"message": "LLM response mode enabled", "llmprovider": LLMService.get_llm_provider(), "model": LLMService.get_model()}
         else:
             LLMService.set_llm_response("NONLLM")
             return {"message": "LLM response mode disabled"}
+    except HTTPException as e:
+        logger.error(f"HTTPException in use_llm_response(): {e.detail}")
+        raise e
     except Exception as e:
         logger.error(f"Unexpected error in use_llm_response(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred")

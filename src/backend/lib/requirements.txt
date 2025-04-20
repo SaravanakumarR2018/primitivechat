@@ -23,12 +23,14 @@ python-pptx==1.0.2
 pillow==11.1.0
 spacy==3.8.4
 python-magic==0.4.27
-langchain==0.2.17
-langchain-core==0.2.43
-langchain-community==0.2.19
+langchain==0.3.0
+langchain-core==0.3.53
+langchain-community==0.3.0
+langchain-openai==0.3.14
 openai==1.73.0
 tiktoken==0.9.0
 sse-starlette==2.2.1  # for EventSourceResponse
+certifi==2024.2.2
 
 
 # Install CPU-specific PyTorch components
