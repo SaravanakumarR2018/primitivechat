@@ -516,5 +516,47 @@ class TestChatAPI(unittest.TestCase):
 
         logger.info("=== Test Case 13 Completed ===\n")
 
+    def test_assign_values_and_verify_with_get_api(self):
+        response = requests.post(
+            f"{self.BASE_URL}/llm_service/use_llm_response",
+            json={"use_llm": True, "llmprovider": "OLLAMA", "model": "llama3.2:3b"}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = requests.get(f"{self.BASE_URL}/llm_service/get_llm_response_mode")
+        self.assertEqual(response.status_code, 200)
+        response_data = response.json()
+        self.assertEqual(response_data["llm_response_mode"], "LLM")
+        self.assertEqual(response_data["llmprovider"], "OLLAMA")
+        self.assertEqual(response_data["model"], "llama3.2:3b")
+
+    def test_assign_different_values_and_verify_with_get_api(self):
+        response = requests.post(
+            f"{self.BASE_URL}/llm_service/use_llm_response",
+            json={"use_llm": True, "llmprovider": "NEW_PROVIDER", "model": "new_model"}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = requests.get(f"{self.BASE_URL}/llm_service/get_llm_response_mode")
+        self.assertEqual(response.status_code, 200)
+        response_data = response.json()
+        self.assertEqual(response_data["llm_response_mode"], "LLM")
+        self.assertEqual(response_data["llmprovider"], "NEW_PROVIDER")
+        self.assertEqual(response_data["model"], "new_model")
+
+    def test_leave_out_optional_values_and_verify_defaults(self):
+        response = requests.post(
+            f"{self.BASE_URL}/llm_service/use_llm_response",
+            json={"use_llm": True}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = requests.get(f"{self.BASE_URL}/llm_service/get_llm_response_mode")
+        self.assertEqual(response.status_code, 200)
+        response_data = response.json()
+        self.assertEqual(response_data["llm_response_mode"], "LLM")
+        self.assertEqual(response_data["llmprovider"], "OLLAMA")  # Assuming "OLLAMA" is the default
+        self.assertEqual(response_data["model"], os.getenv("OLLAMA_MODEL"))  # Assuming default model from env
+
 if __name__ == "__main__":
     unittest.main()

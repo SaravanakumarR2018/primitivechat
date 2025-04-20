@@ -27,6 +27,8 @@ class LLMService:
     buffer_size = 32
     histories = OrderedDict()
     llm = None
+    LLMProvider = "OLLAMA"  # Default provider
+    model = os.getenv("OLLAMA_MODEL")  # Default model name
 
     def __init__(self, max_conversations=200, buffer_size=32):
         logger.info("Initializing LLMService")
@@ -36,7 +38,7 @@ class LLMService:
         # Initialize ChatOllama
         ollama_host = os.getenv("OLLAMA_HOST")
         ollama_port = os.getenv("OLLAMA_PORT")
-        model_name = os.getenv("OLLAMA_MODEL")
+        model_name = LLMService.model
 
         if not ollama_host or not ollama_port or not model_name:
             logger.error("Environment variables OLLAMA_HOST, OLLAMA_PORT, and OLLAMA_MODEL must be set.")
@@ -63,6 +65,24 @@ class LLMService:
     @classmethod
     def get_llm_response(cls):
         return cls.llm_response
+
+    @classmethod
+    def set_llm_provider(cls, provider):
+        cls.LLMProvider = provider if provider else "OLLAMA"
+        logger.info(f"LLM provider set to: {cls.LLMProvider}")
+
+    @classmethod
+    def get_llm_provider(cls):
+        return cls.LLMProvider
+
+    @classmethod
+    def set_model(cls, model_name):
+        cls.model = model_name if model_name else os.getenv("OLLAMA_MODEL")
+        logger.info(f"Model set to: {cls.model}")
+
+    @classmethod
+    def get_model(cls):
+        return cls.model
 
     def _evict_if_needed(self):
         while len(LLMService.histories) > LLMService.max_conversations:
@@ -198,17 +218,19 @@ app = APIRouter()
 llm_service = LLMService()
 
 class LLMModeRequest(BaseModel):
-    mode: str  # Expected values: "usellm" or "nousellm"
+    use_llm: bool  # Boolean to indicate whether to use LLM or not
+    llmprovider: Optional[str] = None  # Optional LLM provider
+    model: Optional[str] = None  # Optional model name
 
 @app.get("/get_llm_response_mode", tags=["LLM Management"])
 async def get_llm_response_mode():
     """
-    Get the current LLM response mode.
+    Get the current LLM response mode and provider details.
     """
     logger.debug("Entering get_llm_response_mode()")
     try:
         mode = LLMService.get_llm_response()
-        return {"llm_response_mode": mode}
+        return {"llm_response_mode": mode, "llmprovider": LLMService.get_llm_provider(), "model": LLMService.get_model()}
     except Exception as e:
         logger.error(f"Unexpected error in get_llm_response_mode(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
@@ -227,21 +249,21 @@ async def clear_histories():
         logger.error(f"Unexpected error in clear_histories(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while clearing histories.")
 
-class LLMModeRequest(BaseModel):
-    use_llm: bool  # Boolean to indicate whether to use LLM or not
-
 @app.post("/use_llm_response", tags=["LLM Management"])
 async def use_llm_response(request: LLMModeRequest):
     """
     Set the LLM response mode using a boolean value.
     - `true` to enable LLM responses.
     - `false` to disable LLM responses.
+    Optionally specify `llmprovider` and `model`.
     """
-    logger.debug("Entering use_llm_response() with use_llm: %s", request.use_llm)
+    logger.debug("Entering use_llm_response() with use_llm: %s, llmprovider: %s, model: %s", request.use_llm, request.llmprovider, request.model)
     try:
         if request.use_llm:
             LLMService.set_llm_response("LLM")
-            return {"message": "LLM response mode enabled"}
+            LLMService.set_llm_provider(request.llmprovider if request.llmprovider else "OLLAMA")
+            LLMService.set_model(request.model if request.model else os.getenv("OLLAMA_MODEL"))
+            return {"message": "LLM response mode enabled", "llmprovider": LLMService.get_llm_provider(), "model": LLMService.get_model()}
         else:
             LLMService.set_llm_response("NONLLM")
             return {"message": "LLM response mode disabled"}
