@@ -359,6 +359,10 @@ class TestDeleteFileAPI(unittest.TestCase):
             logger.info("Successfully killed file_vectorize_main process with pkill -9")
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to kill file_vectorize_main: {e}")
+            
+    def tearDown(self):
+        """Teardown function to log the completion of the test case."""
+        logger.info(f"=== Finished execution of test: {self._testMethodName} ===")         
 
 if __name__ == '__main__':
     unittest.main()
