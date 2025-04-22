@@ -22,6 +22,24 @@ logger.setLevel(logging.DEBUG)
 
 db_manager = DatabaseManager()
 
+# ---------------------------------------
+# Add these HTTPX logging hooks below your imports
+# ---------------------------------------
+def _log_request(request: httpx.Request):
+    logger.debug(f"HTTPX Request ▶ {request.method} {request.url}")
+    logger.debug(f"Request headers: {dict(request.headers)}")
+    if request.content:
+        try:
+            logger.debug(f"Request body: {request.content.decode()}")
+        except Exception:
+            logger.debug(f"Request body (bytes): {request.content}")
+
+def _log_response(response: httpx.Response):
+    logger.debug(f"HTTPX Response ◀ {response.status_code} {response.url}")
+    logger.debug(f"Response headers: {dict(response.headers)}")
+    logger.debug(f"Response body: {response.text}")
+    return response
+
 class LLMService:
     """
     Service to manage interactions with the LLM and maintain conversation history.
@@ -85,7 +103,18 @@ class LLMService:
             raise ValueError("Missing required environment variables.")
 
         try:
-            chat = ChatOpenAI(api_key=api_key, base_url=endpoint, model=model_name, http_client=httpx.Client(verify=certifi.where()))
+            client = httpx.Client(
+                event_hooks={
+                    "request": [_log_request],
+                    "response": [_log_response],
+                },
+            )
+            chat = ChatOpenAI(
+                api_key=api_key,
+                base_url=endpoint,
+                model=model_name,
+                http_client=client,
+            )
             chat.max_tokens = 1024
             chat.model_kwargs = {"top_p": 0.7, "frequency_penalty": 0.0, "presence_penalty": 0.0, "stop":["<|eot_id|>","<|im_start|>","<|im_end|>"]}
             logger.info("Krutrim model initialized successfully")
@@ -133,7 +162,7 @@ class LLMService:
         if session_id not in LLMService.histories:
             logger.debug(f"[NEW] Creating new history for session_id: {session_id}")
             history = ConversationBufferWindowMemory(k=self.buffer_size)
-            history.chat_memory.add_message(SystemMessage(content="You are a helpful assistant."))
+            history.chat_memory.add_message(SystemMessage(content="You are a customer support agent. You will be provided context from RAG system to provide answers to user's questions .If there is no context, you can answer from your knowledge. Do not hallucinate. If the user is enabling greetings, then you can talk without context. Make the tone a bit professional. Avoid Inner monologue or first-person thoughts."))
 
             # Fetch messages from the database
             messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page=1, page_size=self.buffer_size * 3)
