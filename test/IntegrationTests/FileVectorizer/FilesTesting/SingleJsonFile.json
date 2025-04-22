@@ -1,0 +1,84 @@
+{
+  "document": {
+    "title": "Student Records and Related Information",
+    "sections": [
+      {
+        "section_name": "Introduction",
+        "content": "This document contains the student records including their personal information, courses, grades, and images of relevant documents."
+      },
+      {
+        "section_name": "Images",
+        "content": [
+          {
+            "description": "Student ID card image of Alice.",
+            "ocr_text": "Alice - ID: 12345"
+          },
+          {
+            "description": "Student ID card image of Bob.",
+            "ocr_text": "Bob - ID: 67890"
+          },
+          {
+            "description": "Student ID card image of Don.",
+            "ocr_text": "Don - ID: 34345"
+          },
+          {
+            "description": "Student ID card image of Queen.",
+            "ocr_text": "Queen - ID: 67450"
+          }
+        ]
+      },
+      {
+        "section_name": "Student Information Table",
+        "content": {
+          "table_name": "Student_Info",
+          "columns": [
+            "Student_ID",
+            "Name",
+            "Age",
+            "Course",
+            "Grade",
+            "Email"
+          ],
+          "rows": [
+            {
+              "Student_ID": 1,
+              "Name": "Alice",
+              "Age": 21,
+              "Course": "Math",
+              "Grade": "A",
+              "Email": "alice@example.com"
+            },
+            {
+              "Student_ID": 2,
+              "Name": "Bob",
+              "Age": 22,
+              "Course": "Science",
+              "Grade": "B+",
+              "Email": "bob@example.com"
+            },
+            {
+              "Student_ID": 3,
+              "Name": "Charlie",
+              "Age": 23,
+              "Course": "History",
+              "Grade": "B",
+              "Email": "charlie@example.com"
+            },
+            {
+              "Student_ID": 4,
+              "Name": "Diana",
+              "Age": 20,
+              "Course": "Computer Science",
+              "Grade": "A-",
+              "Email": "diana@example.com"
+            }
+          ]
+        }
+      },
+      {
+        "section_name": "Conclusion",
+        "content": "This document has provided an overview of the student data including their personal details, academic information, and visual representations through images. Additional details may be available in further sections or upon request."
+      }
+    ]
+  }
+}
