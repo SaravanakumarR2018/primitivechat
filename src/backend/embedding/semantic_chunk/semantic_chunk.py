@@ -6,6 +6,7 @@ import logging
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 from src.backend.lib.logging_config import log_format
+from src.backend.lib.singleton_class import Singleton
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -39,7 +40,7 @@ class ProcessAndUploadBucket:
             logger.error(f"Error in processing and uploading: {e}")
             raise Exception(f"Failed to upload file.{e}")
 
-class SemanticChunkProcessor:
+class SemanticChunkProcessor(metaclass=Singleton):
     def __init__(self, model_name='all-mpnet-base-v2', max_tokens=300, similarity_threshold=0.4):
         try:
             self.model = self.load_model(model_name)

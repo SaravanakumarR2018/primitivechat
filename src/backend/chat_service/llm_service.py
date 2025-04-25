@@ -10,6 +10,7 @@ from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.lib.logging_config import log_format
 from pydantic import BaseModel
 from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
+from src.backend.lib.singleton_class import Singleton
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -18,7 +19,7 @@ logger.setLevel(logging.INFO)
 
 db_manager = DatabaseManager()
 
-class LLMService:
+class LLMService(metaclass=Singleton):
     """
     Service to manage interactions with the LLM and maintain conversation history.
     """

@@ -8,6 +8,7 @@ from src.backend.embedding.semantic_chunk.semantic_chunk import ProcessAndUpload
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.lib.logging_config import log_format
+from src.backend.lib.singleton_class import Singleton
 
 # Setup logging configuration
 logging.basicConfig(level=logging.INFO, format=log_format)
@@ -16,7 +17,7 @@ logger.setLevel(logging.INFO)
 
 db_manager = DatabaseManager()
 
-class FileVectorizer:
+class FileVectorizer(metaclass=Singleton):
 
     def __init__(self, max_workers=5, polling_interval=2):
         logger.info("Initializing FileVectorizer...")
@@ -25,9 +26,7 @@ class FileVectorizer:
         self.polling_interval = polling_interval
         self.shutdown_event = threading.Event()
         self.worker_thread = threading.Thread(target=self.worker_loop, daemon=True)
-        self.deletion_thread = threading.Thread(target=self.deletion_loop, daemon=True)
         self.worker_thread.start()
-        self.deletion_thread.start()
 
         # Initialize components
         self.minio=MinioManager()
@@ -66,15 +65,10 @@ class FileVectorizer:
             logger.error(f"Error during vectorizing of {filename}: {e}")
             return False
 
-    def process_file(self, customer_guid, filename):
+    def process_file(self, customer_guid, filename, status, error_retry):
 
         try:
-            file_record = db_manager.get_file_status(customer_guid, filename)
-            if not file_record:
-                logger.warning(f"File {filename} not found in database, skipping...")
-                return
-
-            status, error_retry = file_record
+            logger.info(f"Current status for {filename}: {status}, retry count: {error_retry} customer_guid:{customer_guid}")
 
             if status in ["todo", "extract_error"]:
                 try:
@@ -89,9 +83,6 @@ class FileVectorizer:
                         db_manager.remove_from_common_db(customer_guid, filename, error=True)
                     return
 
-            file_record = db_manager.get_file_status(customer_guid, filename)
-            status, error_retry = file_record
-
             if status in ["extracted", "chunk_error"]:
                 try:
                     if self.chunk_file(customer_guid, filename):
@@ -104,9 +95,6 @@ class FileVectorizer:
                     if error_retry >= 7:
                         db_manager.remove_from_common_db(customer_guid, filename, error=True)
                     return
-
-            file_record = db_manager.get_file_status(customer_guid, filename)
-            status, error_retry = file_record
 
             if status in ["chunked", "vectorize_error"]:
                 try:
@@ -135,26 +123,11 @@ class FileVectorizer:
         except Exception as e:
             logger.error(f"Error processing {filename}: {e}")
 
-    def process_deletion(self, customer_guid: str, file_id: str):
+    def process_deletion(self, customer_guid, filename, file_id, delete_status, error_retry):
 
-        logger.info(f"Processing deletion for {file_id} (customer: {customer_guid})")
+        logger.info(f"Processing deletion for {filename} customer_guid: {customer_guid})")
 
         try:
-            # Get file record by ID
-            file_record = db_manager.get_file_record_by_id(customer_guid, file_id)
-            if not file_record:
-                logger.warning(f"File with ID {file_id} not found")
-                return
-
-            filename = file_record.filename  # used for weaviate and minio for filename
-
-            # Get current status
-            deletion_record = db_manager.get_deletion_status(customer_guid, file_id)
-            if not deletion_record:
-                logger.warning(f"File {file_id} not marked for deletion")
-                return
-            delete_status, error_retry = deletion_record
-
             if delete_status in ["todo", "in_progress"]:
 
                 # Step 1: Delete from Weaviate
@@ -193,8 +166,8 @@ class FileVectorizer:
         logger.info("Starting background worker thread...")
         while not self.shutdown_event.is_set():
             try:
-                logger.debug("Checking for 'todo','extracted' and 'chunked' files...")
-                pending_files = db_manager.get_todo_files(self.max_threads)
+                logger.debug("Checking for 'todo','extracted','chunked' and delete files...")
+                pending_files = db_manager.get_files_to_be_processed(self.max_threads)
 
                 if not pending_files:
                     logger.debug("No files to process. Sleeping...")
@@ -202,8 +175,11 @@ class FileVectorizer:
                     continue
 
                 futures = []
-                for customer_guid, filename, _ in pending_files:
-                    futures.append(self.executor.submit(self.process_file, customer_guid, filename))
+                for customer_guid, filename, file_id, to_be_deleted, status, error_retry, delete_status in pending_files:
+                    if not to_be_deleted:
+                        futures.append(self.executor.submit(self.process_file, customer_guid, filename, status, error_retry))
+                    else:
+                        futures.append(self.executor.submit(self.process_deletion, customer_guid, filename, file_id, delete_status, error_retry))
 
                 # Wait for all submitted tasks to complete
                 for future in as_completed(futures):
@@ -214,31 +190,6 @@ class FileVectorizer:
 
             except Exception as e:
                 logger.error(f"Worker thread crashed: {e}", exc_info=True)
-
-    def deletion_loop(self):
-        """Background thread to process file deletions"""
-        logger.info("Starting background deletion thread...")
-        while not self.shutdown_event.is_set():
-            try:
-                logger.debug("Checking todo files for deleting a file")
-                pending_deletions = db_manager.get_pending_deletions(self.max_threads)
-
-                if not pending_deletions:
-                    logger.debug("No files to process for delete. Sleeping...")
-                    time.sleep(self.polling_interval)
-                    continue
-
-                futures = []
-                for customer_guid, file_id in pending_deletions:
-                    futures.append(
-                        self.executor.submit(self.process_deletion, customer_guid, file_id))
-
-                for future in as_completed(futures):
-                    future.result()
-                time.sleep(self.polling_interval)
-
-            except Exception as e:
-                logger.error(f"Deletion thread error: {e}", exc_info=True)
 
     def stop(self):
         logger.info("Stopping background worker...")

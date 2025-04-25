@@ -12,8 +12,7 @@ def main():
     vectorizer = FileVectorizer()
     while True:
         try:
-            vectorizer.worker_loop()
-            logger.info("File vectorization completed successfully.")
+            time.sleep(1)
         except Exception as e:
             logger.error(f"Error during file vectorization: {e}")
             time.sleep(2)

@@ -26,6 +26,7 @@ import re
 import yaml
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 from src.backend.lib.logging_config import log_format
+from src.backend.lib.singleton_class import Singleton
 
 # Configure Logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -45,8 +46,8 @@ class FileType(Enum):
 
 class CustomShapeType(Enum):
     PICTURE = 13
-    
-class UploadFileForChunks:
+
+class UploadFileForChunks(metaclass=Singleton):
     def __init__(self):
         self.minio_manager = MinioManager()
         self.file_extract = FileExtractor()

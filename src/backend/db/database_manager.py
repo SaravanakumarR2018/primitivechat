@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
 from src.backend.lib.logging_config import log_format
+from src.backend.lib.singleton_class import Singleton
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -22,7 +23,7 @@ class SenderType(Enum):
     SYSTEM = "system"
 
 
-class DatabaseManager:
+class DatabaseManager(metaclass=Singleton):
     _session_factory = None
 
     allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
@@ -60,7 +61,8 @@ class DatabaseManager:
                     final_delete_timestamp TIMESTAMP(6),
                     INDEX idx_customer_guid (customer_guid),
                     INDEX idx_filename (filename),
-                    INDEX idx_file_id (file_id) 
+                    INDEX idx_file_id (file_id),
+                    UNIQUE (customer_guid, filename)  
                     );
                     """
             session.execute(text(create_table_query))
@@ -199,7 +201,8 @@ class DatabaseManager:
                     final_delete_timestamp TIMESTAMP(6),
                     INDEX idx_customer_guid (customer_guid),
                     INDEX idx_filename (filename),
-                    INDEX idx_file_id (file_id) 
+                    INDEX idx_file_id (file_id),
+                    UNIQUE (customer_guid, filename)  
                     );
                     """
             session.execute(text(create_uploadedfile_status_table_query))
@@ -1659,12 +1662,12 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_todo_files(self, max_threads):
+    def get_files_to_be_processed(self, max_threads):
         session = self._session_factory()
         try:
             num_of_records = max_threads * 4
             query = """
-                SELECT customer_guid, filename, error_retry 
+                SELECT customer_guid, filename, file_id, to_be_deleted, status, error_retry, delete_status 
                 FROM common_db.customer_file_status 
                 WHERE to_be_deleted = FALSE
                 ORDER BY current_activity_updated_time ASC
@@ -1672,24 +1675,8 @@ class DatabaseManager:
             """
             return session.execute(text(query), {"num_of_records": num_of_records}).fetchall()
         except SQLAlchemyError as e:
-            logger.error(f"Error fetching todo files: {e}")
+            logger.error(f"Error fetching files to be processed: {e}")
             return []
-        finally:
-            session.close()
-
-    def get_file_status(self, customer_guid, filename):
-        session = self._session_factory()
-        try:
-            query = """
-                SELECT status, error_retry 
-                FROM common_db.customer_file_status 
-                WHERE customer_guid = :customer_guid AND filename = :filename
-            """
-            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).fetchone()
-            return result if result else None
-        except SQLAlchemyError as e:
-            logger.error(f"Error fetching file status: {e}")
-            return None
         finally:
             session.close()
 
@@ -1977,64 +1964,6 @@ class DatabaseManager:
         except SQLAlchemyError as e:
             logger.error(f"Error checking filename existence: {e}")
             return False
-        finally:
-            session.close()
-
-    def get_file_record_by_id(self, customer_guid: str, file_id: str):
-        session = self._session_factory()
-        try:
-            customer_db = self.get_customer_db(customer_guid)
-            query = f"""
-                SELECT * FROM `{customer_db}`.uploadedfile_status
-                WHERE customer_guid = :customer_guid AND file_id = :file_id
-            """
-            result = session.execute(text(query), {
-                'customer_guid': customer_guid,
-                'file_id': file_id
-            }).fetchone()
-            return result
-        except SQLAlchemyError as e:
-            logger.error(f"Error fetching file record by ID: {e}")
-            return None
-        finally:
-            session.close()
-
-    def get_deletion_status(self, customer_guid: str, file_id: str):
-        """Get current deletion status and retry count"""
-        session = self._session_factory()
-        try:
-            query = """
-            SELECT delete_status, error_retry 
-            FROM common_db.customer_file_status 
-            WHERE customer_guid = :customer_guid AND file_id = :file_id
-            """
-            result = session.execute(text(query), {
-                'customer_guid': customer_guid,
-                'file_id': file_id
-            }).fetchone()
-            return result if result else None
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting deletion status: {e}")
-            return None
-        finally:
-            session.close()
-
-    def get_pending_deletions(self, max_threads):
-        """Get files marked for deletion that need processing"""
-        session = self._session_factory()
-        try:
-            num_of_records = max_threads * 4
-            query = """
-            SELECT customer_guid, file_id 
-            FROM common_db.customer_file_status 
-            WHERE to_be_deleted = TRUE
-            ORDER BY current_activity_updated_time ASC
-            LIMIT :num_of_records
-            """
-            return session.execute(text(query), {"num_of_records": num_of_records}).fetchall()
-        except SQLAlchemyError as e:
-            logger.error(f"Error fetching pending deletions: {e}")
-            return []
         finally:
             session.close()
 

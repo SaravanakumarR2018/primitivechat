@@ -6,12 +6,13 @@ import json
 from sentence_transformers import SentenceTransformer
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 from src.backend.lib.logging_config import log_format
+from src.backend.lib.singleton_class import Singleton
 
 #config logging
 logging.basicConfig(level=logging.DEBUG,format=log_format)
 logger = logging.getLogger(__name__)
 
-class WeaviateManager:
+class WeaviateManager(metaclass=Singleton):
     def __init__(self):
 
         try:
