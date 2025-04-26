@@ -71,6 +71,8 @@ class LLMService:
             return self._initialize_krutrim(model_name)
         elif provider == "GEMINI":
             return self._initialize_gemini(model_name)
+        elif provider == "OPENAI":
+            return self._initialize_openai(model_name)
         else:
             logger.error(f"Unsupported LLM provider: {provider}")
             raise ValueError(f"Unsupported LLM provider: {provider}")
@@ -137,11 +139,32 @@ class LLMService:
             logger.error(f"Failed to initialize OpenAI LLM: {e}")
             raise RuntimeError(f"Failed to initialize OpenAI LLM: {e}")
 
+    def _initialize_openai(self, model_name):
+        """
+        Initialize OpenAI ChatOpenAI via the shared initializer.
+        Reads OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL, OPENAI_TEMPERATURE, OPENAI_MAX_TOKENS.
+        """
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = "https://api.openai.com/v1"
+        temperature = 0.7
+        max_tokens = 1024
+
+        if not api_key or not model_name:
+            logger.error("Environment variables OPENAI_API_KEY and OPENAI_MODEL must be set.")
+            raise ValueError("Missing required environment variables for OpenAI.")
+
+        return self._initialize_openai_llm(
+            api_key=api_key,
+            model_name=model_name,
+            base_url=base_url,
+            temperature=float(temperature) if temperature else None,
+            max_tokens=int(max_tokens) if max_tokens else None
+        )
     def _initialize_gemini(self, model_name):
         """
         Delegate Gemini setup to the shared OpenAI initializer.
         """
-        api_key = "AIzaSyCuYRK0VylR1Xn2DUgqSuOPLn2c03ymHnw"
+        api_key = os.getenv("GEMINI_API_KEY")
         base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
         return self._initialize_openai_llm(
             api_key=api_key,
@@ -154,7 +177,7 @@ class LLMService:
         """
         Delegate Krutrim setup to the shared OpenAI initializer.
         """
-        api_key = "6ULmDKVcxiEx7nxuEeDIpX"
+        api_key = os.getenv("KRUTRIM_API_KEY")
         endpoint = "https://cloud.olakrutrim.com/v1"
         krutrim_kwargs = {
             "top_p": 0.7,
