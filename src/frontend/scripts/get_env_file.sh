@@ -125,6 +125,72 @@ append_env_file() {
     fi
 }
 
+# ...existing code...
+
+# Function to store Gemini API key securely
+store_gemini_key() {
+  echo "🔑 Enter your Google Gemini API key:"
+  stty -echo
+  read -r GEMINI_API_KEY
+  stty echo; echo
+  if [ "$OS" = "Darwin" ] || [ "$OS" = "Linux" ]; then
+    GEMINI_FILE="$HOME/.gemini_credentials"
+  else
+    GEMINI_FILE="$USERPROFILE/.gemini_credentials"
+  fi
+  echo "GEMINI_API_KEY=$GEMINI_API_KEY" > "$GEMINI_FILE"
+  chmod 600 "$GEMINI_FILE"
+  echo "✅ Gemini API key saved securely!"
+}
+
+# Function to load Gemini API key
+load_gemini_key() {
+  if [ "$OS" = "Darwin" ] || [ "$OS" = "Linux" ]; then
+    GEMINI_FILE="$HOME/.gemini_credentials"
+  else
+    GEMINI_FILE="$USERPROFILE/.gemini_credentials"
+  fi
+
+  if [ -f "$GEMINI_FILE" ]; then
+    . "$GEMINI_FILE"
+  else
+    store_gemini_key
+  fi
+}
+# Function to test Gemini API key
+test_gemini_key() {
+  # send a simple question, capture only HTTP status
+  TEST_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H 'Content-Type: application/json' \
+    -X POST \
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
+    -d '{
+      "contents": [{
+        "parts": [{"text": "What is the capital of France in one word"}]
+      }]
+    }')
+
+  if [ "$TEST_CODE" -eq 200 ]; then
+    echo "✅ Gemini API key is valid"
+  else
+    echo "❌ Gemini API key is invalid"
+    rm -f "$GEMINI_FILE"
+    echo "🔍 Obtain a valid Gemini API key (e.g. via ChatGPT) and retry."
+    exit 1
+  fi
+}
+
+append_gemini_to_env() {
+  TARGET_ENV="$FRONTEND_DIR/.env.local"
+  if grep -q "^GEMINI_API_KEY=" "$TARGET_ENV"; then
+    sed -i "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$GEMINI_API_KEY|" "$TARGET_ENV"
+    echo "✅ Updated GEMINI_API_KEY in $TARGET_ENV"
+  else
+    echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> "$TARGET_ENV"
+    echo "✅ Added GEMINI_API_KEY to $TARGET_ENV"
+  fi
+}
+
 ### 🚀 Main Execution ###
 GIT_ROOT=$(find_git_root)
 if [ -z "$GIT_ROOT" ]; then
@@ -142,5 +208,8 @@ echo "FRONTEND_DIR: $FRONTEND_DIR"
 echo "$HOME/.github_credentials"
 load_credentials
 copy_env_file
+load_gemini_key
+test_gemini_key
+append_gemini_to_env
 append_env_file
 
