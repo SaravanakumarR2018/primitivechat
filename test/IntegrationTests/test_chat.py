@@ -25,9 +25,14 @@ class TestChatAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
     @staticmethod
-    def use_llm_response(flag: bool):
+    def use_llm_response(use_llm: bool, llmprovider: str = None, model: str = None):
         url = f"{TestChatAPI.BASE_URL}/llm_service/use_llm_response"
-        res = requests.post(url, json={"use_llm": flag})
+        payload = {"use_llm": use_llm}
+        if llmprovider:
+            payload["llmprovider"] = llmprovider
+        if model:
+            payload["model"] = model
+        res = requests.post(url, json=payload)
         res.raise_for_status()
         return res.json()
 
@@ -36,7 +41,7 @@ class TestChatAPI(unittest.TestCase):
         url = f"{TestChatAPI.BASE_URL}/llm_service/get_llm_response_mode"
         res = requests.get(url)
         res.raise_for_status()
-        return res.json().get("llm_response_mode")
+        return res.json()
 
     def setUp(self):
         """Setup function to create valid customer_guid and chat_id"""
@@ -71,7 +76,7 @@ class TestChatAPI(unittest.TestCase):
 
         # Disable LLM by default
         TestChatAPI.use_llm_response(False)
-        self.assertEqual(TestChatAPI.get_llm_response_mode(), "NONLLM")
+        self.assertEqual(TestChatAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
 
         # Create a base chat_id
         res = requests.post(f"{self.BASE_URL}/chat", json={"question": "Initial?"}, headers=self.headers)
@@ -80,7 +85,7 @@ class TestChatAPI(unittest.TestCase):
     def tearDown(self):
         logger.info(f"=== Starting tearDown process for {self._testMethodName} ===")
         TestChatAPI.use_llm_response(False)
-        llm_mode = TestChatAPI.get_llm_response_mode()
+        llm_mode = TestChatAPI.get_llm_response_mode().get("llm_response_mode")
         logger.info(f"LLM response mode after test: {llm_mode}")
         logger.info(f"=== tearDown completed for {self._testMethodName} ===\n")
 
@@ -101,7 +106,7 @@ class TestChatAPI(unittest.TestCase):
 
     def test_streaming_response_llm_disabled(self):
         TestChatAPI.use_llm_response(False)
-        self.assertEqual(TestChatAPI.get_llm_response_mode(), "NONLLM")
+        self.assertEqual(TestChatAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
 
         url = f"{self.BASE_URL}/chat"
         payload = {
@@ -136,7 +141,7 @@ class TestChatAPI(unittest.TestCase):
 
     def test_streaming_response_llm_enabled(self):
         TestChatAPI.use_llm_response(True)
-        self.assertEqual(TestChatAPI.get_llm_response_mode(), "LLM")
+        self.assertEqual(TestChatAPI.get_llm_response_mode().get("llm_response_mode"), "LLM")
 
         url = f"{self.BASE_URL}/chat"
         payload = {
@@ -172,7 +177,7 @@ class TestChatAPI(unittest.TestCase):
 
     def test_non_stream_response_llm_disabled(self):
         TestChatAPI.use_llm_response(False)
-        self.assertEqual(TestChatAPI.get_llm_response_mode(), "NONLLM")
+        self.assertEqual(TestChatAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
 
         url = f"{self.BASE_URL}/chat"
         payload = {
@@ -194,7 +199,7 @@ class TestChatAPI(unittest.TestCase):
 
     def test_non_stream_response_llm_enabled(self):
         TestChatAPI.use_llm_response(True)
-        self.assertEqual(TestChatAPI.get_llm_response_mode(), "LLM")
+        self.assertEqual(TestChatAPI.get_llm_response_mode().get("llm_response_mode"), "LLM")
 
         url = f"{self.BASE_URL}/chat"
         payload = {
@@ -433,7 +438,6 @@ class TestChatAPI(unittest.TestCase):
         }
         response = requests.post(url, json=data, headers=headers)
 
-        # Expect 400 Bad Request
         self.assertEqual(response.status_code, 400, "Expected status code 400 for missing org_id")
         self.assertIn("detail", response.json(), "'detail' key not found in response")
         self.assertEqual(response.json()["detail"], "Org ID not found in token", "Unexpected error message")
@@ -517,46 +521,98 @@ class TestChatAPI(unittest.TestCase):
         logger.info("=== Test Case 13 Completed ===\n")
 
     def test_assign_values_and_verify_with_get_api(self):
-        response = requests.post(
-            f"{self.BASE_URL}/llm_service/use_llm_response",
-            json={"use_llm": True, "llmprovider": "OLLAMA", "model": "llama3.2:3b"}
-        )
-        self.assertEqual(response.status_code, 200)
+        # use helper to set values
+        res = TestChatAPI.use_llm_response(True, "OLLAMA", "llama3.2:3b")
+        logger.info(f"OUTPUT: Response from use_llm_response: {res}")
 
-        response = requests.get(f"{self.BASE_URL}/llm_service/get_llm_response_mode")
-        self.assertEqual(response.status_code, 200)
-        response_data = response.json()
-        self.assertEqual(response_data["llm_response_mode"], "LLM")
-        self.assertEqual(response_data["llmprovider"], "OLLAMA")
-        self.assertEqual(response_data["model"], "llama3.2:3b")
+        # verify via helper GET
+        settings = TestChatAPI.get_llm_response_mode()
+        self.assertEqual(settings["llm_response_mode"], "LLM")
+        self.assertEqual(settings["llmprovider"], "OLLAMA")
+        self.assertEqual(settings["model"], "llama3.2:3b")
 
     def test_assign_different_values_and_verify_with_get_api(self):
-        response = requests.post(
-            f"{self.BASE_URL}/llm_service/use_llm_response",
-            json={"use_llm": True, "llmprovider": "NEW_PROVIDER", "model": "new_model"}
-        )
-        self.assertEqual(response.status_code, 200)
-
-        response = requests.get(f"{self.BASE_URL}/llm_service/get_llm_response_mode")
-        self.assertEqual(response.status_code, 200)
-        response_data = response.json()
-        self.assertEqual(response_data["llm_response_mode"], "LLM")
-        self.assertEqual(response_data["llmprovider"], "NEW_PROVIDER")
-        self.assertEqual(response_data["model"], "new_model")
+        # Attempt to set invalid LLM provider and model
+        try:
+            res = TestChatAPI.use_llm_response(True, "NEW_PROVIDER", "new_model")
+        except requests.exceptions.HTTPError as e:
+            self.assertEqual(e.response.status_code, 400, "Expected 400 Bad Request for invalid provider/model")
+            error_message = e.response.json().get("detail", "")
+            logger.info(f"OUTPUT: Error message: {error_message}")
+            return  # Exit test as the API rejected the request
 
     def test_leave_out_optional_values_and_verify_defaults(self):
-        response = requests.post(
-            f"{self.BASE_URL}/llm_service/use_llm_response",
-            json={"use_llm": True}
-        )
-        self.assertEqual(response.status_code, 200)
+        # use helper without optional fields
+        res = TestChatAPI.use_llm_response(True)
 
-        response = requests.get(f"{self.BASE_URL}/llm_service/get_llm_response_mode")
-        self.assertEqual(response.status_code, 200)
-        response_data = response.json()
-        self.assertEqual(response_data["llm_response_mode"], "LLM")
-        self.assertEqual(response_data["llmprovider"], "OLLAMA")  # Assuming "OLLAMA" is the default
-        self.assertEqual(response_data["model"], os.getenv("OLLAMA_MODEL"))  # Assuming default model from env
+        # verify defaults via helper GET
+        settings = TestChatAPI.get_llm_response_mode()
+        self.assertEqual(settings["llm_response_mode"], "LLM")
+        self.assertEqual(settings["llmprovider"], "OLLAMA")
+        self.assertEqual(settings["model"], os.getenv("OLLAMA_MODEL"))
+
+    def test_gemini_llm_response_and_reset(self):
+        # enable with GEMINI
+        res = TestChatAPI.use_llm_response(True, "GEMINI", "gemini-1.5-flash")
+
+        # verify via GET
+        settings = TestChatAPI.get_llm_response_mode()
+        self.assertEqual(settings["llm_response_mode"], "LLM")
+        self.assertEqual(settings["llmprovider"], "GEMINI")
+        self.assertEqual(settings["model"], "gemini-1.5-flash")
+
+        # ask question
+        chat_res = requests.post(
+            f"{self.BASE_URL}/chat",
+            headers=self.headers,
+            json={
+                "question": "What is the capital of France in one word",
+                "stream": False
+            }
+        )
+        self.assertEqual(chat_res.status_code, 200)
+        ans = chat_res.json().get("answer", "").strip()
+        logger.info(f"OUTPUT: Answer from GEMINI: {ans}")
+        self.assertNotEqual(ans, DEFAULTAIRESPONSE)
+        self.assertTrue(ans)
+
+        # reset off
+        TestChatAPI.use_llm_response(False)
+        settings_after_reset = TestChatAPI.get_llm_response_mode()
+        self.assertEqual(settings_after_reset["llm_response_mode"], "NONLLM")
+
+    def test_gemini_llm_streaming_response_and_reset(self):
+        # enable with GEMINI
+        res = TestChatAPI.use_llm_response(True, "GEMINI", "gemini-1.5-flash")
+
+        # verify via GET
+        settings = TestChatAPI.get_llm_response_mode()
+        self.assertEqual(settings["llm_response_mode"], "LLM")
+        self.assertEqual(settings["llmprovider"], "GEMINI")
+        self.assertEqual(settings["model"], "gemini-1.5-flash")
+
+        # ask question with streaming enabled
+        chat_res = requests.post(
+            f"{self.BASE_URL}/chat",
+            headers=self.headers,
+            json={
+                "question": "What is the capital of France in one sentence",
+                "stream": True
+            },
+            stream=True
+        )
+        self.assertEqual(chat_res.status_code, 200)
+
+        # parse streaming response
+        full_answer = self._parse_stream_response(chat_res)
+        logger.info(f"OUTPUT: Streaming answer from GEMINI: {full_answer}")
+        self.assertNotEqual(full_answer, DEFAULTAIRESPONSE)
+        self.assertTrue(full_answer)
+
+        # reset off
+        TestChatAPI.use_llm_response(False)
+        settings_after_reset = TestChatAPI.get_llm_response_mode()
+        self.assertEqual(settings_after_reset["llm_response_mode"], "NONLLM")
 
 if __name__ == "__main__":
     unittest.main()

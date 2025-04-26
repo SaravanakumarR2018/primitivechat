@@ -441,6 +441,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
 
         if chat_request.stream:
             full_answer = ""
+
             async def event_generator():
                 nonlocal full_answer
                 async for chunk in response_stream:
@@ -449,15 +450,14 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
                         delta = chunk["choices"][0].get("delta", {})
                         full_answer += delta.get("content", "")
                 yield "[DONE]"
-
-            # Save system response to DB after streaming is complete
-            db_manager.add_message(
-                user_id,
-                customer_guid,
-                full_answer,
-                sender_type=SenderType.SYSTEM,
-                chat_id=chat_id
-            )
+                # Save system response to DB after fully sending
+                db_manager.add_message(
+                    user_id,
+                    customer_guid,
+                    full_answer,
+                    sender_type=SenderType.SYSTEM,
+                    chat_id=chat_id
+                )
 
             return EventSourceResponse(event_generator())
 
@@ -465,6 +465,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
             # Not streaming — accumulate response from chunks
             full_answer = ""
             async for chunk in response_stream:
+                logger.debug(f"Received chunk: {chunk}")
                 if "choices" in chunk and chunk["choices"]:
                     delta = chunk["choices"][0].get("delta", {})
                     full_answer += delta.get("content", "")
