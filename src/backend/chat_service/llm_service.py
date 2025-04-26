@@ -1,6 +1,5 @@
 import os
 import logging
-import certifi
 import httpx
 
 from collections import OrderedDict
@@ -18,7 +17,7 @@ from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format=log_format)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 db_manager = DatabaseManager()
 
@@ -178,6 +177,7 @@ class LLMService:
             api_key=api_key,
             model_name=model_name,
             base_url=base_url,
+            max_tokens=1024,
             temperature=0.7
         )
 
@@ -198,6 +198,7 @@ class LLMService:
             model_name=model_name,
             base_url=endpoint,
             max_tokens=1024,
+            temperature=0.7,
             model_kwargs=krutrim_kwargs
         )
 
