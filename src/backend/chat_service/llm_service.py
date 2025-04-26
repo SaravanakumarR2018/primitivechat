@@ -69,10 +69,13 @@ class LLMService:
             return self._initialize_ollama(model_name)
         elif provider == "KRUTRIM":
             return self._initialize_krutrim(model_name)
+        elif provider == "GEMINI":
+            return self._initialize_gemini(model_name)
         else:
             logger.error(f"Unsupported LLM provider: {provider}")
             raise ValueError(f"Unsupported LLM provider: {provider}")
-
+    
+   
     def _initialize_ollama(self, model_name):
         ollama_host = os.getenv("OLLAMA_HOST")
         ollama_port = os.getenv("OLLAMA_PORT")
@@ -94,13 +97,16 @@ class LLMService:
             logger.error(f"Failed to initialize ChatOllama: {e}")
             raise RuntimeError(f"Failed to initialize ChatOllama: {e}")
 
-    def _initialize_krutrim(self, model_name):
-        api_key = "6ULmDKVcxiEx7nxuEeDIpX"
-        endpoint = "https://cloud.olakrutrim.com/v1"
+ # ...existing code...
 
+    def _initialize_openai_llm(self, api_key, model_name, base_url,
+                               temperature=None, max_tokens=None, model_kwargs=None):
+        """
+        Shared initializer for any OpenAI‑compatible ChatOpenAI models.
+        """
         if not api_key or not model_name:
-            logger.error("Environment variables KRUTRIM_API_KEY and MODEL must be set.")
-            raise ValueError("Missing required environment variables.")
+            logger.error("API key and model name must be provided.")
+            raise ValueError("Missing required credentials for OpenAI LLM.")
 
         try:
             client = httpx.Client(
@@ -109,20 +115,62 @@ class LLMService:
                     "response": [_log_response],
                 },
             )
-            chat = ChatOpenAI(
-                api_key=api_key,
-                base_url=endpoint,
-                model=model_name,
-                http_client=client,
-            )
-            chat.max_tokens = 1024
-            chat.model_kwargs = {"top_p": 0.7, "frequency_penalty": 0.0, "presence_penalty": 0.0, "stop":["<|eot_id|>","<|im_start|>","<|im_end|>"]}
-            logger.info("Krutrim model initialized successfully")
-            return chat
-        except Exception as e:
-            logger.error(f"Failed to initialize Krutrim model: {e}")
-            raise RuntimeError(f"Failed to initialize Krutrim model: {e}")
+            init_kwargs = {
+                "api_key": api_key,
+                "model": model_name,
+                "base_url": base_url,
+                "http_client": client,
+            }
+            if temperature is not None:
+                init_kwargs["temperature"] = temperature
 
+            llm = ChatOpenAI(**init_kwargs)
+
+            if max_tokens is not None:
+                llm.max_tokens = max_tokens
+            if model_kwargs:
+                llm.model_kwargs = model_kwargs
+
+            logger.info(f"OpenAI model '{model_name}' initialized at {base_url}")
+            return llm
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI LLM: {e}")
+            raise RuntimeError(f"Failed to initialize OpenAI LLM: {e}")
+
+    def _initialize_gemini(self, model_name):
+        """
+        Delegate Gemini setup to the shared OpenAI initializer.
+        """
+        api_key = "AIzaSyCuYRK0VylR1Xn2DUgqSuOPLn2c03ymHnw"
+        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+        return self._initialize_openai_llm(
+            api_key=api_key,
+            model_name=model_name,
+            base_url=base_url,
+            temperature=0.7
+        )
+
+    def _initialize_krutrim(self, model_name):
+        """
+        Delegate Krutrim setup to the shared OpenAI initializer.
+        """
+        api_key = "6ULmDKVcxiEx7nxuEeDIpX"
+        endpoint = "https://cloud.olakrutrim.com/v1"
+        krutrim_kwargs = {
+            "top_p": 0.7,
+            "frequency_penalty": 0.0,
+            "presence_penalty": 0.0,
+            "stop": ["<|eot_id|>", "<|im_start|>", "<|im_end|>"]
+        }
+        return self._initialize_openai_llm(
+            api_key=api_key,
+            model_name=model_name,
+            base_url=endpoint,
+            max_tokens=1024,
+            model_kwargs=krutrim_kwargs
+        )
+
+# ...existing code...
     @classmethod
     def set_llm_response(cls, mode):
         if mode not in ["NONLLM", "LLM"]:
@@ -162,7 +210,7 @@ class LLMService:
         if session_id not in LLMService.histories:
             logger.debug(f"[NEW] Creating new history for session_id: {session_id}")
             history = ConversationBufferWindowMemory(k=self.buffer_size)
-            history.chat_memory.add_message(SystemMessage(content="You are a customer support agent. You will be provided context from RAG system to provide answers to user's questions .If there is no context, you can answer from your knowledge. Do not hallucinate. If the user is enabling greetings, then you can talk without context. Make the tone a bit professional. Avoid Inner monologue or first-person thoughts."))
+            history.chat_memory.add_message(SystemMessage(content="You are a customer support agent. You will be provided context from RAG system to provide answers to user's questions .If there is no context, you can answer from your knowledge. Do not hallucinate. If the user is enabling greetings, then you can talk without context. Make the tone a bit professional. Avoid Inner monologue or first-person thoughts. Keep the <think> tags within 1 or 2 sentences."))
 
             # Fetch messages from the database
             messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page=1, page_size=self.buffer_size * 3)
