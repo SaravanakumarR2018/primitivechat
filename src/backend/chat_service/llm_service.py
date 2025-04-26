@@ -114,7 +114,6 @@ class LLMService:
             client = httpx.Client(
                 event_hooks={
                     "request": [_log_request],
-                    "response": [_log_response],
                 },
             )
             init_kwargs = {
@@ -132,6 +131,15 @@ class LLMService:
                 llm.max_tokens = max_tokens
             if model_kwargs:
                 llm.model_kwargs = model_kwargs
+            
+             # ▶️ Validate LLM by sending a dummy "ping"
+            try:
+                llm([HumanMessage(content="ping")])
+                logger.info(f"✅ LLM '{model_name}' endpoint validated at {base_url}")
+            except Exception as e:
+                logger.error(f"❌ LLM '{model_name}' validation failed: {e}")
+                raise RuntimeError(f"LLM validation failed for model '{model_name}': {e}")
+
 
             logger.info(f"OpenAI model '{model_name}' initialized at {base_url}")
             return llm
