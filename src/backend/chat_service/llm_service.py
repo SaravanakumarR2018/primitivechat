@@ -80,7 +80,7 @@ class LLMService:
     def _initialize_ollama(self, model_name):
         ollama_host = os.getenv("OLLAMA_HOST")
         ollama_port = os.getenv("OLLAMA_PORT")
-        model_name = LLMService.model
+        model_name = os.getenv("OLLAMA_MODEL")
 
         if not ollama_host or not ollama_port or not model_name:
             logger.error("Environment variables OLLAMA_HOST, OLLAMA_PORT, and OLLAMA_MODEL must be set.")
