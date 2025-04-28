@@ -9,16 +9,13 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from src.backend.chat_service.chat_service import app as chat_router
 from src.backend.ticket_service.ticket_service import app as ticket_router
 from src.backend.auth_router.auth_router import app as auth_router
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.chat_service.llm_service import app as llm_service_router  # Import the LLMService router
 
 # Create the main FastAPI app
 main_app = FastAPI()
 
-
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_primitivechat_logger(__name__)
 
 # Mount chat_service and ticket_service to different paths
 main_app.include_router(chat_router)

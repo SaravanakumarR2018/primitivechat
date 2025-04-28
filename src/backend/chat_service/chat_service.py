@@ -14,15 +14,11 @@ from sse_starlette.sse import EventSourceResponse
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.chat_service.llm_service import LLMService
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.getLogger("sse_starlette.sse").setLevel(logging.INFO)
-
+logger = get_primitivechat_logger(__name__)
 
 app = APIRouter()
 

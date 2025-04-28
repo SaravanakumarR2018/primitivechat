@@ -9,14 +9,10 @@ import requests
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 from utils.api_utils import add_customer, create_test_token, create_token_without_org_role, create_token_without_org_id
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format=log_format
-)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 class TestCreateCommentAPI(unittest.TestCase):
 
