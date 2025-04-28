@@ -25,11 +25,10 @@ from io import BytesIO
 import re
 import yaml
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
 # Configure Logging
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 # Enum for file types
 class FileType(Enum):

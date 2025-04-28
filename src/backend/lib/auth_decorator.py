@@ -7,10 +7,9 @@ from clerk_backend_api import Clerk
 from clerk_backend_api.jwks_helpers import AuthenticateRequestOptions
 from fastapi import HTTPException, Request
 from src.backend.lib.config import TEST_TOKEN_PREFIX, TEST_SECRET, JWKS_URL  # Import from config
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 # Initialize Clerk client
 clerk_client = Clerk(bearer_auth=os.getenv('CLERK_SECRET_KEY'))
@@ -76,7 +75,7 @@ async def jwt_verifier(request: Request, allowed_roles: list):
     """
     try:
         # Extract the token from the Authorization header
-        logger.info("Verifying JWT token")
+        logger.debug("Verifying JWT token")
         authorization: str = request.headers.get('Authorization')
         if not authorization or not authorization.startswith('Bearer '):
             raise HTTPException(status_code=401, detail="Authorization header missing or malformed")
@@ -96,7 +95,7 @@ async def jwt_verifier(request: Request, allowed_roles: list):
                 user_role = decoded_token.get('org_role')
                 if user_role not in allowed_roles:
                     raise HTTPException(status_code=403, detail="Forbidden: Insufficient role")
-                logger.info("Test JWT authentication successful")
+                logger.debug("Test JWT authentication successful")
                 return  # Test token is valid, exit the function
             except jwt.DecodeError:
                 raise HTTPException(status_code=401, detail="Invalid test token")
