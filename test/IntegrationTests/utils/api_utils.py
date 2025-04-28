@@ -6,11 +6,10 @@ import jwt
 from src.backend.lib.config import TEST_TOKEN_PREFIX, TEST_SECRET
 import time
 
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
