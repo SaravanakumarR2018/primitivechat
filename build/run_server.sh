@@ -171,31 +171,11 @@ if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
     exit 1
 fi
 
-# Pull the model (llama3.2:3b) once the server is up
-echo "Pulling the llama3.2:3b model..."
-PULL_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/pull -d '{
-  "name": "llama3.2:3b"
-}')
-
-PULL_HTTP_CODE="${PULL_RESPONSE: -3}"
-PULL_BODY="${PULL_RESPONSE%${PULL_HTTP_CODE}}"
-
-# Print the full pull response
-echo "Response Body: $PULL_BODY"
-echo "HTTP Status Code: $PULL_HTTP_CODE"
-
-if [ "$PULL_HTTP_CODE" -eq 200 ]; then
-  echo "Model llama3.2:3b pulled successfully."
-else
-  echo "Failed to pull model. Response code: $PULL_HTTP_CODE"
-  exit 1
-fi
-
 # Check if the model was successfully pulled by generating a response
 echo "Checking if model is working by generating a response..."
 GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/generate -d '{
   "model": "llama3.2:3b",
-  "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
+  "prompt": "What is the capital of France in one sentence?",
   "stream": false
 }')
 
