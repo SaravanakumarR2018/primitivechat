@@ -4,8 +4,6 @@ from fastapi import HTTPException
 
 from minio import Minio
 from minio.error import S3Error
-
-from src.backend.lib.logging_config import log_format
 from src.backend.lib.singleton_class import Singleton
 
 from src.backend.lib.logging_config import get_primitivechat_logger
