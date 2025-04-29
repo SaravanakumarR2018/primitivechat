@@ -10,8 +10,6 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
-
-from src.backend.lib.logging_config import log_format
 from src.backend.lib.singleton_class import Singleton
 
 from src.backend.lib.logging_config import get_primitivechat_logger
