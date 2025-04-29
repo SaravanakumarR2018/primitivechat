@@ -104,7 +104,10 @@ services:
       CLUSTER_HOSTNAME: 'node1'
 
   ollama:
-    image: ollama/ollama:0.4.1
+    build:
+      context: ${PROJECT_ROOT}/build/ollama_service_docker
+      dockerfile: Dockerfile
+    image: primitivechat_ollama:latest
     container_name: ollama
     networks:
       - primitivechat_network

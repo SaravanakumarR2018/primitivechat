@@ -129,7 +129,7 @@ append_env_file() {
 
 # Function to store Gemini API key securely
 store_gemini_key() {
-  echo "🔑 Enter your Google Gemini API key:"
+  echo "🔑 Go to https://aistudio.google.com/, login with a gmail account and click Get API Key. Enter your Google Gemini API key: "
   stty -echo
   read -r GEMINI_API_KEY
   stty echo; echo

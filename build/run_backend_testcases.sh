@@ -17,10 +17,12 @@ help() {
 echo "Finding project root directory..."
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "Script directory: $SCRIPT_DIR"
-PROJECT_ROOT="$SCRIPT_DIR/.."  # Use the local directory structure
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"  # Use the local directory structure
 
 echo "Project root directory: $PROJECT_ROOT"
 TEST_DIR="${PROJECT_ROOT}/test/IntegrationTests"
+
+echo "Test Directory: $TEST_DIR"
 
 # Default test pattern (run all tests)
 TEST_PATTERN="test_*.py"
@@ -107,7 +109,7 @@ else
 fi
 
 # Construct the test command to run inside the container
-TEST_COMMAND=("bash" "-c" "echo CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST && echo OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST && python3 -m unittest discover -s /app/test/IntegrationTests -p \"$TEST_PATTERN\"")
+TEST_COMMAND=("bash" "-c" "cd /app && echo CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST && echo OLLAMA_SERVICE_HOST=$OLLAMA_SERVICE_HOST && python3 -m unittest discover -s test/IntegrationTests -p \"$TEST_PATTERN\"")
 echo "Container test command: ${TEST_COMMAND[@]}"
 
 # Run the tests inside the Docker container, mounting the project directory

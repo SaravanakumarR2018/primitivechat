@@ -7,8 +7,9 @@ WORKDIR /app
 COPY build/test_docker/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Set environment variables (if needed)
-# ENV ...
+# Create the folder and add the test file
+RUN mkdir -p /app/test/IntegrationTests && \
+    echo "import unittest\n\nclass TestSample(unittest.TestCase):\n    def test_success(self):\n        print('testcase succeeds')\n        self.assertTrue(True)\n\nif __name__ == '__main__':\n    unittest.main()" > /app/test/IntegrationTests/test_sample.py
 
-# Command to run the tests (this will be overridden by the script)
+# Command to run the tests
 CMD ["python", "-m", "unittest", "discover", "-s", "test", "-p", "test_*.py"]
