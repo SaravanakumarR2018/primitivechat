@@ -13,19 +13,15 @@ from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.lib.logging_config import get_primitivechat_logger
 from pydantic import BaseModel
 from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
-
-from src.backend.lib.singleton_class import Singleton
-
 from fastapi import Request
 from pathlib import Path
+from src.backend.lib.singleton_class import Singleton
 
 # Configure logging
 logger = get_primitivechat_logger(__name__)
 
 db_manager = DatabaseManager()
 
-
-class LLMService(metaclass=Singleton):
 # ---------------------------------------
 # Add these HTTPX logging hooks below your imports
 # ---------------------------------------
@@ -44,8 +40,7 @@ def _log_response(response: httpx.Response):
     logger.debug(f"Response body: {response.text}")
     return response
 
-class LLMService:
-
+class LLMService(metaclass=Singleton):
     """
     Service to manage interactions with the LLM and maintain conversation history.
     """
