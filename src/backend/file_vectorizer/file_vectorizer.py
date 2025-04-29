@@ -7,8 +7,6 @@ from src.backend.embedding.extract_file.extract_file import UploadFileForChunks
 from src.backend.embedding.semantic_chunk.semantic_chunk import ProcessAndUploadBucket
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 from src.backend.minio.minio_manager import MinioManager
-
-from src.backend.lib.logging_config import log_format
 from src.backend.lib.singleton_class import Singleton
 
 from src.backend.lib.logging_config import get_primitivechat_logger
