@@ -24,8 +24,10 @@ class FileVectorizer:
         self.shutdown_event = threading.Event()
         self.worker_thread = threading.Thread(target=self.worker_loop, daemon=True)
         self.deletion_thread = threading.Thread(target=self.deletion_loop, daemon=True)
+        self.cleanup_thread = threading.Thread(target=self.cleanup_stale_locks, daemon=True)
         self.worker_thread.start()
         self.deletion_thread.start()
+        self.cleanup_thread.start()
 
         # Initialize components
         self.minio=MinioManager()
@@ -34,6 +36,15 @@ class FileVectorizer:
         self.vectorizer= WeaviateManager()
 
         logger.info("FileVectorizer initialized components successfully.")
+
+    def cleanup_stale_locks(self):
+        while not self.shutdown_event.is_set():
+            try:
+                db_manager.cleanup_stale_locks()
+                time.sleep(300)
+            except Exception as e:
+                logger.error(f"Error cleaning stale locks: {e}")
+                time.sleep(60)
 
     def extract_file(self, customer_guid, filename):
         logger.info(f"Extracting file: {filename} for customer: {customer_guid}")
@@ -67,12 +78,22 @@ class FileVectorizer:
     def process_file(self, customer_guid, filename):
 
         try:
+            # Attempt to acquire processing lock
+            if not db_manager.acquire_processing_lock(customer_guid, filename):
+                logger.info(f"Could not acquire lock for {filename}, skipping")
+                return
             file_record = db_manager.get_file_status(customer_guid, filename)
             if not file_record:
                 logger.warning(f"File {filename} not found in database, skipping...")
                 return
 
             status, error_retry = file_record
+
+            # If already completed, skip processing
+            if status == "completed":
+                logger.info(f"File {filename} already completed, skipping")
+                db_manager.release_processing_lock(customer_guid, filename)
+                return
 
             if status in ["todo", "extract_error"]:
                 try:
@@ -120,6 +141,7 @@ class FileVectorizer:
                         except Exception as e:
                             logger.error(f"Error deleting extracted and chunked files from MinIO: {e}")
 
+                        db_manager.release_processing_lock(customer_guid, filename)
                         # Remove file from common_db (since it's successfully processed)
                         db_manager.remove_from_common_db(customer_guid, filename, error=False)
                     else:

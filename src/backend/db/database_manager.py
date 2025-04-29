@@ -56,6 +56,8 @@ class DatabaseManager:
                     delete_request_timestamp TIMESTAMP(6),
                     delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
                     final_delete_timestamp TIMESTAMP(6),
+                    processing_lock BOOLEAN DEFAULT FALSE,
+                    processing_lock_timestamp TIMESTAMP NULL,
                     INDEX idx_customer_guid (customer_guid),
                     INDEX idx_filename (filename),
                     INDEX idx_file_id (file_id) 
@@ -195,6 +197,8 @@ class DatabaseManager:
                     delete_request_timestamp TIMESTAMP(6),
                     delete_status ENUM('todo', 'in_progress', 'completed', 'error') DEFAULT 'todo',
                     final_delete_timestamp TIMESTAMP(6),
+                    processing_lock BOOLEAN DEFAULT FALSE,
+                    processing_lock_timestamp TIMESTAMP NULL,
                     INDEX idx_customer_guid (customer_guid),
                     INDEX idx_filename (filename),
                     INDEX idx_file_id (file_id) 
@@ -2173,4 +2177,80 @@ class DatabaseManager:
             return []
         finally:
             logger.debug("Exiting get_files_with_deletion_status method")
-            session.close()        
+            session.close()
+
+    def acquire_processing_lock(self, customer_guid, filename):
+        session = self._session_factory()
+        try:
+            # First select the common_db database
+            session.execute(text("USE common_db"))
+
+            # Execute the update query
+            result = session.execute(
+                text("""
+                UPDATE customer_file_status
+                SET processing_lock = TRUE,
+                    processing_lock_timestamp = CURRENT_TIMESTAMP
+                WHERE customer_guid = :customer_guid 
+                  AND filename = :filename
+                  AND processing_lock = FALSE
+                  AND status != 'completed'
+                """),
+                {'customer_guid': customer_guid, 'filename': filename}
+            )
+
+            session.commit()
+            return result.rowcount > 0
+
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error acquiring lock: {e}")
+            return False
+        finally:
+            session.close()
+
+    def release_processing_lock(self, customer_guid, filename):
+        session = self._session_factory()
+        try:
+            # First select the common_db database
+            session.execute(text("USE common_db"))
+
+            session.execute(
+                text("""
+                UPDATE customer_file_status
+                SET processing_lock = FALSE,
+                    processing_lock_timestamp = NULL
+                WHERE customer_guid = :customer_guid AND filename = :filename
+                """),
+                {'customer_guid': customer_guid, 'filename': filename}
+            )
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error releasing lock: {e}")
+        finally:
+            session.close()
+
+    def cleanup_stale_locks(self):
+        session = self._session_factory()
+        try:
+            # First select the common_db database
+            session.execute(text("USE common_db"))
+
+            session.execute(
+                text("""
+                UPDATE customer_file_status
+                SET processing_lock = FALSE,
+                    processing_lock_timestamp = NULL
+                WHERE processing_lock = TRUE
+                  AND processing_lock_timestamp < NOW() - INTERVAL 30 MINUTE
+                """)
+            )
+            session.commit()
+            logger.info("Successfully cleaned up stale locks")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error cleaning stale locks: {e}")
+            raise
+        finally:
+            session.close()
