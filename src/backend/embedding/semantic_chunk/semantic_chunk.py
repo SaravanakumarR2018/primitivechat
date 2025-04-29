@@ -15,7 +15,7 @@ from src.backend.lib.logging_config import get_primitivechat_logger
 # Configure Logging
 logger = get_primitivechat_logger(__name__)
 
-class ProcessAndUploadBucket:
+class ProcessAndUploadBucket(metaclass=Singleton):
     def __init__(self):
         self.minio_manager = MinioManager()
         self.chunk_processor = SemanticChunkProcessor()
