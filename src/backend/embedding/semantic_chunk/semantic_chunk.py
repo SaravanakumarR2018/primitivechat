@@ -6,7 +6,6 @@ import logging
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 
-from src.backend.lib.logging_config import log_format
 from src.backend.lib.singleton_class import Singleton
 
 from src.backend.lib.logging_config import get_primitivechat_logger
