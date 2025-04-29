@@ -1670,8 +1670,7 @@ class DatabaseManager(metaclass=Singleton):
             num_of_records = max_threads * 4
             query = """
                 SELECT customer_guid, filename, file_id, to_be_deleted, status, error_retry, delete_status 
-                FROM common_db.customer_file_status 
-                WHERE to_be_deleted = FALSE
+                FROM common_db.customer_file_status
                 ORDER BY current_activity_updated_time ASC
                 LIMIT :num_of_records
             """
@@ -1679,6 +1678,22 @@ class DatabaseManager(metaclass=Singleton):
         except SQLAlchemyError as e:
             logger.error(f"Error fetching files to be processed: {e}")
             return []
+        finally:
+            session.close()
+
+    def get_file_status(self, customer_guid, filename):
+        session = self._session_factory()
+        try:
+            query = """
+                SELECT status, error_retry 
+                FROM common_db.customer_file_status 
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).fetchone()
+            return result if result else None
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching file status: {e}")
+            return None
         finally:
             session.close()
 
