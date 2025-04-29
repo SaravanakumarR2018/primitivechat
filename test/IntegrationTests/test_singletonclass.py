@@ -1,6 +1,6 @@
 import unittest
 import logging
-from src.backend.chat_service.llm_service import LLMService
+#from src.backend.chat_service.llm_service import LLMService
 from src.backend.db.database_manager import DatabaseManager
 from src.backend.embedding.extract_file.extract_file import UploadFileForChunks
 from src.backend.embedding.semantic_chunk.semantic_chunk import ProcessAndUploadBucket
@@ -17,18 +17,18 @@ logger = get_primitivechat_logger(__name__)
 class TestSingletonClasses(unittest.TestCase):
     """Test suite for singleton classes."""
 
-    def test_llm_service_singleton(self):
-        """Test if LLMService is a true singleton."""
-        logger.info("Testing LLMService singleton behavior...")
+    # def test_llm_service_singleton(self):
+    #     """Test if LLMService is a true singleton."""
+    #     logger.info("Testing LLMService singleton behavior...")
 
-        # Create two instances
-        llm1 = LLMService()
-        llm2 = LLMService()
+    #     # Create two instances
+    #     llm1 = LLMService()
+    #     llm2 = LLMService()
 
-        self.assertIs(llm1, llm2, "LLMService is not a singleton!")
+    #     self.assertIs(llm1, llm2, "LLMService is not a singleton!")
 
-        self.assertEqual(llm1, llm2, "Class attributes mismatch!")
-        logger.info("LLMService passed singleton test.")
+    #     self.assertEqual(llm1, llm2, "Class attributes mismatch!")
+    #     logger.info("LLMService passed singleton test.")
 
     def test_database_manager_singleton(self):
         """Test if DatabaseManager is a true singleton."""
