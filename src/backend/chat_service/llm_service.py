@@ -26,7 +26,6 @@ db_manager = DatabaseManager()
 
 
 class LLMService(metaclass=Singleton):
-=======
 # ---------------------------------------
 # Add these HTTPX logging hooks below your imports
 # ---------------------------------------
