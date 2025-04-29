@@ -84,9 +84,9 @@ class FileVectorizer(metaclass=Singleton):
                     if error_retry >= 7:
                         db_manager.remove_from_common_db(customer_guid, filename, error=True)
                     return
-                    
+            
             file_record = db_manager.get_file_status(customer_guid, filename)
-            status, error_retry = file_record        
+            status, error_retry = file_record
 
             if status in ["extracted", "chunk_error"]:
                 try:
