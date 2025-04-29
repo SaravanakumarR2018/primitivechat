@@ -14,7 +14,6 @@ from src.backend.lib.singleton_class import Singleton
 
 from src.backend.lib.logging_config import get_primitivechat_logger
 
-
 # Configure logging
 logger = get_primitivechat_logger(__name__)
 
