@@ -189,7 +189,7 @@ export default function ChatHistory({
   // Infinite scroll handler
   useEffect(() => {
     if (!orgId) {
-      return;
+      return undefined;
     }
 
     if (initialLoad) {
@@ -211,6 +211,8 @@ export default function ChatHistory({
       chatList.addEventListener('scroll', handleScroll);
       return () => chatList.removeEventListener('scroll', handleScroll);
     }
+
+    return undefined;
   }, [orgId, loadMoreChats, isLoading, hasMore, initialLoad]);
 
   // Listen for chat updates from main chat component
