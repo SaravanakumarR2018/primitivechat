@@ -10,11 +10,10 @@ from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
 from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
 from src.backend.lib.utils import CustomerService, auth_admin_dependency
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 
 app = APIRouter()

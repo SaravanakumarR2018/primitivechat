@@ -14,15 +14,11 @@ from sse_starlette.sse import EventSourceResponse
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.chat_service.llm_service import LLMService
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.getLogger("sse_starlette.sse").setLevel(logging.INFO)
-
+logger = get_primitivechat_logger(__name__)
 
 app = APIRouter()
 
@@ -441,6 +437,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
 
         if chat_request.stream:
             full_answer = ""
+
             async def event_generator():
                 nonlocal full_answer
                 async for chunk in response_stream:
@@ -449,15 +446,14 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
                         delta = chunk["choices"][0].get("delta", {})
                         full_answer += delta.get("content", "")
                 yield "[DONE]"
-
-            # Save system response to DB after streaming is complete
-            db_manager.add_message(
-                user_id,
-                customer_guid,
-                full_answer,
-                sender_type=SenderType.SYSTEM,
-                chat_id=chat_id
-            )
+                # Save system response to DB after fully sending
+                db_manager.add_message(
+                    user_id,
+                    customer_guid,
+                    full_answer,
+                    sender_type=SenderType.SYSTEM,
+                    chat_id=chat_id
+                )
 
             return EventSourceResponse(event_generator())
 
@@ -465,6 +461,7 @@ async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_ad
             # Not streaming — accumulate response from chunks
             full_answer = ""
             async for chunk in response_stream:
+                logger.debug(f"Received chunk: {chunk}")
                 if "choices" in chunk and chunk["choices"]:
                     delta = chunk["choices"][0].get("delta", {})
                     full_answer += delta.get("content", "")

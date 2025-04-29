@@ -3,13 +3,11 @@ from http import HTTPStatus
 from src.backend.db.database_manager import DatabaseManager
 from src.backend.lib.auth_utils import get_decoded_token
 from fastapi import HTTPException, Request
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.lib.auth_decorator import authenticate_and_check_role
 
 # Setup logging configuration
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
-
+logger = get_primitivechat_logger(__name__)
 
 async def auth_admin_dependency(request: Request):
     return await authenticate_and_check_role(request, allowed_roles=["org:admin"])
@@ -41,7 +39,7 @@ class CustomerService:
     # Get user_id from the token
     def get_user_id_from_token(self, request: Request):
         decoded_token = get_decoded_token(request)
-        logger.info(f"Decoded token: {decoded_token}")
+        logger.debug(f"Decoded token: {decoded_token}")
         user_id = decoded_token.get("sub")
         if not user_id:
             logger.error("User ID not found in token")

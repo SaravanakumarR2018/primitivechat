@@ -1,11 +1,10 @@
 import logging
 import time
 from src.backend.file_vectorizer.file_vectorizer import FileVectorizer
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 def main():
     logger.info("Starting file vectorizer process...")

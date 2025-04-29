@@ -10,13 +10,15 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError, DatabaseError
 from sqlalchemy.orm import sessionmaker
+
 from src.backend.lib.logging_config import log_format
 from src.backend.lib.singleton_class import Singleton
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format=log_format)
-logger = logging.getLogger(__name__)
+from src.backend.lib.logging_config import get_primitivechat_logger
 
+
+# Configure logging
+logger = get_primitivechat_logger(__name__)
 
 class SenderType(Enum):
     CUSTOMER = "customer"

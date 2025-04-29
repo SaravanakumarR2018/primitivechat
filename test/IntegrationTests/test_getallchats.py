@@ -4,16 +4,12 @@ import unittest
 
 import requests
 
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 from utils.api_utils import add_customer,create_test_token,create_token_without_org_role,create_token_without_org_id
 
 # Set up logging configuration
-logging.basicConfig(
-    level=logging.INFO,
-    format=log_format
-)
-logger = logging.getLogger(__name__)
+logger = get_primitivechat_logger(__name__)
 
 # Constants
 ORG_ADMIN_ROLE = "org:admin"
