@@ -73,13 +73,13 @@ class TestDeleteFileAPI(unittest.TestCase):
         logger.info(f"Response status: {response.status_code}, content: {response.text}")
 
         # Verify the response status code matches your API behavior
-        self.assertEqual(response.status_code, 500,
-                         f"Expected status code 500 but got {response.status_code}")
+        self.assertEqual(response.status_code, 401,
+                         f"Expected status code 401 but got {response.status_code}")
 
         # Verify the error message structure
         data = response.json()
         self.assertIn("detail", data, "Error detail missing from response")
-        self.assertEqual(data["detail"], "Error processing delete request",
+        self.assertEqual(data["detail"], "File does not exist",
                          "Unexpected error message content")
 
     def test_delete_file_missing_filename(self):
