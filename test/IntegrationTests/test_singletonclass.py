@@ -8,10 +8,10 @@ from src.backend.embedding.semantic_chunk.semantic_chunk import SemanticChunkPro
 from src.backend.file_vectorizer.file_vectorizer import FileVectorizer
 from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
-from src.backend.lib.logging_config import log_format
+from src.backend.lib.logging_config import get_primitivechat_logger
 
-logging.basicConfig(level=logging.INFO, format=log_format)
-logger = logging.getLogger(__name__)
+# Set up logging configuration
+logger = get_primitivechat_logger(__name__)
 
 
 class TestSingletonClasses(unittest.TestCase):
