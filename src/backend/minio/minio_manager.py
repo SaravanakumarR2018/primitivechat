@@ -4,12 +4,15 @@ from fastapi import HTTPException
 
 from minio import Minio
 from minio.error import S3Error
+from src.backend.lib.singleton_class import Singleton
+
 from src.backend.lib.logging_config import get_primitivechat_logger
+
 
 #Configure logging
 logger = get_primitivechat_logger(__name__)
 
-class MinioManager:
+class MinioManager(metaclass=Singleton):
     def __init__(self):
         minio_host = os.getenv('MINIO_HOST')
         minio_port = os.getenv('MINIO_SERVER_PORT')
