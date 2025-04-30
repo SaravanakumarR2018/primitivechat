@@ -234,6 +234,10 @@ async def delete_file(filename: str,request: Request,auth=Depends(auth_admin_dep
         if not customer_guid:
             raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
 
+        if not db_manager.check_filename_exists(customer_guid, filename):
+            logger.info(f"File '{filename}' doesn't exist for customer_guid: {customer_guid}")
+            raise HTTPException(status_code=401, detail="File does not exist")
+
         # Check if the filename already delete for the customer
         if db_manager.check_delete_filename_already_exists(customer_guid, filename):
             logger.info(f"File '{filename}' already exists for customer_guid: {customer_guid}")

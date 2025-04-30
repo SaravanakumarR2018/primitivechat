@@ -1,0 +1,151 @@
+{
+  "charts": [
+    {
+      "type": "bar",
+      "data": {
+        "labels": ["January", "February", "March", "April", "May", "June"],
+        "datasets": [
+          {
+            "label": "Sales",
+            "backgroundColor": "#42A5F5",
+            "borderColor": "#1E88E5",
+            "data": [12000, 15000, 8000, 20000, 18000, 22000]
+          },
+          {
+            "label": "Expenses",
+            "backgroundColor": "#FF7043",
+            "borderColor": "#F4511E",
+            "data": [8000, 12000, 7000, 15000, 11000, 17000]
+          }
+        ]
+      },
+      "options": {
+        "responsive": true,
+        "title": {
+          "display": true,
+          "text": "Monthly Sales and Expenses"
+        },
+        "scales": {
+          "yAxes": [
+            {
+              "ticks": {
+                "beginAtZero": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "line",
+      "data": {
+        "labels": ["Week 1", "Week 2", "Week 3", "Week 4"],
+        "datasets": [
+          {
+            "label": "Website Visitors",
+            "backgroundColor": "rgba(75,192,192,0.2)",
+            "borderColor": "rgba(75,192,192,1)",
+            "data": [150, 200, 250, 300],
+            "fill": true
+          }
+        ]
+      },
+      "options": {
+        "responsive": true,
+        "title": {
+          "display": true,
+          "text": "Website Traffic Over Time"
+        },
+        "scales": {
+          "yAxes": [
+            {
+              "ticks": {
+                "beginAtZero": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "pie",
+      "data": {
+        "labels": ["Product A", "Product B", "Product C"],
+        "datasets": [
+          {
+            "data": [300, 500, 200],
+            "backgroundColor": ["#FF6384", "#36A2EB", "#FFCE56"]
+          }
+        ]
+      },
+      "options": {
+        "responsive": true,
+        "title": {
+          "display": true,
+          "text": "Product Sales Distribution"
+        }
+      }
+    },
+    {
+      "type": "radar",
+      "data": {
+        "labels": ["Eating", "Drinking", "Sleeping", "Designing", "Coding", "Cycling", "Running"],
+        "datasets": [
+          {
+            "label": "Person A",
+            "data": [65, 59, 90, 81, 56, 55, 40],
+            "backgroundColor": "rgba(179,181,198,0.2)",
+            "borderColor": "rgba(179,181,198,1)"
+          },
+          {
+            "label": "Person B",
+            "data": [28, 48, 40, 19, 96, 27, 100],
+            "backgroundColor": "rgba(255,99,132,0.2)",
+            "borderColor": "rgba(255,99,132,1)"
+          }
+        ]
+      },
+      "options": {
+        "responsive": true,
+        "title": {
+          "display": true,
+          "text": "Radar Chart Example"
+        }
+      }
+    },
+    {
+      "type": "scatter",
+      "data": {
+        "datasets": [
+          {
+            "label": "Dataset 1",
+            "data": [
+              { "x": -10, "y": 0 },
+              { "x": 0, "y": 10 },
+              { "x": 10, "y": 5 },
+              { "x": 15, "y": -5 }
+            ],
+            "backgroundColor": "rgba(255,99,132,0.2)",
+            "borderColor": "rgba(255,99,132,1)"
+          }
+        ]
+      },
+      "options": {
+        "responsive": true,
+        "title": {
+          "display": true,
+          "text": "Scatter Plot Example"
+        },
+        "scales": {
+          "xAxes": [
+            {
+              "type": "linear",
+              "position": "bottom"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+

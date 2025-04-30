@@ -13,7 +13,6 @@ from src.backend.lib.logging_config import get_primitivechat_logger
 # Set up logging configuration
 logger = get_primitivechat_logger(__name__)
 
-@unittest.skip("Skipping all test cases in this class temporarily")
 class TestFileDeletionStatusAPI(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
