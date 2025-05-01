@@ -14,7 +14,7 @@ class TestAPI(unittest.TestCase):
         logger.info("=== Setting up test case ===")
         self.BASE_URL = f"http://{os.getenv('OLLAMA_SERVICE_HOST')}:{os.getenv('OLLAMA_PORT')}"  # Example URL, adjust as needed
         self.generate_endpoint = "/api/generate"
-        self.valid_model = "llama3.2:3b"
+        self.valid_model = os.getenv("OLLAMA_MODEL")  # Use environment variable for model
         self.valid_prompt = "What is the capital of France?"
 
         # Verify the server is running
@@ -81,7 +81,7 @@ class TestAPI(unittest.TestCase):
         """Test generating a response with a very long prompt."""
         logger.info("=== Starting Edge Test Case 2: Generate Long Prompt ===")
         long_prompt = "Explain the theory of Electricity. " * 500  # Creating a long prompt
-        payload = {"model": "llama3.2:3b", "prompt": long_prompt, "stream": False}
+        payload = {"model": self.valid_model, "prompt": long_prompt, "stream": False}
         response = self.send_post_request(self.generate_endpoint, payload)
 
         self.assertEqual(response.status_code, 200, "Expected status code 200.")
@@ -94,7 +94,7 @@ class TestAPI(unittest.TestCase):
         """Test generating a response with special characters in the prompt."""
         logger.info("=== Starting Edge Test Case 3: Generate Special Characters ===")
         payload = {
-            "model": "llama3.2:3b",
+            "model": self.valid_model,
             "prompt": "!@#$%^&*() What is this?",
             "stream": False
         }
@@ -109,7 +109,7 @@ class TestAPI(unittest.TestCase):
         """Test generating a response with a numeric-only prompt."""
         logger.info("=== Starting Edge Test Case 4: Generate Numeric Prompt ===")
         payload = {
-            "model": "llama3.2:3b",
+            "model": self.valid_model,
             "prompt": "1234567890",
             "stream": False
         }

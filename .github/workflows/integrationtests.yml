@@ -121,11 +121,11 @@ jobs:
       # Step 12: Test model response
       - name: Test model response
         run: |
-          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/generate -d '{
-            "model": "llama3.2:3b",
-            "prompt": "Is the sky blue? Give one word as an answer. Answer as either True or False.",
-            "stream": false
-          }')
+          response=$(curl -s -w "%{http_code}" -X POST http://localhost:${{ env.OLLAMA_PORT }}/api/generate -d "{
+            \"model\": \"${{ env.OLLAMA_MODEL }}\",
+            \"prompt\": \"Is the sky blue? Give one word as an answer. Answer as either True or False.\",
+            \"stream\": false
+          }")
           http_code=${response: -3}
           body=${response%${http_code}}
           echo "Response Body: $body"
@@ -137,7 +137,6 @@ jobs:
             echo "Failed to generate model response. Exiting."
             exit 1
           fi
-
 
       # Step 13: Run integration tests
       - name: Run Python Integration Tests

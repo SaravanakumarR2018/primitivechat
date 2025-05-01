@@ -173,12 +173,11 @@ fi
 
 # Check if the model was successfully pulled by generating a response
 echo "Checking if model is working by generating a response..."
-GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/generate -d '{
-  "model": "llama3.2:3b",
-  "prompt": "What is the capital of France in one sentence?",
-  "stream": false
-}')
-
+GEN_RESPONSE=$(curl -s -w "%{http_code}" http://localhost:${OLLAMA_PORT}/api/generate -d "{
+  \"model\": \"${OLLAMA_MODEL}\",
+  \"prompt\": \"What is the capital of France in one sentence?\",
+  \"stream\": false
+}")
 GEN_HTTP_CODE="${GEN_RESPONSE: -3}"
 GEN_BODY="${GEN_RESPONSE%${GEN_HTTP_CODE}}"
 
