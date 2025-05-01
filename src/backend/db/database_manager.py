@@ -2118,4 +2118,27 @@ class DatabaseManager(metaclass=Singleton):
             return []
         finally:
             logger.debug("Exiting get_files_with_deletion_status method")
-            session.close()        
+            session.close()
+
+    def list_all_file_service_processing(self):
+        """List all file service processing records from common_db.customer_file_status."""
+        session = self._session_factory()
+        try:
+            session.execute(text("USE common_db"))
+            query = """
+                SELECT id, customer_guid, filename, file_id, uploaded_time, current_activity_updated_time, status, errors, error_retry, completed_time, to_be_deleted, delete_request_timestamp, delete_status, final_delete_timestamp
+                FROM customer_file_status
+                ORDER BY uploaded_time DESC
+            """
+            result = session.execute(text(query)).fetchall()
+            files_list = [
+                {column: value for column, value in zip(row.keys(), row)}
+                for row in result
+            ]
+            logger.info(f"Retrieved {len(files_list)} file service processing records from common_db.customer_file_status")
+            return files_list
+        except SQLAlchemyError as e:
+            logger.error(f"Error fetching file service processing records: {e}")
+            return []
+        finally:
+            session.close()

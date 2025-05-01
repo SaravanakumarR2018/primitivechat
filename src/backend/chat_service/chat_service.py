@@ -403,6 +403,16 @@ async def get_files_deletion_status(request: Request, page: int = 1, page_size: 
         logger.error(f"Unexpected error in get_files_deletion_status: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,detail="An unexpected error occurred")
 
+@app.get("/files/service-processing", tags=["File Management"])
+async def list_all_file_service_processing(auth=Depends(auth_admin_dependency)):
+    """List all file service processing records from the common database."""
+    try:
+        records = db_manager.list_all_file_service_processing()
+        return {"service_processing": records}
+    except Exception as e:
+        logger.error(f"Error listing file service processing records: {e}")
+        raise HTTPException(status_code=500, detail="Error listing file service processing records")
+
 @app.post("/chat", tags=["Chat Management"])
 async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_admin_dependency)):
     logger.debug(f"Entering chat() with Correlation ID: {request.state.correlation_id}")
