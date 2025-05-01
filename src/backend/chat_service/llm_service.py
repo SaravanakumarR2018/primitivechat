@@ -536,31 +536,4 @@ async def update_log_level(request: LogLevelRequest):
     except Exception as e:
         logger.error(f"Unexpected error in update_log_level(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while updating the log level.")
-# ---------------------------
-# Interactive CLI Chat
-# ---------------------------
-if __name__ == "__main__":
-    try:
-
-        os.environ.setdefault("OLLAMA_HOST", "host.docker.internal")
-        os.environ.setdefault("OLLAMA_PORT", "11434")
-        os.environ.setdefault("OLLAMA_MODEL", "llama3.2:3b")
-
-        service = LLMService()
-        user_id, customer_guid, chat_id = "cli_user", "cli_customer", "cli_chat"
-
-        print("\n🤖 Chatbot is ready! Type your message below.")
-        print("Type 'exit' or 'quit' to stop.\n")
-
-        while True:
-            user_input = input("You: ").strip()
-            if user_input.lower() in ["exit", "quit"]:
-                print("👋 Goodbye!")
-                break
-
-            response = service.get_response(user_input, user_id, customer_guid, chat_id)
-            print(f"Assistant: {response.content}\n")
-
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        sys.exit(1)
+    

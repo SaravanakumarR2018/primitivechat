@@ -518,14 +518,15 @@ class TestChatAPI(unittest.TestCase):
 
     def test_assign_values_and_verify_with_get_api(self):
         # use helper to set values
-        res = TestChatAPI.use_llm_response(True, "OLLAMA", "llama3.2:3b")
+        ollama_model = os.getenv("OLLAMA_MODEL")
+        res = TestChatAPI.use_llm_response(True, "OLLAMA", ollama_model)
         logger.info(f"OUTPUT: Response from use_llm_response: {res}")
 
         # verify via helper GET
         settings = TestChatAPI.get_llm_response_mode()
         self.assertEqual(settings["llm_response_mode"], "LLM")
         self.assertEqual(settings["llmprovider"], "OLLAMA")
-        self.assertEqual(settings["model"], "llama3.2:3b")
+        self.assertEqual(settings["model"], ollama_model)
 
     def test_assign_different_values_and_verify_with_get_api(self):
         # Attempt to set invalid LLM provider and model
