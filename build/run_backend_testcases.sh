@@ -113,8 +113,9 @@ TEST_COMMAND=("bash" "-c" "cd /app && echo CHAT_SERVICE_HOST=$CHAT_SERVICE_HOST 
 echo "Container test command: ${TEST_COMMAND[@]}"
 
 # Run the tests inside the Docker container, mounting the project directory
+#  -v /var/run/docker.sock:/var/run/docker.sock
 echo "Running tests inside Docker container..."
-docker run --rm --network=primitivechat_network -v "$PROJECT_ROOT:/app" --env-file "$TEMP_ENV_FILE" "$IMAGE_NAME" "${TEST_COMMAND[@]}"
+docker run --rm --network=primitivechat_network -v "$PROJECT_ROOT:/app" -v /var/run/docker.sock:/var/run/docker.sock --env-file "$TEMP_ENV_FILE" "$IMAGE_NAME" "${TEST_COMMAND[@]}"
 echo "Tests finished running inside Docker container."
 
 # Get the exit code from the docker container
