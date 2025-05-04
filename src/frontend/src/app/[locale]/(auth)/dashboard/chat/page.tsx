@@ -37,7 +37,7 @@ export default function Page() {
 
       {/* Chat Area */}
       <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0'}`}>
-        <Chat chatId={chatId} isSidebarOpen={isSidebarOpen} />
+        <Chat chatId={chatId} toggleSidebar={toggleSidebar} setChatId={setChatId} isSidebarOpen={isSidebarOpen} />
       </div>
     </div>
   );
