@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install curl and necessary build dependencies for Python packages
 RUN apt-get update && \
-    apt-get install -y curl default-mysql-client libmagic1 libmagic-dev tesseract-ocr && \
+    apt-get install -y docker.io curl default-mysql-client libmagic1 libmagic-dev tesseract-ocr && \
     apt-get clean
 
 # Copy the requirements file and install dependencies
@@ -20,9 +20,6 @@ RUN mkdir -p $MODEL_DIR
 
 # Download and save the Sentence Transformer model in the directory
 RUN python -c "from sentence_transformers import SentenceTransformer; model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); model.save('$MODEL_DIR')"
-
-
-RUN apt-get update && apt-get install -y docker.io
 
 # Create the folder and add the test file
 RUN mkdir -p /app/test/IntegrationTests && \

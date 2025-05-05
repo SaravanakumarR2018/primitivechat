@@ -556,17 +556,7 @@ class FileExtractor:
                         slide_elements.append({
                             "type": "chart_table",
                             "content": table_data
-                        })   
-
-                # Combine slide elements
-                slide_text = "\n".join(
-                    json.dumps(element["content"]) if isinstance(element["content"], list) else element["content"]
-                    for element in slide_elements
-                )
-                results.append({
-                    "metadata": {"page_number": slide_number},
-                    "text": slide_text
-                })
+                        })
 
                         # Combine slide elements
                 slide_text = "\n".join(
