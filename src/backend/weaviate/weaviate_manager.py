@@ -71,7 +71,7 @@ class WeaviateManager(metaclass=Singleton):
                             "name": "page_numbers",
                             "dataType": ["int[]"],
                             "description": "An object containing metadata like page number",
-                            "indexInverted": False
+                            "indexInverted": True
                         },
                         {
                             "name": "customer_guid",

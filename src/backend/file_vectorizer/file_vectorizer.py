@@ -39,7 +39,7 @@ class FileVectorizer(metaclass=Singleton):
     def extract_file(self, customer_guid, filename):
         logger.info(f"Extracting file: {filename} for customer: {customer_guid}")
         try:
-            self.extracted.extract_file(customer_guid, filename)
+            self.extracted.extract_file(customer_guid, filename,local_path=None)
             return True
         except Exception as e:
             logger.error(f"Error during extraction of {filename}: {e}")

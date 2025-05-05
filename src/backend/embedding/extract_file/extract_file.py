@@ -50,16 +50,20 @@ class CustomShapeType(Enum):
     PICTURE = 13
 
 class UploadFileForChunks(metaclass=Singleton):
-    def __init__(self):
+    def __init__(self,test_mode=False):
         self.minio_manager = MinioManager()
         self.file_extract = FileExtractor()
         self.download_and_upload = LocalFileDownloadAndUpload()
+        self.test_mode = test_mode
 
-    def extract_file(self, customer_guid: str, filename: str):
+    def extract_file(self, customer_guid: str, filename: str,local_path):
         logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
 
-        #Download and save file locally
-        local_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+        # Skip download in test mode if local_path is provided
+        if not self.test_mode:
+            local_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+        else:
+            logger.info(f"Test mode: Skipping Minio download. Using local path: {local_path}")
 
         #Verify file type
         try:
