@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 type Message = {
-  id: string;
   sender: 'user' | 'ai';
   text: string;
-  timestamp: number;
+  id?: string;
 };
 
 function generateUUID(): string {
@@ -31,8 +30,9 @@ export default function Chat({
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isNewChat, setIsNewChat] = useState(true);
-
+  const controllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [localChatId, setLocalChatId] = useState<string | null>(null);
 
   // Load messages from sessionStorage when chatId changes
   useEffect(() => {
@@ -64,36 +64,101 @@ export default function Chat({
     }
   }, [messages]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) {
       return;
     }
 
-    const userMessage: Message = {
-      id: generateUUID(),
-      sender: 'user',
-      text: input,
-      timestamp: Date.now(),
-    };
-
-    // Add user message immediately
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, { sender: 'user', text: input }]);
     setInput('');
-    setIsTyping(true); // Show typing indicator before AI responds
+    setIsTyping(true);
 
-    // Simulate AI response delay (500ms)
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: generateUUID(),
-        sender: 'ai',
-        text: 'This is a default AI response.',
-        timestamp: Date.now(),
-      };
+    const controller = new AbortController();
+    controllerRef.current = controller;
 
-      // Add AI response
-      setMessages(prev => [...prev, aiResponse]);
+    try {
+      const response = await fetch('/api/backend/sendMessage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: input,
+          ...(localChatId ? { chatId: localChatId } : {}), // <-- only include if exists
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error('Streaming failed');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let currentText = '';
+      let newChatId: string | null = null;
+
+      const aiMessageId = generateUUID();
+      setMessages(prev => [
+        ...prev,
+        { id: aiMessageId, sender: 'ai', text: '' },
+      ]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || trimmedLine === 'data: [DONE]') {
+            continue;
+          }
+
+          if (trimmedLine.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmedLine.slice(6));
+
+              const token = json.choices?.[0]?.delta?.content;
+              if (token) {
+                currentText += token;
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.id === aiMessageId ? { ...m, text: currentText } : m,
+                  ),
+                );
+              }
+
+              if (!localChatId && json.chat_id && !newChatId) {
+                newChatId = json.chat_id;
+              }
+            } catch (error) {
+              // Handle JSON parsing error
+              console.error('Failed to parse JSON:', error);
+              console.error('Failed to parse chunk:', trimmedLine);
+            }
+          }
+        }
+      }
+
+      if (newChatId) {
+        setLocalChatId(newChatId);
+      }
+    } catch (err) {
+      console.error('Error during stream:', err);
+    } finally {
       setIsTyping(false);
-    }, 500);
+    }
+  };
+
+  const stopStreaming = () => {
+    controllerRef.current?.abort();
+    setIsTyping(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -120,10 +185,10 @@ export default function Chat({
                   key={msg.id}
                   className={`flex w-full sm:px-24 ${
                     msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                  } animate-fade-in`}
+                  }`}
                 >
                   <div
-                    className={`text-md relative max-w-[75%] rounded-xl px-4 py-2 shadow-md transition-all duration-300 sm:max-w-[60%] md:max-w-[50%] lg:max-w-[40%] xl:max-w-[35%] ${
+                    className={`relative max-w-[75%] rounded-xl px-4 py-2 shadow-md transition-all duration-300 sm:max-w-[60%] md:max-w-[50%] lg:max-w-[40%] xl:max-w-[35%] ${
                       msg.sender === 'user'
                         ? 'rounded-br-none bg-blue-400 text-white'
                         : 'rounded-bl-none bg-gray-200 text-gray-800'
@@ -145,7 +210,7 @@ export default function Chat({
 
         {/* Typing Indicator (shown when bot is typing) */}
         {isTyping && (
-          <div className="animate-fade-in flex w-full sm:pl-24">
+          <div className="flex w-full sm:pl-24">
             <div className="flex space-x-1 rounded-xl bg-gray-200 px-4 py-2 shadow-md">
               <span className="size-2 animate-bounce rounded-full bg-gray-600"></span>
               <span className="size-2 animate-bounce rounded-full bg-gray-600 delay-150"></span>
