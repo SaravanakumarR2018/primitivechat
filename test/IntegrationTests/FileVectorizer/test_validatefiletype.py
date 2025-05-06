@@ -74,6 +74,7 @@ class TestFileLifecycleWithMonitoring(unittest.TestCase):
 
             output_path = os.path.join(OUTPUT_DIR, f"{filename}.rawcontent")
             with open(output_path, 'w', encoding='utf-8') as f:
+              json.dump(extracted_content, f)
      
             logger.info(f"Extracted raw content for {filename} saved at {output_path}")
             self.assertTrue(len(json.dumps(extracted_content).strip()) > 0, f"No extracted content found for {filename}")
