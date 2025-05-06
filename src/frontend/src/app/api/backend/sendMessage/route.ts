@@ -1,4 +1,3 @@
-// app/api/backend/sendmessage/route.ts
 import { auth } from '@clerk/nextjs/server';
 import type { NextRequest } from 'next/server';
 
@@ -14,6 +13,7 @@ export async function POST(req: NextRequest) {
 
   const API_BASE_URL = `http://${CHAT_SERVICE_HOST}:${CHAT_SERVICE_PORT}`;
   const body = await req.json();
+
   const { message, chatId } = body;
 
   const { getToken } = auth();
@@ -41,12 +41,27 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify(payload),
   });
 
-  return new Response(response.body, {
-    status: response.status,
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        const reader = response.body!.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          controller.enqueue(value);
+        }
+        controller.close();
+      },
+    }),
+    {
+      status: response.status,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     },
-  });
+  );
 }
