@@ -1,3 +1,19 @@
 uvicorn==0.23.2
 requests==2.32.2
 PyJWT==2.10.1
+pillow==11.1.0
+spacy==3.8.4
+minio==7.2.10
+fastapi==0.115.8
+weaviate==0.1.2
+weaviate-client==3.26.7
+
+# Install CPU-specific PyTorch components
+numpy<2
+torch==2.2.0+cpu
+torchvision==0.17.0+cpu
+torchaudio==2.2.0+cpu
+-f https://download.pytorch.org/whl/torch_stable.html
+
+# Install sentence-transformers after CPU torch is available
+sentence-transformers==3.4.1

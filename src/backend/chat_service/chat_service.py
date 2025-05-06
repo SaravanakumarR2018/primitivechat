@@ -1,7 +1,7 @@
 import logging
 import json
 from http import HTTPStatus
-
+import os
 from sqlalchemy.exc import SQLAlchemyError
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form, Depends
@@ -16,6 +16,7 @@ from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.chat_service.llm_service import LLMService
+from src.backend.embedding.extract_file.extract_file import UploadFileForChunks
 
 # Setup logging configuration
 logger = get_primitivechat_logger(__name__)
@@ -45,6 +46,12 @@ class GetAllChatsRequest(BaseModel):
 
 class DeleteChatsRequest(BaseModel):
     chat_id: str
+
+#testing
+class ExtractFileRequest(BaseModel):
+    filename: str
+    customer_guid: str
+    local_path: str    
 
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
@@ -402,6 +409,40 @@ async def get_files_deletion_status(request: Request, page: int = 1, page_size: 
     except Exception as e:
         logger.error(f"Unexpected error in get_files_deletion_status: {e}")
         raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR,detail="An unexpected error occurred")
+
+#Testing API
+@app.post("/extractfile", tags=["File Processing"])
+async def extract_rawcontent(extract_req: ExtractFileRequest):
+    try:
+        processor = UploadFileForChunks(test_mode=True)
+        raw_content = processor.extract_file(
+            customer_guid=extract_req.customer_guid,
+            filename=extract_req.filename,
+            local_path=extract_req.local_path
+        )
+        
+        logger.info(f"Raw content returned: {raw_content}")
+        
+        if isinstance(raw_content, str):
+            logger.info(f"Loading extracted content from file: {raw_content}")
+            if not os.path.exists(raw_content):
+                raise HTTPException(status_code=500, detail=f"Extracted file not found: {raw_content}")
+            with open(raw_content, "r", encoding="utf-8") as f:
+                response_rawcontent = json.load(f)
+        else:
+            if isinstance(raw_content, dict):
+                response_rawcontent = raw_content
+            else:
+                response_rawcontent = json.loads(raw_content)
+        
+        return {
+            "status": "success",
+            "filename": extract_req.filename,
+            "rawcontent": response_rawcontent
+        }
+    except Exception as e:
+        logger.error(f"Error in /extractfile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract raw content: {str(e)}")
 
 @app.post("/chat", tags=["Chat Management"])
 async def chat(chat_request: ChatRequest, request: Request, auth=Depends(auth_admin_dependency)):

@@ -6,6 +6,7 @@ services:
       - primitivechat_network
     volumes:
       - "${PROJECT_ROOT}/src:/app/src"  # Absolute path for source code mounting
+      - "${PROJECT_ROOT}/test/IntegrationTests/FileVectorizer/FilesTesting:/app/test/IntegrationTests/FileVectorizer/FilesTesting"
     ports:
       - "${CHAT_SERVICE_PORT}:${CHAT_SERVICE_PORT}"
     depends_on:

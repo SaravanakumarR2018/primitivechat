@@ -50,16 +50,20 @@ class CustomShapeType(Enum):
     PICTURE = 13
 
 class UploadFileForChunks(metaclass=Singleton):
-    def __init__(self):
+    def __init__(self,test_mode=False):
         self.minio_manager = MinioManager()
         self.file_extract = FileExtractor()
         self.download_and_upload = LocalFileDownloadAndUpload()
+        self.test_mode = test_mode
 
-    def extract_file(self, customer_guid: str, filename: str):
+    def extract_file(self, customer_guid: str, filename: str,local_path):
         logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
 
-        #Download and save file locally
-        local_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+        # Skip download in test mode if local_path is provided
+        if not self.test_mode:
+            local_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+        else:
+            logger.info(f"Test mode: Skipping Minio download. Using local path: {local_path}")
 
         #Verify file type
         try:
@@ -100,8 +104,11 @@ class UploadFileForChunks(metaclass=Singleton):
 
         #Upload extracted content
         try:
-            self.download_and_upload.upload_extracted_content(customer_guid, filename, output_file_path)
-            return {"message": f"{file_type.name} extracted and uploaded successfully."}
+            if self.test_mode:
+                return output_file_path
+            else:    
+                self.download_and_upload.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": f"{file_type.name} extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"File upload error: {e}")
             raise Exception(f"File upload failed.{e}")
@@ -166,6 +173,11 @@ class FileExtractor:
         try:
             mime = magic.Magic(mime=True)
             file_type = mime.from_file(file_path)
+
+            # Check file extension as a fallback for ambiguous types
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext == ".java":
+                return FileType.CODE
 
             if file_type=="application/zip":
                 if self.is_docx(file_path):
@@ -553,16 +565,6 @@ class FileExtractor:
                             "type": "chart_table",
                             "content": table_data
                         })   
-
-                # Combine slide elements
-                slide_text = "\n".join(
-                    json.dumps(element["content"]) if isinstance(element["content"], list) else element["content"]
-                    for element in slide_elements
-                )
-                results.append({
-                    "metadata": {"page_number": slide_number},
-                    "text": slide_text
-                })
 
                         # Combine slide elements
                 slide_text = "\n".join(
@@ -1018,6 +1020,7 @@ class FileExtractor:
         except Exception as e:
             logger.error(f"Code content extraction failed for file '{filename}': {e}")
             raise Exception(f"Code content extraction failed: {e}")
+
 
 
 if __name__ == "__main__":
