@@ -1,4 +1,3 @@
-/* eslint-disable unused-imports/no-unused-vars */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -245,25 +244,45 @@ export default function Chat({
             placeholder="Type a message..."
           />
           <button
-            onClick={sendMessage}
+            onClick={isTyping ? stopStreaming : sendMessage}
             type="button"
-            title="Send"
+            title={isTyping ? 'Stop' : 'Send'}
             className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="size-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 12h14M12 5l7 7-7 7"
-              />
-            </svg>
+            {isTyping
+              ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="size-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                )
+              : (
+            // Send icon
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="size-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 12h14M12 5l7 7-7 7"
+                    />
+                  </svg>
+                )}
           </button>
         </div>
       </div>
