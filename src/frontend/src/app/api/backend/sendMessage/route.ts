@@ -2,18 +2,17 @@
 import { auth } from '@clerk/nextjs/server';
 import type { NextRequest } from 'next/server';
 
-const CHAT_SERVICE_HOST = process.env.CHAT_SERVICE_HOST;
-const CHAT_SERVICE_PORT = process.env.CHAT_SERVICE_PORT;
-
-if (!CHAT_SERVICE_HOST || !CHAT_SERVICE_PORT) {
-  throw new Error('CHAT_SERVICE_HOST or CHAT_SERVICE_PORT is missing from environment variables.');
-}
-
-const API_BASE_URL = `http://${CHAT_SERVICE_HOST}:${CHAT_SERVICE_PORT}`;
-
 export const runtime = 'edge'; // Required for streaming
 
 export async function POST(req: NextRequest) {
+  const CHAT_SERVICE_HOST = process.env.CHAT_SERVICE_HOST;
+  const CHAT_SERVICE_PORT = process.env.CHAT_SERVICE_PORT;
+
+  if (!CHAT_SERVICE_HOST || !CHAT_SERVICE_PORT) {
+    throw new Error('CHAT_SERVICE_HOST or CHAT_SERVICE_PORT is missing from environment variables.');
+  }
+
+  const API_BASE_URL = `http://${CHAT_SERVICE_HOST}:${CHAT_SERVICE_PORT}`;
   const body = await req.json();
   const { message, chatId } = body;
 
