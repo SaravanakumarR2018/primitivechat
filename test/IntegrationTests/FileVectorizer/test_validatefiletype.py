@@ -2,6 +2,8 @@ import json
 import sys
 import unittest
 import logging
+import weaviate
+from weaviate import Client
 import requests
 import os
 import uuid
@@ -9,7 +11,6 @@ import shutil
 import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from utils.api_utils import add_customer, create_test_token
-from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 from src.backend.lib.logging_config import get_primitivechat_logger
 
@@ -17,7 +18,7 @@ from src.backend.lib.logging_config import get_primitivechat_logger
 # Setup logging configuration
 logger = get_primitivechat_logger(__name__)
 
-TEST_FILES = ["OPERATING.pptx","december.jpeg","Googleprocess.pdf","images_1.jpg","Project_Flow.docx",
+TEST_FILES = ["Full_Pitch.pptx","december.jpeg","Googleprocess.pdf","images_1.jpg","Project_Flow.docx",
               "sample.xlsx","A_basic_paragraph.png","NewFIleExtract.json","Benefits.js","upgrade.php",
               "alarm_clock.py","actions.yaml","OptionMenu1.java"]
 
@@ -30,7 +31,6 @@ class TestFileLifecycleWithMonitoring(unittest.TestCase):
 
     def setUp(self):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
-        self.weaviate = WeaviateManager()
         self.customer_data = add_customer("test_org_single")
         self.customer_guid = self.customer_data["customer_guid"]
         self.headers = {'Authorization': f'Bearer {create_test_token(org_id=self.customer_data["org_id"],org_role="org:admin")}'}
@@ -74,7 +74,7 @@ class TestFileLifecycleWithMonitoring(unittest.TestCase):
 
             output_path = os.path.join(OUTPUT_DIR, f"{filename}.rawcontent")
             with open(output_path, 'w', encoding='utf-8') as f:
-              json.dump(extracted_content, f)
+                json.dump(extracted_content, f)
      
             logger.info(f"Extracted raw content for {filename} saved at {output_path}")
             self.assertTrue(len(json.dumps(extracted_content).strip()) > 0, f"No extracted content found for {filename}")
@@ -128,42 +128,48 @@ class TestFileLifecycleWithMonitoring(unittest.TestCase):
 
             time.sleep(3)
 
-    def _validate_pages(self, filename, extracted_pages):
-       
-        class_name = self.weaviate.generate_weaviate_class_name(self.customer_guid)
+    def generate_weaviate_class_name(self,customer_guid):
 
+        return f"Customer_{customer_guid.replace('-', '_')}"        
+
+    def _validate_pages(self, filename, extracted_pages):
+        class_name = self.generate_weaviate_class_name(self.customer_guid)
+    
+        # Initialize Weaviate client
+        client = Client(f"http://{os.getenv('WEAVIATE_HOST')}:{os.getenv('WEAVIATE_PORT')}")
+    
         for page in extracted_pages:
             page_num = page["metadata"]["page_number"]
             extracted_text = page["text"]
-            
+        
             try:
-                result = self.weaviate.client.query.get(
-                    class_name,
-                    ["text", "page_numbers", "filename"]
-                ).with_where({
-                    "operator": "And",
-                    "operands": [
-                        {"path": ["filename"], "operator": "Equal", "valueText": filename},
-                        {"path": ["page_numbers"], "operator": "ContainsAny", "valueInt": [page_num]}
-                    ]
-                }).do()
+                result = client.query\
+                    .get(class_name, ["text", "page_numbers", "filename"])\
+                    .with_where({
+                        "operator": "And",
+                        "operands": [
+                            {"path": ["filename"], "operator": "Equal", "valueText": filename},
+                            {"path": ["page_numbers"], "operator": "ContainsAny", "valueInt": [page_num]}
+                        ]
+                    }).do()
             except Exception as e:
                 self.fail(f"Error querying Weaviate for {filename} page {page_num}: {str(e)}")
-                
+            
             if not result or not isinstance(result, dict):
                 self.fail(f"Invalid Weaviate response format for {filename} page {page_num}")
-            
+        
             data = result.get("data", {}).get("Get", {}).get(class_name, [])
             if not isinstance(data, list):
                 if isinstance(data, dict):
                     data = [data]
                 else:
                     self.fail(f"Invalid Weaviate items format for {filename} page {page_num}")
-            
+        
             if not data:
                 self.fail(f"No Weaviate results for {filename} page {page_num}")
 
             norm_extracted = " ".join(extracted_text.strip().split()).lower()
+            found = False  # Initialize found flag
 
             for record in data:
                 record_text = record.get("text", "")
