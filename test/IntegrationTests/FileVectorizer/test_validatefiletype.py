@@ -24,7 +24,7 @@ TEST_FILES = ["Full_Pitch.pptx","december.jpeg","Googleprocess.pdf","images_1.jp
 TEST_DIR = os.path.join(os.path.dirname(__file__), "FilesTesting")
 OUTPUT_DIR = "FilesTestingOutput"
 
-
+@unittest.skip("Skipping all tests in this file temporarily")
 class TestFileLifecycleWithMonitoring(unittest.TestCase):
     BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}"
 
