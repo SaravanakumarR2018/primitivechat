@@ -9,15 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN apt-get update && apt-get install -y docker.io
 
-# Set environment variable for model directory
-ENV MODEL_DIR=/models
-
-# Create the model directory
-RUN mkdir -p $MODEL_DIR
-
-# Download and save the Sentence Transformer model in the directory
-RUN python -c "from sentence_transformers import SentenceTransformer; model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); model.save('$MODEL_DIR')"
-
 # Create the folder and add the test file
 RUN mkdir -p /app/test/IntegrationTests && \
     echo "import unittest\n\nclass TestSample(unittest.TestCase):\n    def test_success(self):\n        print('testcase succeeds')\n        self.assertTrue(True)\n\nif __name__ == '__main__':\n    unittest.main()" > /app/test/IntegrationTests/test_sample.py
