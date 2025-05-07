@@ -84,6 +84,7 @@ jobs:
         working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
+          DOCKER_HOST: unix:///var/run/docker.sock
         run: docker-compose up -d
 
       # Step 9: Check if Ollama server is up
