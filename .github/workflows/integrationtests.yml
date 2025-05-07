@@ -12,8 +12,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      DOCKER_HOST: unix:///var/run/docker.sock
 
     steps:
       # Step 1: Check out the pull request code
@@ -86,7 +84,6 @@ jobs:
         working-directory: src/backend  # Specify working directory here
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-          DOCKER_HOST: unix:///var/run/docker.sock
         run: docker-compose up -d
 
       # Step 9: Check if Ollama server is up
@@ -119,13 +116,7 @@ jobs:
             fi
           done
           echo "Error: Server did not start within 2 minutes."
-          exit 1
-
-      # Step 11: Install Python Dependencies
-      - name: Install Python Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r build/test_docker/requirements.txt    
+          exit 1  
 
       # Step 12: Test model response
       - name: Test model response
@@ -158,6 +149,5 @@ jobs:
         working-directory: src/backend  # Specify working directory here as well
         env:
           PROJECT_ROOT: ${{ github.workspace }}
-          DOCKER_HOST: unix:///var/run/docker.sock
         if: always()
         run: docker-compose down
