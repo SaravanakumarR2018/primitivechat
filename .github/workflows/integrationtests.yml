@@ -118,6 +118,12 @@ jobs:
           echo "Error: Server did not start within 2 minutes."
           exit 1
 
+      # Step 11: Install Python Dependencies
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r build/test_docker/requirements.txt    
+
       # Step 12: Test model response
       - name: Test model response
         run: |
