@@ -2,7 +2,6 @@ import json
 import sys
 import unittest
 import logging
-import weaviate
 from weaviate import Client
 import requests
 import os
