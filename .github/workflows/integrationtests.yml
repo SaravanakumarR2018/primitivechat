@@ -156,5 +156,6 @@ jobs:
         working-directory: src/backend  # Specify working directory here as well
         env:
           PROJECT_ROOT: ${{ github.workspace }}
+          DOCKER_HOST: unix:///var/run/docker.sock
         if: always()
         run: docker-compose down
