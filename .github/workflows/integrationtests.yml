@@ -12,6 +12,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
 
     steps:
       # Step 1: Check out the pull request code
