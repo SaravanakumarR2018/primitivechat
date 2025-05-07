@@ -3,11 +3,11 @@ FROM python:3.12-slim
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
-COPY build/test_docker/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 RUN apt-get update && apt-get install -y docker.io
+
+# Copy the requirements file and install dependencies
+COPY ./build/test_docker/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Create the folder and add the test file
 RUN mkdir -p /app/test/IntegrationTests && \
