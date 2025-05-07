@@ -6,7 +6,6 @@ import weaviate
 from weaviate import Client
 import requests
 import os
-import uuid
 import shutil
 import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
