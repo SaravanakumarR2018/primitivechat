@@ -135,8 +135,7 @@ class TestFileLifecycleWithMonitoring(unittest.TestCase):
         class_name = self.generate_weaviate_class_name(self.customer_guid)
     
         # Initialize Weaviate client
-        client = Client(f"http://{os.getenv('WEAVIATE_HOST')}:{os.getenv('WEAVIATE_PORT')}",
-                       startup_period=60)
+        client = Client(f"http://localhost:9002")
     
         for page in extracted_pages:
             page_num = page["metadata"]["page_number"]
