@@ -78,6 +78,13 @@ jobs:
             exit 1
           }
           echo "Docker image chat_service_image built successfully."
+          
+          echo "Building Docker image test_image"
+          docker build -t test_image:latest -f ${PROJECT_ROOT}/build/test_docker/Dockerfile ${PROJECT_ROOT} || {
+            echo "Docker build failed for test_image. Exiting..."
+            exit 1
+          }
+          echo "Docker image test_image built successfully."   
 
       # Step 8: Run Docker Compose
       - name: Run docker-compose up
