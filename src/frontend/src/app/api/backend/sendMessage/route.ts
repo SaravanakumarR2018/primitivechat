@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
   const API_BASE_URL = `http://${CHAT_SERVICE_HOST}:${CHAT_SERVICE_PORT}`;
   const body = await req.json();
 
-  const { message, chatId } = body;
+  const { question, chat_id } = body;
+
+  if (!question && !chat_id) {
+    return new Response(JSON.stringify({ error: 'Question or chatId is required' }), { status: 400 });
+  }
 
   const { getToken } = auth();
   const token = await getToken();
@@ -24,12 +28,12 @@ export async function POST(req: NextRequest) {
   }
 
   const payload: any = {
-    question: message,
+    question,
     stream: true,
   };
 
-  if (chatId) {
-    payload.chat_id = chatId;
+  if (chat_id) {
+    payload.chat_id = chat_id;
   }
 
   const response = await fetch(`${API_BASE_URL}/chat`, {
