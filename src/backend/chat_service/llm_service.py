@@ -44,13 +44,13 @@ class LLMService(metaclass=Singleton):
     """
     Service to manage interactions with the LLM and maintain conversation history.
     """
-    llm_response = "NONLLM"  # Static variable to toggle response mode
+    llm_response = "LLM"  # Static variable to toggle response mode
     max_conversations = 200
     buffer_size = 32
     histories = OrderedDict()
     llm = None
-    LLMProvider = "OLLAMA"  # Default provider
-    model = os.getenv("OLLAMA_MODEL")  # Default model name
+    LLMProvider = "GEMINI"  # Default provider
+    model = os.getenv("GEMINI_MODEL")  # Default model name
 
     def __init__(self, max_conversations=200, buffer_size=32):
         logger.info("Initializing LLMService")
@@ -243,7 +243,7 @@ class LLMService(metaclass=Singleton):
         if session_id not in LLMService.histories:
             logger.debug(f"[NEW] Creating new history for session_id: {session_id}")
             history = ConversationBufferWindowMemory(k=self.buffer_size)
-            history.chat_memory.add_message(SystemMessage(content="You are a customer support agent. You will be provided context from RAG system to provide answers to user's questions .If there is no context, you can answer from your knowledge. Do not hallucinate. If the user is enabling greetings, then you can talk without context. Make the tone a bit professional. Avoid Inner monologue or first-person thoughts. Keep the <think> tags within 1 or 2 sentences."))
+            history.chat_memory.add_message(SystemMessage(content="You are a customer support agent. You will be provided context from a RAG system to answer user questions. If there is no context, you may answer using general knowledge, but do not hallucinate. If the user is enabling greetings, you may respond without context. Use a professional tone. Always respond in Markdown format so that the UI can render the content cleanly (e.g., use bold, bullet points, tables, or code blocks when helpful). Keep the <think> tags within 1 or 2 sentences. Avoid inner monologue or first-person thoughts."))
 
             # Fetch messages from the database
             messages = db_manager.get_paginated_chat_messages(customer_guid, chat_id, page=1, page_size=self.buffer_size * 3)
