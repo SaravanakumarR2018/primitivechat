@@ -44,7 +44,7 @@ class LLMService(metaclass=Singleton):
     """
     Service to manage interactions with the LLM and maintain conversation history.
     """
-    llm_response = "NONLLM"  # Static variable to toggle response mode
+    llm_response = "LLM"  # Static variable to toggle response mode
     max_conversations = 200
     buffer_size = 32
     histories = OrderedDict()
