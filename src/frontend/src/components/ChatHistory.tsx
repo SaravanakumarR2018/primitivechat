@@ -1,5 +1,8 @@
+/* eslint-disable ts/no-use-before-define */
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
+import { useOrganization } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 
 export default function ChatHistory({
@@ -17,6 +20,14 @@ export default function ChatHistory({
 }) {
   const [chats, setChats] = useState<{ id: string; preview: string; timestamp: number }[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const { organization } = useOrganization();
+
+  useEffect(() => {
+    if (!organization) {
+      return;
+    }
+    handleNewChat();
+  }, [organization?.id]);
 
   useEffect(() => {
     // Detect mobile screen width
@@ -213,7 +224,7 @@ export default function ChatHistory({
                         type="button"
                         title="Select Chat"
                         onClick={() => onSelect(chat.id)}
-                        className="text-md flex-1 truncate text-left"
+                        className="flex-1 truncate text-left text-base"
                       >
                         {chat.preview}
                         ...

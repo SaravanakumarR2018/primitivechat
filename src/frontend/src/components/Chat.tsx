@@ -1,5 +1,6 @@
 'use client';
 
+import { useOrganization } from '@clerk/nextjs';
 import { useEffect, useRef, useState } from 'react';
 
 type Message = {
@@ -7,17 +8,6 @@ type Message = {
   text: string;
   id?: string;
 };
-
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 export default function Chat({
   chatId,
@@ -29,47 +19,48 @@ export default function Chat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isNewChat, setIsNewChat] = useState(true);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [localChatId, setLocalChatId] = useState<string | null>(null);
+  const { organization } = useOrganization();
 
-  // Load messages from sessionStorage when chatId changes
+  // Load messages when chatId changes
   useEffect(() => {
-    const savedChats = sessionStorage.getItem(`chat-${chatId}`);
-    if (savedChats) {
-      setMessages(JSON.parse(savedChats));
-      setIsNewChat(false);
-    } else {
-      setMessages([]);
-      setIsNewChat(true);
-    }
+    const loadChat = () => {
+      if (!chatId) {
+        // New chat - reset everything
+        setMessages([]);
+        setCurrentChatId(null);
+        return;
+      }
+
+      // Existing chat - try to load from session storage
+      const savedChat = sessionStorage.getItem(chatId);
+      if (savedChat) {
+        const parsed = JSON.parse(savedChat);
+        setMessages(parsed.messages || []);
+        setCurrentChatId(parsed.chatId || null);
+      } else {
+        // New chat instance
+        setMessages([]);
+        setCurrentChatId(null);
+      }
+    };
+
+    loadChat();
   }, [chatId]);
 
-  // Save messages to sessionStorage whenever messages change
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (messages.length > 0 || isNewChat) {
-      sessionStorage.setItem(`chat-${chatId}`, JSON.stringify(messages));
-      window.dispatchEvent(new Event('storage'));
-      setIsNewChat(true);
-    }
-  }, [messages, chatId, isNewChat]);
-
-  // Auto-scroll to the latest message
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }, 100); // Small delay for smooth scrolling
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = async () => {
-    if (!input.trim()) {
+  const startNewChat = async (firstMessage: string) => {
+    if (!firstMessage.trim()) {
       return;
     }
-
-    setMessages(prev => [...prev, { sender: 'user', text: input }]);
+    const userMessage: Message = { sender: 'user', text: firstMessage };
+    setMessages([userMessage]);
     setInput('');
     setIsTyping(true);
 
@@ -79,30 +70,27 @@ export default function Chat({
     try {
       const response = await fetch('/api/backend/sendMessage', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
-          ...(localChatId ? { chatId: localChatId } : {}), // <-- only include if exists
+          question: firstMessage,
+          stream: true,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Streaming failed');
+        throw new Error('Failed to start new chat');
       }
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
+      const decoder = new TextDecoder();
       let buffer = '';
-      let currentText = '';
-      let newChatId: string | null = null;
+      const aiMessage = { id: crypto.randomUUID(), sender: 'ai' as const, text: '' };
+      let newChatId = '';
+      let userId = '';
+      const orgId = organization?.id || '';
 
-      const aiMessageId = generateUUID();
-      setMessages(prev => [
-        ...prev,
-        { id: aiMessageId, sender: 'ai', text: '' },
-      ]);
+      setMessages(prev => [...prev, aiMessage]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -124,33 +112,157 @@ export default function Chat({
             try {
               const json = JSON.parse(trimmedLine.slice(6));
 
-              const token = json.choices?.[0]?.delta?.content;
-              if (token) {
-                currentText += token;
-                setMessages(prev =>
-                  prev.map(m =>
-                    m.id === aiMessageId ? { ...m, text: currentText } : m,
-                  ),
-                );
+              // Get IDs from first response
+              if (json.chat_id && !newChatId) {
+                newChatId = json.chat_id;
+                setCurrentChatId(newChatId);
+              }
+              if (json.user_id && !userId) {
+                userId = json.user_id;
               }
 
-              if (!localChatId && json.chat_id && !newChatId) {
-                newChatId = json.chat_id;
+              // Update AI message
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                aiMessage.text += content;
+                setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
               }
             } catch (error) {
-              // Handle JSON parsing error
-              console.error('Failed to parse JSON:', error);
-              console.error('Failed to parse chunk:', trimmedLine);
+              console.error('Error parsing stream:', error);
             }
           }
         }
       }
 
-      if (newChatId) {
-        setLocalChatId(newChatId);
+      // Save the new chat
+      if (newChatId && orgId && userId) {
+        const storageKey = `${newChatId}-${orgId}-${userId}`;
+        const chatData = {
+          chatId: newChatId,
+          messages: [userMessage, aiMessage],
+          createdAt: Date.now(),
+        };
+        sessionStorage.setItem(storageKey, JSON.stringify(chatData));
       }
     } catch (err) {
-      console.error('Error during stream:', err);
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('New chat error:', err);
+        setMessages(prev => prev.slice(0, -1)); // Remove incomplete AI message
+      }
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) {
+      return;
+    }
+
+    // If no current chat, treat as new chat
+    if (!currentChatId) {
+      return startNewChat(input);
+    }
+
+    const userMessage: Message = { sender: 'user', text: input };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsTyping(true);
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    try {
+      const response = await fetch('/api/backend/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: input,
+          stream: true,
+          chat_id: currentChatId,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error('Streaming failed');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const aiMessage = { id: crypto.randomUUID(), sender: 'ai' as const, text: '' };
+      let newChatId = currentChatId;
+      let userId = '';
+      const orgId = organization?.id || '';
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || trimmedLine === 'data: [DONE]') {
+            continue;
+          }
+
+          if (trimmedLine.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmedLine.slice(6));
+
+              // Update chat_id if changed
+              if (json.chat_id && json.chat_id !== currentChatId) {
+                newChatId = json.chat_id;
+                setCurrentChatId(newChatId);
+              }
+              if (json.user_id) {
+                userId = json.user_id;
+              }
+
+              // Update AI message
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                aiMessage.text += content;
+                setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
+              }
+            } catch (error) {
+              console.error('Error parsing stream:', error);
+            }
+          }
+        }
+      }
+
+      // Save updated chat
+      if (newChatId && orgId && userId) {
+        const storageKey = `${newChatId}-${orgId}-${userId}`;
+        const finalMessages = [...newMessages, aiMessage];
+        const chatData = {
+          chatId: newChatId,
+          messages: finalMessages,
+          updatedAt: Date.now(),
+        };
+
+        // If chat_id changed, clean up old storage
+        if (newChatId !== currentChatId) {
+          const oldKey = `${currentChatId}-${orgId}-${userId}`;
+          sessionStorage.removeItem(oldKey);
+        }
+
+        sessionStorage.setItem(storageKey, JSON.stringify(chatData));
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Stream error:', err);
+        setMessages(prev => prev.slice(0, -1)); // Remove incomplete AI message
+      }
     } finally {
       setIsTyping(false);
     }
@@ -170,9 +282,7 @@ export default function Chat({
 
   return (
     <div className="flex h-screen flex-col pb-28 pt-24 sm:pt-12">
-      {/* Chat Messages */}
       <div className="scrollbar-hide flex flex-1 flex-col items-center space-y-4 overflow-y-auto p-4 md:items-start">
-        {/* Show "Start a new chat" when no messages */}
         {messages.length === 0 && !isTyping
           ? (
               <div className="flex size-full items-center justify-center text-center text-xl text-gray-400">
@@ -182,7 +292,7 @@ export default function Chat({
           : (
               messages.map(msg => (
                 <div
-                  key={msg.id}
+                  key={msg.id || crypto.randomUUID()}
                   className={`flex w-full sm:px-24 ${
                     msg.sender === 'user' ? 'justify-end' : 'justify-start'
                   }`}
@@ -195,8 +305,6 @@ export default function Chat({
                     }`}
                   >
                     {msg.text}
-
-                    {/* Small tail on message bubble for style */}
                     <span
                       className={`absolute -bottom-1 size-3 rotate-45 ${
                         msg.sender === 'user' ? 'right-2 bg-blue-400' : 'left-2 bg-gray-200'
@@ -208,7 +316,6 @@ export default function Chat({
               ))
             )}
 
-        {/* Typing Indicator (shown when bot is typing) */}
         {isTyping && (
           <div className="flex w-full sm:pl-24">
             <div className="flex space-x-1 rounded-xl bg-gray-200 px-4 py-2 shadow-md">
@@ -219,19 +326,17 @@ export default function Chat({
           </div>
         )}
 
-        {/* This div ensures the chat auto-scrolls to the latest message */}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Chat Input */}
       <div
         className={`sticky bottom-0 p-6 transition-all duration-300 ${
           isSidebarOpen ? 'mx-auto w-[calc(100%-26rem)]' : 'left-0 w-full'
         }`}
         style={{
-          position: messages.length === 0 ? 'absolute' : 'fixed', // Use absolute for center, fixed for bottom
-          bottom: messages.length === 0 ? '40%' : '0', // Center when no messages, bottom otherwise
-          transform: messages.length === 0 ? 'translateY(100%)' : 'none', // Center vertically
+          position: messages.length === 0 ? 'absolute' : 'fixed',
+          bottom: messages.length === 0 ? '40%' : '0',
+          transform: messages.length === 0 ? 'translateY(100%)' : 'none',
         }}
       >
         <div className="mx-auto flex max-w-2xl items-center rounded-lg border border-gray-500 bg-gray-200 p-1">
@@ -267,7 +372,6 @@ export default function Chat({
                   </svg>
                 )
               : (
-            // Send icon
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="size-6"
