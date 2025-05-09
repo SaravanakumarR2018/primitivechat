@@ -49,8 +49,8 @@ class LLMService(metaclass=Singleton):
     buffer_size = 32
     histories = OrderedDict()
     llm = None
-    LLMProvider = "OLLAMA"  # Default provider
-    model = os.getenv("OLLAMA_MODEL")  # Default model name
+    LLMProvider = "GEMINI"  # Default provider
+    model = os.getenv("GEMINI_MODEL")  # Default model name
 
     def __init__(self, max_conversations=200, buffer_size=32):
         logger.info("Initializing LLMService")
