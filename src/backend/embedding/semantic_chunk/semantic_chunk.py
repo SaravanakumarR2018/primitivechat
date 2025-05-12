@@ -20,12 +20,19 @@ class ProcessAndUploadBucket(metaclass=Singleton):
         self.chunk_processor = SemanticChunkProcessor()
         self.download_and_upload = LocalFileDownloadAndUpload()
 
-    def process_and_upload(self, customer_guid: str, filename: str):
+    def process_and_upload(self, customer_guid: str, filename: str,local_path , test_mode:bool=None):
+        use_test_mode = test_mode
         try:
-            local_input_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
-            base_filename = filename.replace(".txt", "")
-            with open(local_input_path, "r", encoding="utf-8") as file:
-                pages = json.load(file)
+            if not use_test_mode:
+                local_input_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+                base_filename = filename.replace(".txt", "")
+                with open(local_input_path, "r", encoding="utf-8") as file:
+                    pages = json.load(file)
+            else:
+                base_filename = filename.replace(".txt", "")
+                with open(local_path, "r", encoding="utf-8") as file:
+                    content = file.read()
+                    pages = json.loads(content)
 
             chunks = self.chunk_processor.generate_chunks(pages, customer_guid, base_filename)
 
@@ -36,7 +43,10 @@ class ProcessAndUploadBucket(metaclass=Singleton):
 
             logger.info(f"Processed file saved as '{local_output_path}'.")
 
-            self.download_and_upload.upload_chunked_content(customer_guid, base_filename, local_output_path)
+            if use_test_mode:
+                return local_output_path
+            else:
+                self.download_and_upload.upload_chunked_content(customer_guid, base_filename, local_output_path)
 
         except Exception as e:
             logger.error(f"Error in processing and uploading: {e}")

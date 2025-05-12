@@ -39,7 +39,7 @@ class FileVectorizer(metaclass=Singleton):
     def extract_file(self, customer_guid, filename):
         logger.info(f"Extracting file: {filename} for customer: {customer_guid}")
         try:
-            self.extracted.extract_file(customer_guid, filename)
+            self.extracted.extract_file(customer_guid, filename, local_path=None,test_mode=False)
             return True
         except Exception as e:
             logger.error(f"Error during extraction of {filename}: {e}")
@@ -49,7 +49,7 @@ class FileVectorizer(metaclass=Singleton):
         chunk_filename = f"{filename}.txt"
         logger.info(f"Chunking file: {chunk_filename} for customer: {customer_guid}")
         try:
-            self.chunked.process_and_upload(customer_guid,chunk_filename)
+            self.chunked.process_and_upload(customer_guid,chunk_filename,local_path=None,test_mode=False)
             return True
         except Exception as e:
             logger.error(f"Error during chunking of {filename}: {e}")

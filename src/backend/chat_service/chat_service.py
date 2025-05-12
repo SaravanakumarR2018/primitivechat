@@ -16,6 +16,8 @@ from src.backend.minio.minio_manager import MinioManager
 from src.backend.weaviate.weaviate_manager import WeaviateManager
 from src.backend.lib.logging_config import get_primitivechat_logger
 from src.backend.chat_service.llm_service import LLMService
+from src.backend.embedding.extract_file.extract_file import UploadFileForChunks
+from src.backend.embedding.semantic_chunk.semantic_chunk import ProcessAndUploadBucket
 
 # Setup logging configuration
 logger = get_primitivechat_logger(__name__)
@@ -45,6 +47,18 @@ class GetAllChatsRequest(BaseModel):
 
 class DeleteChatsRequest(BaseModel):
     chat_id: str
+
+#testing
+class ExtractFileRequest(BaseModel):
+    filename: str
+    customer_guid: str
+    local_path: str
+
+#testing
+class ChunkedFileRequest(BaseModel):
+    filename: str
+    customer_guid: str
+    local_path: str
 
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
@@ -602,3 +616,73 @@ async def delete_chats(delete_chats_request: DeleteChatsRequest, request: Reques
     except Exception as e:
         logger.error(f"Unexpected error in delete_chats(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while deleting chats")
+
+#Testing API's for extracting, Chunking
+@app.post("/extractfile", tags=["File Processing"])
+async def extract_rawcontent(extract_req: ExtractFileRequest):
+    try:
+        processor = UploadFileForChunks()
+        raw_content = processor.extract_file(
+            customer_guid=extract_req.customer_guid,
+            filename=extract_req.filename,
+            local_path=extract_req.local_path,
+            test_mode=True
+        )
+        
+        logger.info(f"Raw content returned: {raw_content}")
+        
+        if isinstance(raw_content, str):
+            logger.info(f"Loading extracted content from file: {raw_content}")
+            if not os.path.exists(raw_content):
+                raise HTTPException(status_code=500, detail=f"Extracted file not found: {raw_content}")
+            with open(raw_content, "r", encoding="utf-8") as f:
+                response_rawcontent = json.load(f)
+        else:
+            if isinstance(raw_content, dict):
+                response_rawcontent = raw_content
+            else:
+                response_rawcontent = json.loads(raw_content)
+        
+        return {
+            "status": "success",
+            "filename": extract_req.filename,
+            "rawcontent": response_rawcontent
+        }
+    except Exception as e:
+        logger.error(f"Error in /extractfile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract raw content: {str(e)}")
+
+@app.post("/chunkedfile", tags=["File Processing"])
+async def chunkedfile_endpoint(chunked_req: ChunkedFileRequest):
+
+    try:
+        # Create processor with test_mode enabled (so it uses the provided local_path)
+        processor = ProcessAndUploadBucket()
+        # process_and_upload writes the chunked file and (optionally) uploads it
+        processor.process_and_upload(
+            customer_guid=chunked_req.customer_guid,
+            filename=chunked_req.filename,
+            local_path=chunked_req.local_path,
+            test_mode=True
+        )
+        # The expected output file path
+        base_filename = chunked_req.filename.replace(".txt", "")
+        chunked_file_path = f"/tmp/{chunked_req.customer_guid}/{base_filename}.chunked.txt"
+        
+        if not os.path.exists(chunked_file_path):
+            raise HTTPException(status_code=500, detail=f"Chunked file not found at {chunked_file_path}")
+        
+        # Load the chunked content from the file
+        with open(chunked_file_path, "r", encoding="utf-8") as f:
+            rawcontent = json.load(f)
+        
+        logger.info(f"Chunked content loaded from {chunked_file_path}")
+        return {
+            "status": "success",
+            "filename": chunked_req.filename,
+            "chunked_file_path": chunked_file_path,
+            "rawcontent": rawcontent
+        }
+    except Exception as e:
+        logger.error(f"Error in /chunkedfile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process chunked file: {str(e)}")

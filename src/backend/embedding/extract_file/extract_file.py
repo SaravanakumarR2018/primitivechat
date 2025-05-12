@@ -55,11 +55,15 @@ class UploadFileForChunks(metaclass=Singleton):
         self.file_extract = FileExtractor()
         self.download_and_upload = LocalFileDownloadAndUpload()
 
-    def extract_file(self, customer_guid: str, filename: str):
+    def extract_file(self, customer_guid: str, filename: str,local_path, test_mode: bool = None):
         logger.info(f"Extracting file '{filename}' for customer '{customer_guid}'")
+        use_test_mode = test_mode
 
-        #Download and save file locally
-        local_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+        # Skip download in test mode if local_path is provided
+        if not use_test_mode:
+            local_path = self.download_and_upload.download_and_save_file(customer_guid, filename)
+        else:
+            logger.info(f"Test mode: Skipping Minio download. Using local path: {local_path}")
 
         #Verify file type
         try:
@@ -100,8 +104,11 @@ class UploadFileForChunks(metaclass=Singleton):
 
         #Upload extracted content
         try:
-            self.download_and_upload.upload_extracted_content(customer_guid, filename, output_file_path)
-            return {"message": f"{file_type.name} extracted and uploaded successfully."}
+            if use_test_mode:
+                return output_file_path
+            else:    
+                self.download_and_upload.upload_extracted_content(customer_guid, filename, output_file_path)
+                return {"message": f"{file_type.name} extracted and uploaded successfully."}
         except Exception as e:
             logger.error(f"File upload error: {e}")
             raise Exception(f"File upload failed.{e}")
