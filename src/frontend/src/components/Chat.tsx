@@ -1,7 +1,12 @@
 'use client';
 
+import 'highlight.js/styles/github.css'; // or another highlight.js theme
+
 import { useOrganization } from '@clerk/nextjs';
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 
 type Message = {
   sender: 'user' | 'ai';
@@ -11,10 +16,8 @@ type Message = {
 
 export default function Chat({
   chatId,
-  isSidebarOpen,
 }: {
   chatId: string;
-  isSidebarOpen: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -281,115 +284,80 @@ export default function Chat({
   };
 
   return (
-    <div className="flex h-screen flex-col pb-28 pt-24 sm:pt-12">
-      <div className="scrollbar-hide flex flex-1 flex-col items-center space-y-4 overflow-y-auto p-4 md:items-start">
-        {messages.length === 0 && !isTyping
-          ? (
-              <div className="flex size-full items-center justify-center text-center text-xl text-gray-400">
-                Start a new chat
-              </div>
-            )
-          : (
-              messages.map(msg => (
-                <div
-                  key={msg.id || crypto.randomUUID()}
-                  className={`flex w-full sm:px-24 ${
-                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
+    <div className="flex h-screen flex-col pt-16 sm:pt-12">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-y-auto">
+
+        {/* Scrollable Message Area */}
+        <div className="flex-1 space-y-4 border px-4 pt-4">
+          {messages.length === 0 && !isTyping
+            ? (
+                <div className="text-center text-xl text-gray-400">
+                  Start a new chat
+                </div>
+              )
+            : (
+                messages.map(msg => (
                   <div
-                    className={`relative max-w-[75%] rounded-xl px-4 py-2 shadow-md transition-all duration-300 sm:max-w-[60%] md:max-w-[50%] lg:max-w-[40%] xl:max-w-[35%] ${
-                      msg.sender === 'user'
-                        ? 'rounded-br-none bg-blue-400 text-white'
-                        : 'rounded-bl-none bg-gray-200 text-gray-800'
-                    }`}
+                    key={msg.id || crypto.randomUUID()}
+                    className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {msg.text}
-                    <span
-                      className={`absolute -bottom-1 size-3 rotate-45 ${
-                        msg.sender === 'user' ? 'right-2 bg-blue-400' : 'left-2 bg-gray-200'
+                    <div
+                      className={`prose prose-sm overflow-x-auto whitespace-pre-wrap rounded-2xl p-3 shadow-md ${
+                        msg.sender === 'user' ? 'rounded-br-none bg-blue-400 text-white' : 'bg-gray-200 text-gray-800'
                       }`}
                     >
-                    </span>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeHighlight]}
+                      >
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
 
-        {isTyping && (
-          <div className="flex w-full sm:pl-24">
-            <div className="flex space-x-1 rounded-xl bg-gray-200 px-4 py-2 shadow-md">
-              <span className="size-2 animate-bounce rounded-full bg-gray-600"></span>
-              <span className="size-2 animate-bounce rounded-full bg-gray-600 delay-150"></span>
-              <span className="size-2 animate-bounce rounded-full bg-gray-600 delay-300"></span>
+          {isTyping && (
+            <div className="flex w-full">
+              <span className="size-4 animate-pulse rounded-full bg-black shadow-md" />
             </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Bar */}
+        <div className="sticky bottom-0 z-10 border-t border-gray-300 bg-gray-100 px-4 py-3">
+          <div className="mx-auto flex max-w-3xl items-center rounded-full border border-gray-300 bg-gray-100 px-4 py-2 shadow-sm">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="flex-1 bg-transparent text-sm focus:outline-none"
+              placeholder="Type a message..."
+            />
+            <button
+              type="button"
+              onClick={isTyping ? stopStreaming : sendMessage}
+              className="ml-2 rounded-full bg-blue-500 p-2 text-white hover:bg-blue-600"
+            >
+              {isTyping
+                ? (
+                    <svg className="size-5" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                      <path d="M6 18L18 6M6 6l12 12" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )
+                : (
+                    <svg className="size-5" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                      <path d="M5 12h14M12 5l7 7-7 7" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+            </button>
           </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div
-        className={`sticky bottom-0 p-6 transition-all duration-300 ${
-          isSidebarOpen ? 'mx-auto w-[calc(100%-26rem)]' : 'left-0 w-full'
-        }`}
-        style={{
-          position: messages.length === 0 ? 'absolute' : 'fixed',
-          bottom: messages.length === 0 ? '40%' : '0',
-          transform: messages.length === 0 ? 'translateY(100%)' : 'none',
-        }}
-      >
-        <div className="mx-auto flex max-w-2xl items-center rounded-lg border border-gray-500 bg-gray-200 p-1">
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent p-2 focus:outline-none"
-            placeholder="Type a message..."
-          />
-          <button
-            onClick={isTyping ? stopStreaming : sendMessage}
-            type="button"
-            title={isTyping ? 'Stop' : 'Send'}
-            className="rounded-lg bg-blue-500 p-2 text-white hover:bg-blue-600"
-          >
-            {isTyping
-              ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="size-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                )
-              : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="size-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 12h14M12 5l7 7-7 7"
-                    />
-                  </svg>
-                )}
-          </button>
         </div>
       </div>
     </div>
+
   );
 }
