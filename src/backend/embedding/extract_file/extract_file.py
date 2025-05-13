@@ -566,16 +566,6 @@ class FileExtractor:
                     json.dumps(element["content"]) if isinstance(element["content"], list) else element["content"]
                     for element in slide_elements
                 )
-                results.append({
-                    "metadata": {"page_number": slide_number},
-                    "text": slide_text
-                })
-
-                        # Combine slide elements
-                slide_text = "\n".join(
-                    json.dumps(element["content"]) if isinstance(element["content"], list) else element["content"]
-                    for element in slide_elements
-                )
                 self.append_result(results,customer_guid,filename,slide_number,slide_text)
 
             # Save results to a file
