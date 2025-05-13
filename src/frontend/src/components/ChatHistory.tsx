@@ -44,11 +44,12 @@ export default function ChatHistory({
   }, []);
 
   useEffect(() => {
-    // If on mobile, ensure sidebar is closed by default
-    if (isMobile) {
-      onToggleSidebar();
+    if (isMobile && isSidebarOpen) {
+      onToggleSidebar(); // Close if currently open on mobile
+    } else if (!isMobile && !isSidebarOpen) {
+      onToggleSidebar(); // Open if currently closed on desktop
     }
-  }, [isMobile]); // Run only when isMobile changes
+  }, [isMobile]);// Run only when isMobile changes
 
   const loadChats = () => {
     const savedChats = Object.keys(sessionStorage)
