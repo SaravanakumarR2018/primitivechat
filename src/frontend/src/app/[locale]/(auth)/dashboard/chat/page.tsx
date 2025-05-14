@@ -17,27 +17,32 @@ export default function Page() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // Function to reset the Chat component's state
   const resetChat = () => {
-    setChatId(Date.now().toString()); // Reset chatId to force a re-render
+    setChatId(Date.now().toString());
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="relative h-screen w-full bg-gray-100">
       {/* Sidebar */}
-      <div className={`transition-all duration-300 ${isSidebarOpen ? 'w-80' : 'w-0'}`}>
+      <div className="fixed left-0 top-0 z-50">
         <ChatHistory
           onSelect={setChatId}
           onNewChat={handleNewChat}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={toggleSidebar}
-          resetChat={resetChat} // Pass resetChat function
+          resetChat={resetChat}
         />
       </div>
 
       {/* Chat Area */}
-      <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0'}`}>
-        <Chat chatId={chatId} isSidebarOpen={isSidebarOpen} />
+      <div
+        className={`h-screen overflow-hidden pt-12 transition-all duration-300 ${
+          isSidebarOpen ? 'md:ml-72' : ''
+        }`}
+      >
+        <div className="mx-auto flex h-full max-w-4xl flex-col px-4">
+          <Chat chatId={chatId} />
+        </div>
       </div>
     </div>
   );
