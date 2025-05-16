@@ -22,7 +22,8 @@ export default function Page() {
   };
 
   return (
-    <div className="relative h-screen w-full bg-gray-100">
+    <div className="relative flex size-full bg-gray-100">
+      {' '}
       {/* Sidebar */}
       <div className="fixed left-0 top-0 z-50">
         <ChatHistory
@@ -35,15 +36,10 @@ export default function Page() {
       </div>
 
       {/* Chat Area */}
-      <div
-        className={`h-screen overflow-hidden pt-12 transition-all duration-300 ${
-          isSidebarOpen ? 'md:ml-72' : ''
-        }`}
-      >
-        <div className="mx-auto flex h-full max-w-4xl flex-col px-4">
-          <Chat chatId={chatId} />
-        </div>
+      <div className={`h-screen flex-1 pt-12 transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : ''}`}>
+        <Chat chatId={chatId} />
       </div>
+
     </div>
   );
 }
