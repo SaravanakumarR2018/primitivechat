@@ -62,6 +62,10 @@ export default async function DashboardLayout(props: { children: React.ReactNode
                 href: '/dashboard/checkclerk',
                 label: 'Checkclerk',
               },
+              {
+                href: '/dashboard/app-settings',
+                label: t('app_settings'),
+              },
               // PRO: Link to the /dashboard/billing page
             ]}
           />
