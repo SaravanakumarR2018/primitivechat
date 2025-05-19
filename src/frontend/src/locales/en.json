@@ -93,7 +93,8 @@
     "billing": "Billing",
     "settings": "Settings",
     "tickets": "Tickets",
-    "chat": "Chat"
+    "chat": "Chat",
+    "app_settings": "App Settings"
   },
   "Dashboard": {
     "meta_title": "SaaS Template Dashboard",
