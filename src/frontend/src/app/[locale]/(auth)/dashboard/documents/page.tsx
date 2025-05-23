@@ -25,7 +25,8 @@ export default function UploadDocumentsPage() {
     setMessage('Uploading...');
 
     try {
-      const response = await uploadDocument(selectedFile);
+      const fileBuffer = await selectedFile.arrayBuffer();
+      const response = await uploadDocument(fileBuffer, selectedFile.name, selectedFile.type);
       setMessage(response.message || `File "${selectedFile.name}" uploaded successfully!`);
       setSelectedFile(null); // Reset file input
 
