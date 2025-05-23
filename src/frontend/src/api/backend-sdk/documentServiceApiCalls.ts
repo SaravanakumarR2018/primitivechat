@@ -33,14 +33,21 @@ async function getAuthToken() {
   }
 }
 
-export async function uploadDocument(fileBuffer: ArrayBuffer, fileName: string, fileType: string) {
+export async function uploadDocument(base64String: string, fileName: string, fileType: string) {
   const token = await getAuthToken();
   const formData = new FormData();
-  const blob = new Blob([fileBuffer], { type: fileType });
+
+  // Convert base64 string to a Buffer
+  const buffer = Buffer.from(base64String, 'base64');
+
+  // Create a Blob from the Buffer
+  const blob = new Blob([buffer], { type: fileType });
+
+  // Append the Blob to FormData
   formData.append('file', blob, fileName); // The backend will expect the file under the field name 'file'
 
   try {
-    console.log(`Attempting to upload file "${fileName}" (${fileType}) to ${API_BASE_URL}/upload`);
+    console.log(`Attempting to upload file "${fileName}" (${fileType}, from base64) to ${API_BASE_URL}/upload`);
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       headers: {

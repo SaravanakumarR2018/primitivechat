@@ -3,6 +3,28 @@
 import { useState } from 'react';
 import { uploadDocument } from '../../../../../api/backend-sdk/documentServiceApiCalls';
 
+// Helper function to convert File to base64 string
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        // result is like "data:image/png;base64,iVBORw0KGgo..."
+        // We only want the "iVBORw0KGgo..." part.
+        const base64String = reader.result.split(',')[1];
+        if (base64String) {
+          resolve(base64String);
+        } else {
+          reject(new Error('Base64 string is empty or invalid.'));
+        }
+      } else {
+        reject(new Error('Failed to read file as data URL.'));
+      }
+    };
+    reader.onerror = (error) => reject(error);
+  });
+
 export default function UploadDocumentsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -25,8 +47,12 @@ export default function UploadDocumentsPage() {
     setMessage('Uploading...');
 
     try {
-      const fileBuffer = await selectedFile.arrayBuffer();
-      const response = await uploadDocument(fileBuffer, selectedFile.name, selectedFile.type);
+      const base64String = await toBase64(selectedFile);
+      // At this point, uploadDocument expects (ArrayBuffer, string, string)
+      // This will be updated in the next step for documentServiceApiCalls.ts
+      // For now, we are only changing this file (page.tsx)
+      // We'll pass the base64 string, and the API call will need to be adapted later.
+      const response = await uploadDocument(base64String as any, selectedFile.name, selectedFile.type);
       setMessage(response.message || `File "${selectedFile.name}" uploaded successfully!`);
       setSelectedFile(null); // Reset file input
 
