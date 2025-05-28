@@ -1,4 +1,3 @@
-
 'use client';
 import { useChat } from '@/context/ChatContext';
 import Chat from '@/components/Chat';
