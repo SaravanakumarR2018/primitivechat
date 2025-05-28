@@ -8,27 +8,20 @@ import GlobalSidebarWrapper from '@/components/GlobalSidebarWrapper';
 import Link from 'next/link';
 import { Ticket, ClipboardList, Settings, MessageSquare } from 'lucide-react';
 
-export default function ChatLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <ChatProvider>
-      <DashboardClient>{children}</DashboardClient>
-    </ChatProvider>
-  );
-}
-
-function DashboardClient({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
-  const [isMobile, setIsMobile] = useState(false);
+function DashboardContent({ children, isSidebarOpen, toggleSidebar }: { 
+  children: React.ReactNode; 
+  isSidebarOpen: boolean; 
+  toggleSidebar: () => void;
+}) {
+  const { newChat } = useChat(); // Now inside ChatProvider
   const pathname = usePathname();
   const router = useRouter();
-  const { newChat } = useChat();
+  const [isMobile, setIsMobile] = useState(false);
 
   const handleNewChat = () => {
     if (!pathname.includes('/dashboard/chat')) {
       router.push('/dashboard/chat');
     } else {
-      // if already on chat page, create a new chat
       newChat();
     }
     if (isMobile && isSidebarOpen) {
@@ -43,9 +36,27 @@ function DashboardClient({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <div className="sticky top-0 z-50 w-full bg-white shadow-md">
+  const Sidebar = () => (
+    <div className="fixed top-16 left-0 w-16 h-[652px] flex flex-col items-center gap-2 bg-white shadow-md py-6 z-40 rounded-r-md">
+      <Link href="/dashboard/tickets" title="Tickets">
+        <Ticket className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
+      </Link>
+      <Link href="/dashboard/checkclerk" title="Check Clerk">
+        <ClipboardList className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
+      </Link>
+      <Link href="/dashboard/app-settings" title="App Settings">
+        <Settings className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
+      </Link>
+      <Link href="/dashboard/chat" title="Chat">
+        <MessageSquare className="w-5 h-5 text-gray-700 hover:text-black" />
+      </Link>
+    </div>
+  );
+
+  return (  
+    <div className="flex h-screen flex-col">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 w-full bg-white shadow-md">
         <div
           className={`mx-auto flex max-w-screen-xl items-center px-3 py-4 ${
             isSidebarOpen ? 'ml-72' : 'ml-0'
@@ -93,35 +104,40 @@ function DashboardClient({ children }: { children: React.ReactNode }) {
             ]}
           />
         </div>
+      </header>
+
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        {!isSidebarOpen && <Sidebar />}
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-hidden bg-gray-50">
+          <div className="mx-auto max-w-screen-xl px-4 py-6">
+            <GlobalSidebarWrapper isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+            <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-20'} max-w-screen-xl px-2 pb-16 pt-6`}>
+              {children}
+            </div>
+            </GlobalSidebarWrapper>
+          </div>
+        </main>
       </div>
-
-      {/* Mini Sidebar */}
-      <div className="fixed top-16 left-0 w-16 h-[652px] flex flex-col items-center gap-6 bg-white shadow-md py-4 z-40 rounded-r-md">
-
-        <Link href="/dashboard/tickets" title="Tickets">
-          <Ticket className="w-5 h-5 text-gray-700 hover:text-black" />
-        </Link>
-        <Link href="/dashboard/checkclerk" title="Check Clerk">
-          <ClipboardList className="w-5 h-5 text-gray-700 hover:text-black" />
-        </Link>
-        <Link href="/dashboard/app-settings" title="App Settings">
-          <Settings className="w-5 h-5 text-gray-700 hover:text-black" />
-        </Link>
-        <Link href="/dashboard/chat" title="Chat">
-          <MessageSquare className="w-5 h-5 text-gray-700 hover:text-black" />
-        </Link>
-      </div>
-
-      {/* Main Chat Content */}
-      <GlobalSidebarWrapper isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
-        <div
-          className={`transition-all duration-300 ${
-            isSidebarOpen ? 'ml-0' : 'ml-20'
-          } max-w-screen-xl px-2 pb-16 pt-6`}
-        >
-          {children}
-        </div>
-      </GlobalSidebarWrapper>
     </div>
+  );
+}
+
+export default function DashboardClient({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+  return (
+    <ChatProvider>
+      <DashboardContent 
+        isSidebarOpen={isSidebarOpen} 
+        toggleSidebar={toggleSidebar}
+      >
+        {children}
+      </DashboardContent>
+    </ChatProvider>
   );
 }
