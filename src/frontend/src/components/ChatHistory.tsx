@@ -4,20 +4,21 @@
 
 import { useOrganization } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useChat } from '@/context/ChatContext';
+import { Ticket, ClipboardList, MessageSquare, Settings } from 'lucide-react';
 
-export default function ChatHistory({
-  onSelect,
-  onNewChat,
-  isSidebarOpen,
-  onToggleSidebar,
-  resetChat,
-}: {
-  onSelect: (chatId: string) => void;
-  onNewChat: () => void;
+interface GlobalSidebarProps {
   isSidebarOpen: boolean;
-  onToggleSidebar: () => void;
-  resetChat: () => void;
-}) {
+  toggleSidebar: () => void;
+}
+
+export default function ChatHistory({ isSidebarOpen, toggleSidebar }: GlobalSidebarProps) {
+  const { newChat } = useChat();
+  const {resetChat}=useChat();
+  const pathname = usePathname();
+  const router = useRouter();
   const [chats, setChats] = useState<{ id: string; preview: string; timestamp: number }[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const { organization } = useOrganization();
@@ -26,7 +27,6 @@ export default function ChatHistory({
     if (!organization) {
       return;
     }
-    handleNewChat();
   }, [organization?.id]);
 
   useEffect(() => {
@@ -45,9 +45,9 @@ export default function ChatHistory({
 
   useEffect(() => {
     if (isMobile && isSidebarOpen) {
-      onToggleSidebar(); // Close if currently open on mobile
+      toggleSidebar(); // Close if currently open on mobile
     } else if (!isMobile && !isSidebarOpen) {
-      onToggleSidebar(); // Open if currently closed on desktop
+      toggleSidebar(); // Open if currently closed on desktop
     }
   }, [isMobile]);// Run only when isMobile changes
 
@@ -94,80 +94,27 @@ export default function ChatHistory({
 
   // Modified function to close the sidebar on mobile when "New Chat" is clicked
   const handleNewChat = () => {
-    onNewChat();
+    newChat();
+    if (!pathname.includes('/dashboard/chat')) router.push('/dashboard/chat');
     if (isMobile && isSidebarOpen) {
-      onToggleSidebar(); // Close the sidebar only on mobile
+      toggleSidebar(); // Close the sidebar only on mobile
     }
+  };
+
+  const handleSelectChat = (chatId: string) => {
+    router.push(`/dashboard/chat?chatId=${chatId}`);
+    if (isMobile && isSidebarOpen) toggleSidebar();
   };
 
   return (
     <>
-      {/* Toggle Sidebar Button (Mobile) */}
-      {!isSidebarOpen && (
-        <button
-          type="button"
-          title="ToggleSidebar"
-          onClick={onToggleSidebar}
-          className="fixed left-2 top-20 z-50 rounded-lg bg-white p-2 shadow-md"
-        >
-          <svg
-            className="size-7 text-gray-800 dark:text-white"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="m6 10 1.99994 1.9999-1.99994 2M11 5v14m-7 0h16c.5523 0 1-.4477 1-1V6c0-.55228-.4477-1-1-1H4c-.55228 0-1 .44772-1 1v12c0 .5523.44772 1 1 1Z"
-            />
-          </svg>
-        </button>
-      )}
-
-      {/* Toggle Sidebar Button (Mobile) */}
-      {!isSidebarOpen && (
-        <button
-          type="button"
-          title="NewChat"
-          onClick={handleNewChat}
-          className="fixed left-16 top-20 z-50 rounded-lg bg-white p-2 shadow-md"
-        >
-          <svg
-            className="size-7 text-gray-800 dark:text-white"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"
-            />
-          </svg>
-        </button>
-      )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 top-16 z-50 mt-2 w-72 bg-white shadow-lg transition-transform duration-300 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        style={{ maxHeight: 'calc(100vh - 4rem)' }} // Prevent overflow
-      >
+      <div className={`fixed inset-y-0 left-0 top-0 z-50 bg-gray-50 shadow-lg transition-transform duration-300 ${isSidebarOpen ? 'w-72' : 'hidden'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b bg-gray-300 p-3">
-          <button type="button" title="ToggleSidebar" onClick={onToggleSidebar} className="rounded-lg p-2 hover:bg-gray-100">
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between p-3">
+          <button type="button" title="ToggleSidebar" onClick={toggleSidebar} className="rounded-lg p-2 hover:bg-gray-100">
             <svg
               className="size-7 text-gray-800 dark:text-white"
               aria-hidden="true"
@@ -186,7 +133,6 @@ export default function ChatHistory({
               />
             </svg>
           </button>
-          <h2 className="text-lg font-semibold">Chatbot</h2>
           <button type="button" title="NewChat" onClick={handleNewChat} className="rounded-lg p-2 hover:bg-gray-100">
             <svg
               className="size-7 text-gray-800 dark:text-white"
@@ -208,8 +154,41 @@ export default function ChatHistory({
           </button>
         </div>
 
+        {/* Navigation (Full only) */}
+        <nav className="flex-1 p-4 space-y-6 ">
+          <ul className="space-y-2">
+            <li>
+              <Link href="/dashboard/tickets" className={`flex items-center space-x-2 font-semibold p-2 rounded-lg transition-colors ${
+    pathname === '/dashboard/tickets' ? 'bg-blue-300' : 'hover:bg-blue-100'}`}>
+                <Ticket className="w-5 h-5" />
+                <span>Tickets</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/checkclerk" className={`flex items-center space-x-2 font-semibold p-2 rounded-lg transition-colors ${
+    pathname === '/dashboard/checkclerk' ? 'bg-blue-300' : 'hover:bg-blue-100'}`}>
+                <ClipboardList className="w-5 h-5" />
+                <span>CheckClerk</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/app-settings" className={`flex items-center space-x-2 font-semibold p-2 rounded-lg transition-colors ${
+    pathname === '/dashboard/app-settings' ? 'bg-blue-300' : 'hover:bg-blue-100'}`}>
+                <Settings className="w-5 h-5" />
+                <span>App Settings</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/chat" className={`flex items-center space-x-2 font-semibold p-2 rounded-lg transition-colors ${
+    pathname === '/dashboard/chat' ? 'bg-blue-300' : 'hover:bg-blue-100'}`}>
+                <MessageSquare className="w-5 h-5" />
+                <span>Chat</span>
+              </Link>
+            </li>
+          </ul>
+
         {/* Chat List */}
-        <div className="h-[calc(100vh-8rem)] overflow-y-auto border-t border-gray-400 bg-gray-300 p-4">
+        <div className="overflow-y-auto pt-4">
           {chats.length === 0
             ? (
                 <p className="text-center text-gray-500">No chat history</p>
@@ -224,7 +203,7 @@ export default function ChatHistory({
                       <button
                         type="button"
                         title="Select Chat"
-                        onClick={() => onSelect(chat.id)}
+                        onClick={() => handleSelectChat(chat.id)}
                         className="flex-1 truncate text-left text-base"
                       >
                         {chat.preview}
@@ -258,6 +237,8 @@ export default function ChatHistory({
                   ))}
                 </ul>
               )}
+        </div>
+        </nav>
         </div>
       </div>
     </>
