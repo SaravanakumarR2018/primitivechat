@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import Chat from '@/components/Chat';
 import ChatHistory from '@/components/ChatHistory';
@@ -8,6 +8,7 @@ import ChatHistory from '@/components/ChatHistory';
 export default function Page() {
   const [chatId, setChatId] = useState<string>(() => Date.now().toString());
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const addChatToHistoryRef = useRef<((chatId: string, message: string, timestamp?: number) => void) | null>(null);
 
   const handleNewChat = () => {
     setChatId(Date.now().toString());
@@ -32,12 +33,13 @@ export default function Page() {
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={toggleSidebar}
           resetChat={resetChat}
+          addChatToHistoryRef={addChatToHistoryRef}
         />
       </div>
 
       {/* Chat Area */}
       <div className={`h-screen flex-1 pt-12 transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : ''}`}>
-        <Chat chatId={chatId} />
+        <Chat chatId={chatId} addChatToHistoryRef={addChatToHistoryRef} />
       </div>
 
     </div>
