@@ -1,43 +1,57 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-console */
 'use client';
 
 import 'highlight.js/styles/github.css';
 
-import { useOrganization } from '@clerk/nextjs';
-import { useEffect, useRef, useState } from 'react';
+import { useOrganization, useUser } from '@clerk/nextjs';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 
 type Message = {
-  sender: 'user' | 'ai';
-  text: string;
+  sender_type: 'customer' | 'system';
+  message: string;
   id?: string;
+  timestamp: number; // ✅ required now for ordering
 };
 
-export default function Chat({ chatId }: { chatId: string }) {
+export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; addChatToHistoryRef?: React.MutableRefObject<((chatId: string, message: string, timestamp?: number) => void) | null> }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { organization } = useOrganization();
-
-  // Load messages when chatId changes
+  const { user } = useUser();
+  const scrollCooldownRef = useRef(false);
+  const scrollRestoreRef = useRef<null | { previousScrollHeight: number }>(null);
+  const isAppendingRef = useRef(false);
+  // Load messages from sessionStorage
   useEffect(() => {
     const loadChat = () => {
-      if (!chatId) {
+      if (!chatId || !organization?.id || !user?.id) {
         setMessages([]);
         setCurrentChatId(null);
         return;
       }
 
-      const savedChat = sessionStorage.getItem(chatId);
+      const orgId = organization.id;
+      const userId = user.id;
+      const key = `${chatId}-${orgId}-${userId}`;
+
+      const savedChat = sessionStorage.getItem(key);
+
       if (savedChat) {
         const parsed = JSON.parse(savedChat);
         setMessages(parsed.messages || []);
-        setCurrentChatId(parsed.chatId || null);
+        setCurrentChatId(chatId);
       } else {
         setMessages([]);
         setCurrentChatId(null);
@@ -45,34 +59,185 @@ export default function Chat({ chatId }: { chatId: string }) {
     };
 
     loadChat();
-  }, [chatId]);
+  }, [chatId, organization?.id, user?.id]);
 
-  // Auto-scroll on message update
   useEffect(() => {
-    const timeout = setTimeout(() => {
+    if (isAppendingRef.current) {
+      isAppendingRef.current = false;
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-
-    return () => clearTimeout(timeout);
+    }
   }, [messages]);
 
-  // Auto-scroll on window resize
   useEffect(() => {
     const handleResize = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  const count = 0;
+  // Helper to fetch messages for a page
+  const fetchMessages = useCallback(async (pageToFetch: number) => {
+    if (!chatId || !organization?.id || !user?.id) {
+      return { messages: [], has_more: false };
+    }
+    const res = await fetch(`/api/backend/getallchats?chat_id=${chatId}&page=${pageToFetch}&page_size=60`);
+    console.log('call number', count + 1, pageToFetch);
+    const data = await res.json();
+    const msgs = (data.messages || []).map((msg: any) => ({
+      message: msg.message,
+      sender_type: msg.sender_type,
+      id: crypto.randomUUID(),
+
+      timestamp: typeof msg.timestamp === 'string'
+        ? new Date(msg.timestamp).getTime()
+        : msg.timestamp ?? Date.now(),
+    }));
+    const has_more = data.has_more ?? (msgs.length === 60);
+    console.log('hasMore:', has_more);
+    return { messages: msgs, has_more: data.has_more ?? (msgs.length === 60) };
+  }, [chatId, organization?.id, user?.id]);
+
+  // Load first page on chatId change
+  useEffect(() => {
+    let ignore = false;
+    async function loadFirstPage() {
+      const orgId = organization?.id;
+      const userId = user?.id;
+      const key = `${chatId}-${orgId}-${userId}`;
+      const savedChat = sessionStorage.getItem(key);
+
+      if (savedChat) {
+        const parsed = JSON.parse(savedChat);
+        setMessages(parsed.messages || []);
+        setCurrentChatId(chatId);
+        setPage(1);
+        setHasMore(parsed.hasMore ?? true); // ✅ use saved hasMore value
+
+        setLoadingMore(false); // ✅ ensure this is reset
+        return;
+      }
+
+      setLoadingMore(true);
+      const { messages: msgs, has_more } = await fetchMessages(1);
+      if (!ignore) {
+        setMessages(msgs);
+        setHasMore(has_more);
+        setPage(1);
+      }
+      setLoadingMore(false);
+
+      scrollCooldownRef.current = true;
+      setTimeout(() => {
+        scrollCooldownRef.current = false;
+      }, 500);
+    }
+
+    loadFirstPage();
+
+    return () => {
+      ignore = true;
+    };
+  }, [chatId, organization?.id, user?.id]);
+
+  // Infinite scroll: fetch more when scrolled to top
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) {
+      return;
+    }
+    const handleScroll = async () => {
+      const container = scrollRef.current;
+      if (!container || scrollCooldownRef.current || loadingMore || !hasMore) {
+        return;
+      }
+
+      if (container.scrollTop !== 0) {
+        return;
+      }
+
+      setLoadingMore(true);
+
+      const previousScrollHeight = container.scrollHeight;
+      scrollRestoreRef.current = { previousScrollHeight };
+
+      const nextPage = page + 1;
+      const { messages: newMsgs, has_more } = await fetchMessages(nextPage);
+
+      setMessages((prev) => {
+        const prevIds = new Set(prev.map(m => m.id));
+        const filtered = newMsgs.filter((m: { id: string | undefined }) => !prevIds.has(m.id));
+        const updated = [...filtered, ...prev];
+
+        const orgId = organization?.id;
+        const userId = user?.id;
+        if (orgId && userId && chatId) {
+          const key = `${chatId}-${orgId}-${userId}`;
+          const saved = sessionStorage.getItem(key);
+          const sessionData = saved ? JSON.parse(saved) : {};
+          sessionStorage.setItem(key, JSON.stringify({
+            ...sessionData,
+            chatId,
+            messages: updated,
+            hasMore: has_more, // ✅ persist hasMore here
+            updatedAt: Date.now(),
+          }));
+        }
+
+        return updated;
+      });
+
+      setHasMore(has_more);
+      setPage(nextPage);
+      setLoadingMore(false);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMore, loadingMore, page, fetchMessages]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    const scrollData = scrollRestoreRef.current;
+    if (!container || !scrollData?.previousScrollHeight) {
+      return;
+    }
+
+    // Wait for DOM paint + layout completion
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const newScrollHeight = container.scrollHeight;
+        const scrollDifference = newScrollHeight - scrollData.previousScrollHeight;
+        container.scrollTop = scrollDifference;
+        scrollRestoreRef.current = null;
+      }, 0);
+    });
+  }, [messages]);
 
   const startNewChat = async (firstMessage: string) => {
     if (!firstMessage.trim()) {
       return;
     }
 
-    const userMessage: Message = { sender: 'user', text: firstMessage };
-    setMessages([userMessage]);
+    const timestamp = Date.now();
+
+    const userMessage: Message = {
+      sender_type: 'customer',
+      message: firstMessage,
+      id: crypto.randomUUID(),
+      timestamp,
+    };
+
+    const aiMessage: Message = {
+      sender_type: 'system',
+      message: '',
+      id: crypto.randomUUID(),
+      timestamp: timestamp + 1,
+    };
+
+    // Store user message initially
+    isAppendingRef.current = true;
+    setMessages([userMessage, aiMessage]);
     setInput('');
     setIsTyping(true);
 
@@ -83,10 +248,7 @@ export default function Chat({ chatId }: { chatId: string }) {
       const response = await fetch('/api/backend/sendMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: firstMessage,
-          stream: true,
-        }),
+        body: JSON.stringify({ question: firstMessage, stream: true }),
         signal: controller.signal,
       });
 
@@ -97,12 +259,9 @@ export default function Chat({ chatId }: { chatId: string }) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      const aiMessage = { id: crypto.randomUUID(), sender: 'ai' as const, text: '' };
       let newChatId = '';
       let userId = '';
       const orgId = organization?.id || '';
-
-      setMessages(prev => [...prev, aiMessage]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -134,7 +293,7 @@ export default function Chat({ chatId }: { chatId: string }) {
 
               const content = json.choices?.[0]?.delta?.content;
               if (content) {
-                aiMessage.text += content;
+                aiMessage.message += content;
                 setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
               }
             } catch (e) {
@@ -144,18 +303,30 @@ export default function Chat({ chatId }: { chatId: string }) {
         }
       }
 
+      // ✅ Save both messages **AFTER** the AI response has streamed completely
       if (newChatId && orgId && userId) {
         const key = `${newChatId}-${orgId}-${userId}`;
-        sessionStorage.setItem(key, JSON.stringify({
-          chatId: newChatId,
-          messages: [userMessage, aiMessage],
-          createdAt: Date.now(),
-        }));
+        sessionStorage.setItem(
+          key,
+          JSON.stringify({
+            chatId: newChatId,
+            messages: [userMessage, aiMessage], // now with the AI response included
+            hasMore: false,
+            createdAt: timestamp,
+          }),
+        );
+
+        // Now update ChatHistory but let addChatToHistory merge the entry.
+        if (addChatToHistoryRef?.current) {
+          const preview = userMessage?.message?.split('\n')[0]?.slice(0, 50);
+          addChatToHistoryRef.current(newChatId, preview || '', timestamp);
+        }
+        window.dispatchEvent(new Event('storage'));
       }
     } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
         console.error('New chat error:', err);
-        setMessages(prev => prev.slice(0, -1));
+        setMessages(prev => prev.slice(0, -1)); // Remove broken AI message
       }
     } finally {
       setIsTyping(false);
@@ -166,11 +337,20 @@ export default function Chat({ chatId }: { chatId: string }) {
     if (!input.trim()) {
       return;
     }
-    if (!currentChatId) {
-      return startNewChat(input);
+
+    if (!currentChatId || messages.length === 0) {
+      return startNewChat(input); // Only if no current chat OR no messages
     }
 
-    const userMessage: Message = { sender: 'user', text: input };
+    const timestamp = Date.now();
+
+    const userMessage: Message = {
+      sender_type: 'customer',
+      message: input,
+      timestamp,
+      id: crypto.randomUUID(),
+    };
+
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
@@ -198,11 +378,18 @@ export default function Chat({ chatId }: { chatId: string }) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      const aiMessage = { id: crypto.randomUUID(), sender: 'ai' as const, text: '' };
+      const aiMessage: Message = {
+        id: crypto.randomUUID(),
+        sender_type: 'system',
+        message: '',
+        timestamp: timestamp + 1,
+      };
+
       let newChatId = currentChatId;
       let userId = '';
       const orgId = organization?.id || '';
 
+      isAppendingRef.current = true;
       setMessages(prev => [...prev, aiMessage]);
 
       while (true) {
@@ -224,17 +411,19 @@ export default function Chat({ chatId }: { chatId: string }) {
           if (trimmed.startsWith('data: ')) {
             try {
               const json = JSON.parse(trimmed.slice(6));
+
               if (json.chat_id && json.chat_id !== currentChatId) {
                 newChatId = json.chat_id;
                 setCurrentChatId(newChatId);
               }
+
               if (json.user_id) {
                 userId = json.user_id;
               }
 
               const content = json.choices?.[0]?.delta?.content;
               if (content) {
-                aiMessage.text += content;
+                aiMessage.message += content;
                 setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
               }
             } catch (e) {
@@ -244,20 +433,24 @@ export default function Chat({ chatId }: { chatId: string }) {
         }
       }
 
+      // ✅ Save to sessionStorage while preserving `hasMore`
       if (newChatId && orgId && userId) {
         const key = `${newChatId}-${orgId}-${userId}`;
-        if (newChatId !== currentChatId) {
-          const oldKey = `${currentChatId}-${orgId}-${userId}`;
-          sessionStorage.removeItem(oldKey);
-        }
+        const old = sessionStorage.getItem(key);
+        const parsed = old ? JSON.parse(old) : {};
+
         sessionStorage.setItem(key, JSON.stringify({
+          ...parsed,
           chatId: newChatId,
           messages: [...newMessages, aiMessage],
           updatedAt: Date.now(),
         }));
+
+        // ✅ Trigger sidebar update manually
+        window.dispatchEvent(new Event('storage'));
       }
     } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
         console.error('Send error:', err);
         setMessages(prev => prev.slice(0, -1));
       }
@@ -285,7 +478,7 @@ export default function Chat({ chatId }: { chatId: string }) {
           ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 text-center">
                 <h2 className="text-2xl font-semibold text-gray-500">
-                  Hello!!, What can I help with?
+                  Hello!! What can I help with?
                 </h2>
                 <div className="flex w-full max-w-xl items-center rounded-full border border-gray-300 bg-gray-100 px-4 py-3 shadow-sm">
                   <input
@@ -310,33 +503,40 @@ export default function Chat({ chatId }: { chatId: string }) {
             )
           : (
               <>
-                <div
-                  ref={scrollRef}
-                  className="mt-20 flex-1 space-y-4 overflow-y-auto px-4 pt-4"
-                >
-                  {messages.map(msg => (
-                    <div
-                      key={msg.id || crypto.randomUUID()}
-                      className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`prose prose-sm max-w-[85vw] whitespace-pre-wrap rounded-2xl p-3 shadow-md ${
-                          msg.sender === 'user'
+                <div ref={scrollRef} className="mt-20 flex-1 space-y-4 overflow-y-auto px-4 pt-4">
+                  {loadingMore && (
+                    <div className="flex justify-center py-2">
+                      <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                    </div>
+                  )}
+
+                  {[...messages]
+                    .sort((a, b) => {
+                      const t1 = (a as any).timestamp || 0;
+                      const t2 = (b as any).timestamp || 0;
+                      return t1 - t2;
+                    })
+                    .map(msg => (
+
+                      <div key={msg.id || crypto.randomUUID()} className={`flex w-full ${msg.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`prose prose-sm max-w-[85vw] whitespace-pre-wrap rounded-2xl p-3 shadow-md ${
+                          msg.sender_type === 'customer'
                             ? 'rounded-br-none bg-blue-400 text-white'
                             : 'bg-gray-200 text-gray-800'
                         }`}
-                        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
-                      >
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeHighlight]}
                         >
-                          {msg.text}
-                        </ReactMarkdown>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeHighlight]}
+                          >
+                            {msg.message}
+                          </ReactMarkdown>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-
+                    ))}
                   {isTyping && (
                     <div className="flex w-full">
                       <span className="size-4 animate-pulse rounded-full bg-black shadow-md" />
