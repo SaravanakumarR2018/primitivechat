@@ -1,5 +1,4 @@
 import { getTranslations } from 'next-intl/server';
-import DashboardClient from '@/components/DashboardClient';
 import { getCustomerGuid } from '@/api/backend-sdk/sendToken';
 import ErrorPage from '@/components/ui/error_page';
 
