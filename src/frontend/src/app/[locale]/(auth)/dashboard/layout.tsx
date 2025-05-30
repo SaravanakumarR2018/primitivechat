@@ -1,8 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-
+import DashboardClient from '@/components/DashboardClient';
 import { getCustomerGuid } from '@/api/backend-sdk/sendToken';
 import ErrorPage from '@/components/ui/error_page';
-import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
 
 export async function generateMetadata(props: { params: { locale: string } }) {
   const t = await getTranslations({
@@ -17,9 +16,6 @@ export async function generateMetadata(props: { params: { locale: string } }) {
 }
 
 export default async function DashboardLayout(props: { children: React.ReactNode }) {
-  const t = await getTranslations('DashboardLayout');
-
-  // eslint-disable-next-line no-console
   console.log('🔹 Fetching user in DashboardLayout...');
 
   try {
@@ -77,6 +73,7 @@ export default async function DashboardLayout(props: { children: React.ReactNode
           {props.children}
         </div>
       </div>
+
     </div>
   );
 }
