@@ -1,4 +1,3 @@
-/* eslint-disable unused-imports/no-unused-vars */
 import { getTranslations } from 'next-intl/server';
 
 import { getCustomerGuid } from '@/api/backend-sdk/sendToken';
@@ -20,6 +19,9 @@ export async function generateMetadata(props: { params: { locale: string } }) {
 export default async function DashboardLayout(props: { children: React.ReactNode }) {
   try {
     const customerGuid = await getCustomerGuid();
+    if (!customerGuid) {
+      return <ErrorPage />;
+    }
     // You can pass customerGuid to DashboardLayoutContent if needed
   } catch (error) {
     console.error('Error fetching customer GUID:', error);
