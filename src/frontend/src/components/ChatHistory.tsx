@@ -5,7 +5,7 @@
 import { useOrganization, useUser } from '@clerk/nextjs';
 import { ClipboardList, MessageSquare, Settings, Ticket } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { useDashboardSidebar } from '@/features/dashboard/DashboardSidebarContext';
@@ -36,6 +36,7 @@ export default function ChatHistory(props: ChatHistoryProps) {
     toggleSidebar,
     setChatId,
     resetChat,
+    selectedChatId,
     addChatToHistoryRef,
   } = useDashboardSidebar();
   const [chats, setChats] = useState<{ id: string; preview: string; timestamp: number }[]>([]);
@@ -50,8 +51,6 @@ export default function ChatHistory(props: ChatHistoryProps) {
   const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const selectedChatId = searchParams.get('chat_id');
   const chatRefs = useRef<{ [key: string]: HTMLLIElement | null }>({});
   const [highlightVersion, setHighlightVersion] = useState(0);
 
@@ -511,7 +510,7 @@ export default function ChatHistory(props: ChatHistoryProps) {
                           ref={(el) => {
                             chatRefs.current[chat.id] = el;
                           }}
-                          className={`mb-2 flex items-center justify-between rounded-lg bg-white transition-all duration-300 hover:bg-blue-200 ${isSidebarOpen ? 'p-2' : 'p-1'}${String(chat.id).trim() === String(selectedChatId).trim() ? ' bg-blue-300' : ''}`}
+                          className={`mb-2 flex items-center justify-between rounded-lg bg-white transition-all duration-300 hover:bg-blue-200 ${isSidebarOpen ? 'p-2' : 'p-1'} ${chat.id === selectedChatId ? 'bg-blue-300' : ''}`}
                         >
                           <button
                             type="button"
