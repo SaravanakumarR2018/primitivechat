@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-
 import ChatHistory from '@/components/ChatHistory';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
 import { DashboardSidebarProvider, useDashboardSidebar } from '@/features/dashboard/DashboardSidebarContext';
@@ -9,7 +7,6 @@ import { DashboardSidebarProvider, useDashboardSidebar } from '@/features/dashbo
 // Move metadata generation to a separate file if needed for SSR, keep layout as client
 
 function DashboardLayoutContent(props: { children: React.ReactNode; sidebarNavLinks: any[] }) {
-  const t = useTranslations('DashboardLayout');
   const { isSidebarOpen } = useDashboardSidebar();
 
   return (
@@ -25,15 +22,15 @@ function DashboardLayoutContent(props: { children: React.ReactNode; sidebarNavLi
             menu={[
               {
                 href: '/dashboard',
-                label: t('home'),
+                label: 'Home',
               },
               {
                 href: '/dashboard/organization-profile/organization-members',
-                label: t('members'),
+                label: 'Members',
               },
               {
                 href: '/dashboard/organization-profile',
-                label: t('settings'),
+                label: 'Settings',
               },
               // ...other menu items if needed
             ]}
