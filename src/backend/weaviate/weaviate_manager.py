@@ -4,6 +4,7 @@ from weaviate import Client
 import os
 import json
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 from src.backend.embedding.lib.download_and_upload_file import LocalFileDownloadAndUpload
 from src.backend.lib.singleton_class import Singleton
 
@@ -187,13 +188,14 @@ class WeaviateManager(metaclass=Singleton):
         """Return extended context for a question using page level retrieval.
 
         This method performs a hybrid search in Weaviate to obtain candidate
-        chunks, re-ranks them using a cross encoder model and then expands the
-        highest ranked chunks to their full page context (including neighbouring
-        pages).  The combined context for the top ranked chunks is returned in a
-        JSON serialisable format.
+        chunks, re-ranks them using cosine similarity with the loaded embedding
+        model and then expands the highest ranked chunks to their full page
+        context (including neighbouring pages).  The combined context for the
+        top ranked chunks is returned in a JSON serialisable format.
         """
         try:
-            query_vector = self.model.encode(question).tolist()
+            query_embedding = self.model.encode(question)
+            query_vector = query_embedding.tolist()
             class_name = self.generate_weaviate_class_name(customer_guid)
 
             raw_result = (
@@ -218,10 +220,9 @@ class WeaviateManager(metaclass=Singleton):
                 if obj["customer_guid"] != customer_guid:
                     raise ValueError("Internal server error: Customer GUID mismatch detected!")
 
-            from sentence_transformers import CrossEncoder
-
-            cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-            scores = cross_encoder.predict([[question, c["text"]] for c in candidates])
+            candidate_texts = [c["text"] for c in candidates]
+            candidate_vectors = self.model.encode(candidate_texts)
+            scores = cosine_similarity([query_embedding], candidate_vectors)[0]
 
             for cand, score in zip(candidates, scores):
                 cand["relevance_score"] = float(score)
