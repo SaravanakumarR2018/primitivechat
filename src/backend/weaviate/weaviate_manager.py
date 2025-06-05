@@ -183,6 +183,106 @@ class WeaviateManager(metaclass=Singleton):
             logger.error(f"Unexpected error in search query for {customer_guid}: {e}")
             raise e
 
+    def search_query_advanced(self, customer_guid: str, question: str, top_k: int = 3, alpha: float = 0.5):
+        """Return extended context for a question using page level retrieval.
+
+        This method performs a hybrid search in Weaviate to obtain candidate
+        chunks, re-ranks them using a cross encoder model and then expands the
+        highest ranked chunks to their full page context (including neighbouring
+        pages).  The combined context for the top ranked chunks is returned in a
+        JSON serialisable format.
+        """
+        try:
+            query_vector = self.model.encode(question).tolist()
+            class_name = self.generate_weaviate_class_name(customer_guid)
+
+            raw_result = (
+                self.client.query.get(
+                    class_name,
+                    ["text", "chunk_number", "page_numbers", "filename", "customer_guid"],
+                )
+                .with_hybrid(query=question, alpha=alpha, vector=query_vector)
+                .with_additional(["distance"])
+                .with_limit(max(top_k * 2, 10))
+                .do()
+            )
+
+            if not raw_result or "data" not in raw_result or "Get" not in raw_result["data"]:
+                raise ValueError(f"Unexpected search result format: {raw_result}")
+            if class_name not in raw_result["data"]["Get"]:
+                raise ValueError(f"No results found for customer: {class_name}")
+
+            candidates = raw_result["data"]["Get"][class_name]
+
+            for obj in candidates:
+                if obj["customer_guid"] != customer_guid:
+                    raise ValueError("Internal server error: Customer GUID mismatch detected!")
+
+            from sentence_transformers import CrossEncoder
+
+            cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            scores = cross_encoder.predict([[question, c["text"]] for c in candidates])
+
+            for cand, score in zip(candidates, scores):
+                cand["relevance_score"] = float(score)
+
+            ranked = sorted(candidates, key=lambda x: x["relevance_score"], reverse=True)[:top_k]
+
+            def fetch_page_chunks(pages, filename):
+                where_filter = {
+                    "operator": "And",
+                    "operands": [
+                        {"path": ["filename"], "operator": "Equal", "valueText": filename},
+                        {"path": ["page_numbers"], "operator": "ContainsAny", "valueInt": pages},
+                    ],
+                }
+
+                page_res = (
+                    self.client.query.get(
+                        class_name,
+                        ["text", "chunk_number", "page_numbers", "filename"],
+                    )
+                    .with_where(where_filter)
+                    .with_limit(100)
+                    .do()
+                )
+
+                return page_res.get("data", {}).get("Get", {}).get(class_name, [])
+
+            final_results = []
+            for idx, item in enumerate(ranked, start=1):
+                pages = set(item.get("page_numbers", []))
+                neighbours = set()
+                for p in pages:
+                    if p > 1:
+                        neighbours.add(p - 1)
+                    neighbours.add(p)
+                    neighbours.add(p + 1)
+                page_chunks = fetch_page_chunks(sorted(neighbours), item["filename"])
+                page_chunks.sort(key=lambda c: (min(c.get("page_numbers", [0])), c.get("chunk_number", 0)))
+                combined_text = " ".join(ch.get("text", "") for ch in page_chunks)
+
+                final_results.append(
+                    {
+                        "rank": idx,
+                        "relevance_score": item["relevance_score"],
+                        "filename": item["filename"],
+                        "page_numbers": sorted(neighbours),
+                        "text": combined_text,
+                    }
+                )
+
+            logger.info(
+                f"Advanced search query successful for {customer_guid} with query '{question}'"
+            )
+            return {"results": final_results}
+
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in advanced search query for {customer_guid}: {e}"
+            )
+            raise e
+
     def delete_objects_by_customer_and_filename(self,customer_guid, filename):
         try:
             class_name=self.generate_weaviate_class_name(customer_guid)
