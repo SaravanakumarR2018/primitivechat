@@ -47,6 +47,9 @@ function DashboardContent({ children, isSidebarOpen, toggleSidebar }: {
       <Link href="/dashboard/app-settings" title="App Settings">
         <Settings className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
       </Link>
+      <Link href="/dashboard/documents" title="Documents">
+        <Settings className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
+      </Link>
       <Link href="/dashboard/chat" title="Chat">
         <MessageSquare className="w-5 h-5 text-gray-700 hover:text-black" />
       </Link>
