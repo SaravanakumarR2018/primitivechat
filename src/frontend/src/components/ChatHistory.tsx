@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable ts/no-use-before-define */
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
@@ -5,7 +6,7 @@
 import { useOrganization, useUser } from '@clerk/nextjs';
 import { ClipboardList, MessageSquare, Settings, Ticket } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { useDashboardSidebar } from '@/features/dashboard/DashboardSidebarContext';
@@ -36,7 +37,7 @@ export default function ChatHistory(props: ChatHistoryProps) {
     toggleSidebar,
     setChatId,
     resetChat,
-    selectedChatId,
+    chatId,
     addChatToHistoryRef,
   } = useDashboardSidebar();
   const [chats, setChats] = useState<{ id: string; preview: string; timestamp: number }[]>([]);
@@ -53,6 +54,7 @@ export default function ChatHistory(props: ChatHistoryProps) {
   const pathname = usePathname();
   const chatRefs = useRef<{ [key: string]: HTMLLIElement | null }>({});
   const [highlightVersion, setHighlightVersion] = useState(0);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!organization || !user) {
@@ -64,13 +66,25 @@ export default function ChatHistory(props: ChatHistoryProps) {
 
   useEffect(() => {
     setHighlightVersion(v => v + 1);
-  }, [selectedChatId]);
+  }, [chatId]);
+  useEffect(() => {
+    setHighlightVersion(v => v + 1);
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
+    const chatId = searchParams.get('chat_id');
+    console.log('Chat ID from URL:', chatId);
+    if (chatId) {
+      setChatId(chatId);
+    }
+  }, [searchParams]);
+
   // Scroll selected chat into view when sidebar opens
   useEffect(() => {
-    if (isSidebarOpen && selectedChatId && chatRefs.current[selectedChatId]) {
-      chatRefs.current[selectedChatId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (isSidebarOpen && chatId && chatRefs.current[chatId]) {
+      chatRefs.current[chatId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [isSidebarOpen, selectedChatId, chats.length]);
+  }, [isSidebarOpen, chatId, chats.length]);
 
   // Infinite scroll handler
   useEffect(() => {
@@ -102,6 +116,10 @@ export default function ChatHistory(props: ChatHistoryProps) {
       const data = await res.json();
       const chatIds = data.chat_ids || [];
       const more = data.hasMore !== undefined ? data.hasMore : chatIds.length === PAGE_SIZE;
+      // Store has_more in sessionStorage for persistence
+      if (organization?.id && user?.id) {
+        sessionStorage.setItem(`${organization.id}-${user.id}-has_more`, JSON.stringify(more));
+      }
       await Promise.all(
         chatIds.map(async (chatId: string) => {
           const res = await fetch(`/api/backend/getallchats?chat_id=${chatId}&page=1&page_size=60`);
@@ -136,7 +154,17 @@ export default function ChatHistory(props: ChatHistoryProps) {
 
   const initializeChats = async () => {
     setPage(1);
-    setHasMore(true);
+    // Try to restore hasMore from sessionStorage
+    let restoredHasMore = true;
+    if (organization?.id && user?.id) {
+      const stored = sessionStorage.getItem(`${organization.id}-${user.id}-has_more`);
+      if (stored !== null) {
+        try {
+          restoredHasMore = JSON.parse(stored);
+        } catch {}
+      }
+    }
+    setHasMore(restoredHasMore);
     const chatKeys = Object.keys(sessionStorage).filter(key => key.includes(`-${organization?.id}-${user?.id}`));
     if (chatKeys.length > 0) {
       loadChatsFromStorage(chatKeys);
@@ -146,6 +174,10 @@ export default function ChatHistory(props: ChatHistoryProps) {
         const data = await res.json();
         const chatIds = data.chat_ids || [];
         const more = data.hasMore !== undefined ? data.hasMore : chatIds.length === PAGE_SIZE;
+        // Store has_more in sessionStorage for persistence
+        if (organization?.id && user?.id) {
+          sessionStorage.setItem(`${organization.id}-${user.id}-has_more`, JSON.stringify(more));
+        }
         await Promise.all(
           chatIds.map(async (chatId: string) => {
             const res = await fetch(`/api/backend/getallchats?chat_id=${chatId}&page=1&page_size=60`);
@@ -337,11 +369,11 @@ export default function ChatHistory(props: ChatHistoryProps) {
 
   // Update: handle chat click to navigate to chat page with chat_id param
   const handleSelectChat = (id: string) => {
+    router.push(`/dashboard/chat?chat_id=${id}`);
     setChatId(id);
     if (isMobile && isSidebarOpen) {
       toggleSidebar();
     }
-    router.push(`/dashboard/chat?chat_id=${id}`);
   };
 
   return (
@@ -483,7 +515,7 @@ export default function ChatHistory(props: ChatHistoryProps) {
         {isSidebarOpen && (
           <div
             id="chat-history-scroll"
-            className={`relative flex-1 overflow-y-auto bg-white p-4 transition-all duration-300 ${isSidebarOpen ? '' : 'hidden'}${isSidebarOpen ? '' : ' p-1'}`}
+            className={`relative flex-1 overflow-y-auto p-4 transition-all duration-300 ${isSidebarOpen ? '' : 'hidden'}${isSidebarOpen ? '' : ' p-1'}`}
             style={{ minHeight: 0 }}
           >
             {loading && (
@@ -494,23 +526,23 @@ export default function ChatHistory(props: ChatHistoryProps) {
               : (
                   <ul>
                     {chats.map((chat) => {
-                      // console.log(
-                      //   'chat.id:',
-                      //   chat.id,
-                      //   typeof chat.id,
-                      //   'selectedChatId:',
-                      //   selectedChatId,
-                      //   typeof selectedChatId,
-                      //   'equal:',
-                      //   String(chat.id).trim() === String(selectedChatId).trim(),
-                      // );
+                      console.log(
+                        'chat.id:',
+                        chat.id,
+                        typeof chat.id,
+                        'selectedChatId:',
+                        chatId,
+                        typeof chatId,
+                        'equal:',
+                        String(chat.id).trim() === String(chatId).trim(),
+                      );
                       return (
                         <li
                           key={`${chat.id}-${highlightVersion}`}
                           ref={(el) => {
                             chatRefs.current[chat.id] = el;
                           }}
-                          className={`mb-2 flex items-center justify-between rounded-lg bg-white transition-all duration-300 hover:bg-blue-200 ${isSidebarOpen ? 'p-2' : 'p-1'} ${chat.id === selectedChatId ? 'bg-blue-300' : ''}`}
+                          className={`mb-2 flex items-center justify-between rounded-lg transition-all duration-300 hover:bg-blue-200 ${isSidebarOpen ? 'p-2' : 'p-1'} ${chat.id.trim() === chatId?.trim() ? 'bg-blue-300' : 'bg-white'}`}
                         >
                           <button
                             type="button"
