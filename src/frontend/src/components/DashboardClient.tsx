@@ -6,7 +6,7 @@ import { ChatProvider, useChat } from '@/context/ChatContext';
 import { DashboardHeader } from '@/features/dashboard/DashboardHeader';
 import GlobalSidebarWrapper from '@/components/GlobalSidebarWrapper';
 import Link from 'next/link';
-import { Ticket, ClipboardList, Settings, MessageSquare } from 'lucide-react';
+import { Ticket, ClipboardList, Settings, MessageSquare, FileText } from 'lucide-react';
 
 function DashboardContent({ children, isSidebarOpen, toggleSidebar }: { 
   children: React.ReactNode; 
@@ -46,6 +46,9 @@ function DashboardContent({ children, isSidebarOpen, toggleSidebar }: {
       </Link>
       <Link href="/dashboard/app-settings" title="App Settings">
         <Settings className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
+      </Link>
+      <Link href="/dashboard/documents" title="Documents">
+        <FileText className="w-5 h-5 text-gray-700 hover:text-black mb-6" />
       </Link>
       <Link href="/dashboard/chat" title="Chat">
         <MessageSquare className="w-5 h-5 text-gray-700 hover:text-black" />
@@ -112,7 +115,7 @@ function DashboardContent({ children, isSidebarOpen, toggleSidebar }: {
         {!isSidebarOpen && <Sidebar />}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-hidden bg-gray-50">
+        <main className="flex-1 overflow-auto bg-gray-50">
           <div className="mx-auto max-w-screen-xl px-4 py-6">
             <GlobalSidebarWrapper isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
             <div className={`transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-20'} max-w-screen-xl px-2 pb-16 pt-6`}>

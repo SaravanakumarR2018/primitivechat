@@ -345,7 +345,8 @@ async def paginated_list_files(
             {
                 "fileid": file["file_id"],
                 "filename": file["filename"],
-                "embeddingstatus": status_mapping.get(file["status"], "UNKNOWN")
+                "embeddingstatus": status_mapping.get(file["status"], "UNKNOWN"),
+                "uploaded_time": file["uploaded_time"]
             }
             for file in files
         ]
@@ -389,7 +390,10 @@ async def get_files_deletion_status(request: Request, page: int = 1, page_size: 
             {
                 "file_id": file["file_id"],
                 "filename": file["filename"],
-                "deletion_status": status_mapping.get(file["delete_status"],"UNKNOWN_STATUS")
+                "deletion_status": status_mapping.get(file["delete_status"],"UNKNOWN_STATUS"),
+                "uploaded_time": file["uploaded_time"],
+                "delete_request_timestamp":file["delete_request_timestamp"]
+
             }
             for file in files
         ]
