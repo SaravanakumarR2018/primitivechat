@@ -8,7 +8,6 @@ type DashboardSidebarContextProps = {
   chatId: string;
   setChatId: (id: string) => void;
   resetChat: () => void;
-  selectedChatId: string | null; // <-- Add this line
   addChatToHistoryRef: React.MutableRefObject<((chatId: string, message: string, timestamp?: number) => void) | null>;
 };
 
@@ -37,7 +36,6 @@ export const DashboardSidebarProvider: React.FC<{ children: React.ReactNode }> =
       chatId,
       setChatId,
       resetChat,
-      selectedChatId: chatId,
       addChatToHistoryRef,
     }),
     [isSidebarOpen, toggleSidebar, chatId, setChatId, resetChat, addChatToHistoryRef],
