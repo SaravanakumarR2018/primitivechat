@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
-import DashboardClient from '@/components/DashboardClient';
+
 import { getCustomerGuid } from '@/api/backend-sdk/sendToken';
+import DashboardLayoutContent from '@/components/DashboardLayoutContent';
 import ErrorPage from '@/components/ui/error_page';
 
 export async function generateMetadata(props: { params: { locale: string } }) {
@@ -16,23 +17,28 @@ export async function generateMetadata(props: { params: { locale: string } }) {
 }
 
 export default async function DashboardLayout(props: { children: React.ReactNode }) {
-  console.log('🔹 Fetching user in DashboardLayout...');
-
   try {
-    const customerGuid = await getCustomerGuid(); // Now using the cache-based function
-    // eslint-disable-next-line no-console
-    console.log('Customer GUID:', customerGuid);
+    const customerGuid = await getCustomerGuid();
+    if (!customerGuid) {
+      return <ErrorPage />;
+    }
+    // You can pass customerGuid to DashboardLayoutContent if needed
   } catch (error) {
     console.error('Error fetching customer GUID:', error);
     return <ErrorPage />;
   }
 
+  const sidebarNavLinks = [
+    { href: '/dashboard/tickets', label: 'Tickets' },
+    { href: '/dashboard/checkclerk', label: 'Checkclerk' },
+    { href: '/dashboard/app-settings', label: 'App Settings' },
+    { href: '/dashboard/chat', label: 'Chat' },
+  ];
+
   return (
-    <div>
-      <DashboardClient>
-        {props.children}
-      </DashboardClient>
-    </div>
+    <DashboardLayoutContent sidebarNavLinks={sidebarNavLinks}>
+      {props.children}
+    </DashboardLayoutContent>
   );
 }
 

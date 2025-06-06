@@ -112,3 +112,25 @@ export const TicketDetailSkeleton = () => {
     </div>
   );
 };
+
+export const ChatHistorySkeleton = () => {
+  return (
+    <div className="relative h-[calc(100vh-8rem)] overflow-y-hidden bg-white p-4">
+      <ul className="space-y-2">
+        {[...Array(20)].map((_, index) => (
+          <li
+            key={index}
+            className="mb-2 flex items-center justify-between rounded-lg bg-gray-100 p-2 hover:bg-gray-200"
+          >
+            {/* Chat preview skeleton */}
+            <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+            {/* Action icons skeleton */}
+            <div className="flex items-center gap-2">
+              <div className="size-5 animate-pulse rounded-full bg-gray-300" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
