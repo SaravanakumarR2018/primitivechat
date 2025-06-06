@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useChat } from '@/context/ChatContext';
-import { Ticket, ClipboardList, MessageSquare, Settings } from 'lucide-react';
+import { Ticket, ClipboardList, MessageSquare, Settings, FileText } from 'lucide-react';
 
 interface GlobalSidebarProps {
   isSidebarOpen: boolean;
@@ -178,6 +178,17 @@ export default function ChatHistory({ isSidebarOpen, toggleSidebar }: GlobalSide
                 <span>App Settings</span>
               </Link>
             </li>
+            <li>
+            <Link
+              href="/dashboard/documents"
+              className={`flex items-center space-x-2 font-semibold p-2 rounded-lg transition-colors ${
+                pathname === '/dashboard/documents' ? 'bg-blue-300' : 'hover:bg-blue-100'
+              }`}
+            >
+              <FileText className="w-5 h-5" />
+              <span>Documents</span>
+            </Link>
+          </li>
             <li>
               <Link href="/dashboard/chat" className={`flex items-center space-x-2 font-semibold p-2 rounded-lg transition-colors ${
     pathname === '/dashboard/chat' ? 'bg-blue-300' : 'hover:bg-blue-100'}`}>
