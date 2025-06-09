@@ -72,7 +72,7 @@ class WeaviateManager(metaclass=Singleton):
                             "name": "page_numbers",
                             "dataType": ["int[]"],
                             "description": "An object containing metadata like page number",
-                            "indexInverted": False
+                            "indexFilterable": True
                         },
                         {
                             "name": "customer_guid",
@@ -194,6 +194,7 @@ class WeaviateManager(metaclass=Singleton):
         top ranked chunks is returned in a JSON serialisable format.
         """
         try:
+            logger.info(f"[ADVANCED SEARCH] Query: '{question}' | customer_guid: {customer_guid} | top_k: {top_k} | alpha: {alpha}")
             query_embedding = self.model.encode(question)
             query_vector = query_embedding.tolist()
             class_name = self.generate_weaviate_class_name(customer_guid)
@@ -210,17 +211,22 @@ class WeaviateManager(metaclass=Singleton):
             )
 
             if not raw_result or "data" not in raw_result or "Get" not in raw_result["data"]:
+                logger.error(f"[ADVANCED SEARCH] Unexpected search result format: {raw_result}")
                 raise ValueError(f"Unexpected search result format: {raw_result}")
+
             if class_name not in raw_result["data"]["Get"]:
+                logger.warning(f"[ADVANCED SEARCH] No results found for customer: {class_name}")
                 raise ValueError(f"No results found for customer: {class_name}")
 
             candidates = raw_result["data"]["Get"][class_name]
+            logger.info(f"[ADVANCED SEARCH] Retrieved {len(candidates)} candidate chunks from Weaviate.")
 
             for obj in candidates:
-                if obj["customer_guid"] != customer_guid:
+                if obj.get("customer_guid") != customer_guid:
+                    logger.error("[ADVANCED SEARCH] Customer GUID mismatch detected!")
                     raise ValueError("Internal server error: Customer GUID mismatch detected!")
 
-            candidate_texts = [c["text"] for c in candidates]
+            candidate_texts = [c.get("text", "") for c in candidates]
             candidate_vectors = self.model.encode(candidate_texts)
             scores = cosine_similarity([query_embedding], candidate_vectors)[0]
 
@@ -228,27 +234,49 @@ class WeaviateManager(metaclass=Singleton):
                 cand["relevance_score"] = float(score)
 
             ranked = sorted(candidates, key=lambda x: x["relevance_score"], reverse=True)[:top_k]
+            logger.info(f"[ADVANCED SEARCH] Selected top {top_k} ranked candidates for context expansion.")
 
             def fetch_page_chunks(pages, filename):
                 where_filter = {
                     "operator": "And",
                     "operands": [
                         {"path": ["filename"], "operator": "Equal", "valueText": filename},
-                        {"path": ["page_numbers"], "operator": "ContainsAny", "valueInt": pages},
+                        {"path": ["page_numbers"], "operator": "ContainsAny", "valueInt": list(pages)},
                     ],
                 }
 
-                page_res = (
-                    self.client.query.get(
-                        class_name,
-                        ["text", "chunk_number", "page_numbers", "filename"],
-                    )
-                    .with_where(where_filter)
-                    .with_limit(100)
-                    .do()
-                )
+                page_res = self.client.query.get(
+                    class_name,
+                    ["text", "chunk_number", "page_numbers", "filename"],
+                ).with_where(where_filter).with_limit(100).do()
 
-                return page_res.get("data", {}).get("Get", {}).get(class_name, [])
+                logger.info(f"page_res: {page_res}")
+
+                if not isinstance(page_res, dict):
+                    logger.error("page_res is not a dict: %s", page_res)
+                    return []
+
+                get_data = page_res.get("data", {})
+                if not isinstance(get_data, dict):
+                    logger.error("get_data is not a dict: %s", get_data)
+                    return []
+
+                get_class = get_data.get("Get", {})
+                if not isinstance(get_class, dict):
+                    logger.error("get_class is not a dict: %s", get_class)
+                    return []
+
+                chunks = get_class.get(class_name, [])
+                if chunks is None:
+                    logger.error("Fetched page_chunks is None, returning empty list.")
+                    return []
+
+                logger.debug(f"[ADVANCED SEARCH] fetch_page_chunks for filename={filename}, pages={pages} -> {len(chunks)} chunks.")
+                return chunks
+
+            def safe_min_page(chunk):
+                pages = chunk.get("page_numbers", [])
+                return min(pages) if pages else 0
 
             final_results = []
             for idx, item in enumerate(ranked, start=1):
@@ -259,9 +287,22 @@ class WeaviateManager(metaclass=Singleton):
                         neighbours.add(p - 1)
                     neighbours.add(p)
                     neighbours.add(p + 1)
+
+                logger.debug(f"[ADVANCED SEARCH] Expanding context for result {idx}: filename={item['filename']}, pages={sorted(neighbours)}")
+
                 page_chunks = fetch_page_chunks(sorted(neighbours), item["filename"])
-                page_chunks.sort(key=lambda c: (min(c.get("page_numbers", [0])), c.get("chunk_number", 0)))
-                combined_text = " ".join(ch.get("text", "") for ch in page_chunks)
+
+                if not isinstance(page_chunks, list):
+                    logger.warning(f"[ADVANCED SEARCH] page_chunks for result {idx} is not a list. Skipping.")
+                    continue
+
+                try:
+                    page_chunks.sort(key=lambda c: (safe_min_page(c), c.get("chunk_number", 0)))
+                except Exception as sort_error:
+                    logger.error(f"Error sorting page_chunks: {sort_error}")
+                    continue
+
+                combined_text = " ".join(ch.get("text", "") for ch in page_chunks if ch.get("text"))
 
                 final_results.append(
                     {
@@ -273,15 +314,13 @@ class WeaviateManager(metaclass=Singleton):
                     }
                 )
 
-            logger.info(
-                f"Advanced search query successful for {customer_guid} with query '{question}'"
-            )
+                logger.info(f"[ADVANCED SEARCH] Final result {idx}: filename={item['filename']}, pages={sorted(neighbours)}, score={item['relevance_score']}")
+
+            logger.info(f"Advanced search query successful for {customer_guid} with query '{question}'")
             return {"results": final_results}
 
         except Exception as e:
-            logger.error(
-                f"Unexpected error in advanced search query for {customer_guid}: {e}"
-            )
+            logger.error(f"Unexpected error in advanced search query for {customer_guid}: {e}")
             raise e
 
     def delete_objects_by_customer_and_filename(self,customer_guid, filename):
