@@ -85,6 +85,12 @@ class WeaviateManager(metaclass=Singleton):
                             "dataType": ["text"],
                             "description": "The name of the file this chunk originates from.",
                             "indexInverted": True
+                        },
+                        {
+                            "name": "max_page",
+                            "dataType": ["int"],
+                            "description": "Maximum page number in this file.",
+                            "indexFilterable": True
                         }
                     ]
                 }
@@ -120,6 +126,16 @@ class WeaviateManager(metaclass=Singleton):
             if not isinstance(data, list):
                 raise ValueError("Invalid JSON format: Expected a list of objects.")
 
+            # 🔹 Compute max page number
+            max_page_for_file = 0
+            for entry in data:
+                metadata = entry.get("metadata", {})
+                pages = metadata.get("page_numbers", [])
+                if pages:
+                    max_page_for_file = max(max_page_for_file, max(pages))
+
+            logger.info(f"Max page for file '{filename}' is {max_page_for_file}")
+
             batch_size = 100
             self.client.batch.configure(batch_size=batch_size)
 
@@ -127,7 +143,6 @@ class WeaviateManager(metaclass=Singleton):
             for i in range(0, len(data), batch_size):
                 batch_data = data[i:i + batch_size]
 
-                # Extract texts for the current batch
                 texts = [entry["text"].strip() for entry in batch_data if "text" in entry and "metadata" in entry]
                 embeddings = self.model.encode(texts).tolist()
 
@@ -142,15 +157,24 @@ class WeaviateManager(metaclass=Singleton):
                             "customer_guid": customer_guid,
                             "filename": metadata["filename"],
                             "chunk_number": metadata["chunk_number"],
-                            "page_numbers": metadata["page_numbers"]
+                            "page_numbers": metadata["page_numbers"],
+                            "max_page": max_page_for_file
                         }
 
-                        # Add the current chunk to the Weaviate batch
                         batch.add_data_object(chunk_data, class_name=class_names, vector=embedding)
 
                 logger.info(f"Processed batch {batch_size} for {class_names}")
 
             logger.info(f"Bulk data inserted for {class_names} successfully!")
+
+            # 🔹 Optionally store the max_page_for_file in a separate metadata object
+            # Example (if you've added `max_page` field to schema):
+            # self.client.data_object.create({
+            #     "filename": filename,
+            #     "customer_guid": customer_guid,
+            #     "max_page": max_page_for_file
+            # }, class_name=class_names)
+
         except Exception as e:
             logger.error(f"Unexpected error inserting data for {customer_guid}: {e}")
             raise e
@@ -194,7 +218,8 @@ class WeaviateManager(metaclass=Singleton):
         top ranked chunks is returned in a JSON serialisable format.
         """
         try:
-            logger.info(f"[ADVANCED SEARCH] Query: '{question}' | customer_guid: {customer_guid} | top_k: {top_k} | alpha: {alpha}")
+            logger.info(
+                f"[ADVANCED SEARCH] Query: '{question}' | customer_guid: {customer_guid} | top_k: {top_k} | alpha: {alpha}")
             query_embedding = self.model.encode(question)
             query_vector = query_embedding.tolist()
             class_name = self.generate_weaviate_class_name(customer_guid)
@@ -202,7 +227,7 @@ class WeaviateManager(metaclass=Singleton):
             raw_result = (
                 self.client.query.get(
                     class_name,
-                    ["text", "chunk_number", "page_numbers", "filename", "customer_guid"],
+                    ["text", "chunk_number", "page_numbers", "filename", "customer_guid", "max_page"],
                 )
                 .with_hybrid(query=question, alpha=alpha, vector=query_vector)
                 .with_additional(["distance"])
@@ -218,23 +243,43 @@ class WeaviateManager(metaclass=Singleton):
                 logger.warning(f"[ADVANCED SEARCH] No results found for customer: {class_name}")
                 raise ValueError(f"No results found for customer: {class_name}")
 
-            candidates = raw_result["data"]["Get"][class_name]
-            logger.info(f"[ADVANCED SEARCH] Retrieved {len(candidates)} candidate chunks from Weaviate.")
+            candidates = raw_result.get("data", {}).get("Get", {}).get(class_name, [])
+            if not candidates:
+                raise ValueError(f"No results found for customer: {class_name}")
 
             for obj in candidates:
                 if obj.get("customer_guid") != customer_guid:
                     logger.error("[ADVANCED SEARCH] Customer GUID mismatch detected!")
                     raise ValueError("Internal server error: Customer GUID mismatch detected!")
-
+            # Re-rank candidates
             candidate_texts = [c.get("text", "") for c in candidates]
             candidate_vectors = self.model.encode(candidate_texts)
             scores = cosine_similarity([query_embedding], candidate_vectors)[0]
-
             for cand, score in zip(candidates, scores):
                 cand["relevance_score"] = float(score)
 
             ranked = sorted(candidates, key=lambda x: x["relevance_score"], reverse=True)[:top_k]
-            logger.info(f"[ADVANCED SEARCH] Selected top {top_k} ranked candidates for context expansion.")
+
+            def get_page_count(filename: str) -> int:
+                try:
+                    result = (
+                        self.client.query.get(
+                            class_name,
+                            ["max_page"]
+                        )
+                        .with_where({
+                            "path": ["filename"],
+                            "operator": "Equal",
+                            "valueText": filename
+                        })
+                        .with_limit(1)
+                        .do()
+                    )
+                    entries = result.get("data", {}).get("Get", {}).get(class_name, [])
+                    return entries[0].get("max_page", 0) if entries else 0
+                except Exception as e:
+                    logger.warning(f"Failed to get max_page for '{filename}': {e}")
+                    return 0
 
             def fetch_page_chunks(pages, filename):
                 where_filter = {
@@ -244,84 +289,60 @@ class WeaviateManager(metaclass=Singleton):
                         {"path": ["page_numbers"], "operator": "ContainsAny", "valueInt": list(pages)},
                     ],
                 }
-
-                page_res = self.client.query.get(
+                res = self.client.query.get(
                     class_name,
                     ["text", "chunk_number", "page_numbers", "filename"],
                 ).with_where(where_filter).with_limit(100).do()
 
-                logger.info(f"page_res: {page_res}")
-
-                if not isinstance(page_res, dict):
-                    logger.error("page_res is not a dict: %s", page_res)
-                    return []
-
-                get_data = page_res.get("data", {})
-                if not isinstance(get_data, dict):
-                    logger.error("get_data is not a dict: %s", get_data)
-                    return []
-
-                get_class = get_data.get("Get", {})
-                if not isinstance(get_class, dict):
-                    logger.error("get_class is not a dict: %s", get_class)
-                    return []
-
-                chunks = get_class.get(class_name, [])
-                if chunks is None:
-                    logger.error("Fetched page_chunks is None, returning empty list.")
-                    return []
-
-                logger.debug(f"[ADVANCED SEARCH] fetch_page_chunks for filename={filename}, pages={pages} -> {len(chunks)} chunks.")
-                return chunks
+                return res.get("data", {}).get("Get", {}).get(class_name) or []
 
             def safe_min_page(chunk):
                 pages = chunk.get("page_numbers", [])
                 return min(pages) if pages else 0
 
+            filenames = {item["filename"] for item in ranked}
+            page_count_cache = {fn: get_page_count(fn) for fn in filenames}
+
             final_results = []
             for idx, item in enumerate(ranked, start=1):
-                pages = set(item.get("page_numbers", []))
-                neighbours = set()
-                for p in pages:
-                    if p > 1:
-                        neighbours.add(p - 1)
-                    neighbours.add(p)
-                    neighbours.add(p + 1)
+                pages = item.get("page_numbers", [])
+                filename = item["filename"]
+                logger.info(f"Rank {idx} → Expanding page: {pages} (file: {filename})")
+                page_count = page_count_cache.get(filename, 0)
+                logger.info(f"[ADVANCED SEARCH] Processing file: {filename}, page_count: {page_count}, pages: {pages}")
 
-                logger.debug(f"[ADVANCED SEARCH] Expanding context for result {idx}: filename={item['filename']}, pages={sorted(neighbours)}")
+                expanded_pages = set()
+                logger.info(f"Rank {idx} → Expanded pages: {expanded_pages}, page_count={page_count}")
 
-                page_chunks = fetch_page_chunks(sorted(neighbours), item["filename"])
+                for page in pages:
+                    if page_count == 1:
+                        expanded_pages.update([1])
+                    elif page == 1:
+                        expanded_pages.update([1, 2, 3][:page_count])
+                    elif page == page_count:
+                        expanded_pages.update([p for p in [page_count - 2, page_count - 1, page_count] if p >= 1])
+                    else:
+                        expanded_pages.update([p for p in [page - 1, page, page + 1] if 1 <= p <= page_count])
 
-                if not isinstance(page_chunks, list):
-                    logger.warning(f"[ADVANCED SEARCH] page_chunks for result {idx} is not a list. Skipping.")
-                    continue
+                chunks = fetch_page_chunks(sorted(expanded_pages), filename)
+                chunks.sort(key=lambda c: (safe_min_page(c), c.get("chunk_number", 0)))
+                combined_text = " ".join(c.get("text", "") for c in chunks)
 
-                try:
-                    page_chunks.sort(key=lambda c: (safe_min_page(c), c.get("chunk_number", 0)))
-                except Exception as sort_error:
-                    logger.error(f"Error sorting page_chunks: {sort_error}")
-                    continue
+                final_results.append({
+                    "rank": idx,
+                    "relevance_score": item["relevance_score"],
+                    "filename": filename,
+                    "page_numbers": sorted(expanded_pages),
+                    "text": combined_text,
+                })
 
-                combined_text = " ".join(ch.get("text", "") for ch in page_chunks if ch.get("text"))
+                logger.info(f"[ADVANCED SEARCH] Final result {idx}: file={filename}, pages={sorted(expanded_pages)}")
 
-                final_results.append(
-                    {
-                        "rank": idx,
-                        "relevance_score": item["relevance_score"],
-                        "filename": item["filename"],
-                        "page_numbers": sorted(neighbours),
-                        "text": combined_text,
-                    }
-                )
-
-                logger.info(f"[ADVANCED SEARCH] Final result {idx}: filename={item['filename']}, pages={sorted(neighbours)}, score={item['relevance_score']}")
-
-            logger.info(f"Advanced search query successful for {customer_guid} with query '{question}'")
             return {"results": final_results}
 
         except Exception as e:
-            logger.error(f"Unexpected error in advanced search query for {customer_guid}: {e}")
-            raise e
+            logger.error(f"Unexpected error in advanced search query: {e}")
+            raise
 
     def delete_objects_by_customer_and_filename(self,customer_guid, filename):
         try:
