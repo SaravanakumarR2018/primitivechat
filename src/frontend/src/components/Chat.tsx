@@ -472,7 +472,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
+    <div className="flex flex-col">
       <div className="mx-auto flex size-full max-w-4xl flex-1 flex-col pb-4">
         {messages.length === 0 && !isTyping
           ? (
@@ -503,7 +503,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
             )
           : (
               <>
-                <div ref={scrollRef} className="mt-20 flex-1 space-y-4 overflow-y-auto px-4 pt-4">
+                <div ref={scrollRef} className="mt-20 flex-1 space-y-4 px-4 pt-4">
                   {loadingMore && (
                     <div className="flex justify-center py-2">
                       <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
