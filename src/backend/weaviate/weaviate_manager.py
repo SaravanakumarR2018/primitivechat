@@ -260,26 +260,14 @@ class WeaviateManager(metaclass=Singleton):
 
             ranked = sorted(candidates, key=lambda x: x["relevance_score"], reverse=True)[:top_k]
 
-            def get_page_count(filename: str) -> int:
-                try:
-                    result = (
-                        self.client.query.get(
-                            class_name,
-                            ["max_page"]
-                        )
-                        .with_where({
-                            "path": ["filename"],
-                            "operator": "Equal",
-                            "valueText": filename
-                        })
-                        .with_limit(1)
-                        .do()
-                    )
-                    entries = result.get("data", {}).get("Get", {}).get(class_name, [])
-                    return entries[0].get("max_page", 0) if entries else 0
-                except Exception as e:
-                    logger.warning(f"Failed to get max_page for '{filename}': {e}")
-                    return 0
+            # New: Extract max_page directly from candidates
+            page_count_cache = {}
+            for item in ranked:
+                filename = item["filename"]
+                max_page = item.get("max_page", 0)
+                if filename not in page_count_cache or max_page > page_count_cache[filename]:
+                    page_count_cache[filename] = max_page
+
 
             def fetch_page_chunks(pages, filename):
                 where_filter = {
@@ -300,9 +288,14 @@ class WeaviateManager(metaclass=Singleton):
                 pages = chunk.get("page_numbers", [])
                 return min(pages) if pages else 0
 
-            filenames = {item["filename"] for item in ranked}
-            page_count_cache = {fn: get_page_count(fn) for fn in filenames}
-
+            page_count_cache = {}
+            for item in ranked:
+                filename = item["filename"]
+                max_page = item.get("max_page", 0)
+                if filename not in page_count_cache or max_page > page_count_cache[filename]:
+                    page_count_cache[filename] = max_page
+            logger.info(f"[ADVANCED SEARCH] Page count cache: {page_count_cache}")
+            
             final_results = []
             for idx, item in enumerate(ranked, start=1):
                 pages = item.get("page_numbers", [])
