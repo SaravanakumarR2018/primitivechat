@@ -474,7 +474,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)] flex-col" id="chat-root">
+    <div className="flex flex-1 flex-col" id="chat-root">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col pb-4">
         {messages.length === 0 && !isTyping
           ? (
