@@ -32,9 +32,22 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   const scrollCooldownRef = useRef(false);
   const scrollRestoreRef = useRef<null | { previousScrollHeight: number }>(null);
   const isAppendingRef = useRef(false);
+  const userScrolledUpRef = useRef(false);
+  const forceScrollToBottomRef = useRef(false);
   const getScrollContainer = useCallback((): HTMLDivElement | null => {
     return document.getElementById('dashboard-scroll-container') as HTMLDivElement | null;
   }, []);
+
+  useEffect(() => {
+    const scrollContainer = getScrollContainer();
+    if (scrollContainer) {
+      scrollContainer.classList.add('custom-scrollbar');
+      scrollContainer.style.overflowY = 'auto';
+    }
+    // Not adding a cleanup for classList/style here, as dashboard-scroll-container is likely persistent
+    // and managed by a layout component. Re-adding it on chat mount is fine.
+  }, [getScrollContainer]);
+
   // Load messages from sessionStorage
   useEffect(() => {
     const loadChat = () => {
@@ -64,11 +77,22 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   }, [chatId, organization?.id, user?.id]);
 
   useEffect(() => {
+    // useEffect for handling scrolling when new messages are added
     if (isAppendingRef.current) {
-      isAppendingRef.current = false;
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      isAppendingRef.current = false; // Consume the appending flag
+
+      const scrollContainer = getScrollContainer();
+      // We check userScrolledUpRef here. If forceScrollToBottomRef is true, it means user just sent a message,
+      // so we override userScrolledUpRef and scroll, then reset userScrolledUpRef.
+      if (!userScrolledUpRef.current || forceScrollToBottomRef.current) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        userScrolledUpRef.current = false; // After scrolling, user is no longer considered scrolled up
+        if (forceScrollToBottomRef.current) {
+          forceScrollToBottomRef.current = false; // Consume the force scroll flag
+        }
+      }
     }
-  }, [messages]);
+  }, [messages, getScrollContainer]); // Added getScrollContainer as it's used indirectly
 
   useEffect(() => {
     const handleResize = () => {
@@ -150,15 +174,74 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
     }
     const handleScroll = async () => {
       const container = getScrollContainer();
-      if (!container || scrollCooldownRef.current || loadingMore || !hasMore) {
-        return;
+      if (!container) return;
+
+      // Logic for infinite scroll (when scrolled to top)
+      if (container.scrollTop === 0 && hasMore && !loadingMore && !scrollCooldownRef.current) {
+        setLoadingMore(true);
+        const previousScrollHeight = container.scrollHeight;
+        scrollRestoreRef.current = { previousScrollHeight };
+
+        const nextPage = page + 1;
+        const { messages: newMsgs, has_more } = await fetchMessages(nextPage);
+
+        setMessages((prev) => {
+          const prevIds = new Set(prev.map(m => m.id));
+          const filtered = newMsgs.filter((m: { id: string | undefined }) => !prevIds.has(m.id));
+          const updated = [...filtered, ...prev];
+
+          const orgId = organization?.id;
+          const userId = user?.id;
+          if (orgId && userId && chatId) {
+            const key = `${chatId}-${orgId}-${userId}`;
+            const saved = sessionStorage.getItem(key);
+            const sessionData = saved ? JSON.parse(saved) : {};
+            sessionStorage.setItem(key, JSON.stringify({
+              ...sessionData,
+              chatId,
+              messages: updated,
+              hasMore: has_more,
+              updatedAt: Date.now(),
+            }));
+          }
+          return updated;
+        });
+        setHasMore(has_more);
+        setPage(nextPage);
+        setLoadingMore(false);
       }
 
-      if (container.scrollTop !== 0) {
-        return;
-      }
+      // Logic for detecting user scroll position (away from bottom or back to bottom)
+      const SCROLL_THRESHOLD = 5; // pixels
+      // Check if scrollbar is at the bottom
+      const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < SCROLL_THRESHOLD;
 
-      setLoadingMore(true);
+      if (isAtBottom) {
+        // If user was scrolled up and now is at the bottom, reset the flag to allow auto-scrolling
+        if (userScrolledUpRef.current) {
+          userScrolledUpRef.current = false;
+        }
+      } else {
+        // User is not at the bottom, so they've scrolled up.
+        // We only set this if forceScrollToBottomRef is not active, to avoid race conditions
+        // where a programmatic scroll hasn't finished yet.
+        // A small timeout can also help ensure the scroll action has completed.
+        setTimeout(() => {
+          const stillNotAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight >= SCROLL_THRESHOLD;
+          if (stillNotAtBottom && !forceScrollToBottomRef.current) {
+             userScrolledUpRef.current = true;
+          }
+        }, 100); // Wait for programmatic scrolls to hopefully finish
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMore, loadingMore, page, fetchMessages, getScrollContainer, organization?.id, user?.id, chatId]); // Added new dependencies for handleScroll
+
+
+  useEffect(() => {
+    const container = getScrollContainer();
 
       const previousScrollHeight = container.scrollHeight;
       scrollRestoreRef.current = { previousScrollHeight };
@@ -238,8 +321,12 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
     };
 
     // Store user message initially
-    isAppendingRef.current = true;
-    setMessages([userMessage, aiMessage]);
+    isAppendingRef.current = true; // Indicate new message is being appended
+    forceScrollToBottomRef.current = true; // Force scroll for user's own message
+    setMessages([userMessage]);    // Add user message first
+                                   // useEffect for messages will handle scrolling & reset flags
+
+    setMessages(prev => [...prev, aiMessage]); // Add empty AI message shell
     setInput('');
     setIsTyping(true);
 
@@ -296,6 +383,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
               const content = json.choices?.[0]?.delta?.content;
               if (content) {
                 aiMessage.message += content;
+                isAppendingRef.current = true; // Ensure scroll for AI content updates
                 setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
               }
             } catch (e) {
@@ -354,6 +442,8 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
     };
 
     const newMessages = [...messages, userMessage];
+    isAppendingRef.current = true; // Indicate new message is being appended
+    forceScrollToBottomRef.current = true; // Force scroll for user's own message
     setMessages(newMessages);
     setInput('');
     setIsTyping(true);
@@ -391,9 +481,9 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
       let userId = '';
       const orgId = organization?.id || '';
 
-      isAppendingRef.current = true;
+      // isAppendingRef.current was set for user message, useEffect set it to false.
+      // Add empty AI message shell, no scroll here as isAppendingRef is false.
       setMessages(prev => [...prev, aiMessage]);
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
@@ -426,6 +516,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
               const content = json.choices?.[0]?.delta?.content;
               if (content) {
                 aiMessage.message += content;
+                isAppendingRef.current = true; // Ensure scroll for AI content updates
                 setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
               }
             } catch (e) {
@@ -476,8 +567,19 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col" id="chat-root">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col pb-4">
-        {messages.length === 0 && !isTyping
-          ? (
+        {(() => {
+          // Condition 1: Initial "Loading messages..." for an existing chat that hasn't loaded yet.
+          if (currentChatId && messages.length === 0 && loadingMore && !isTyping) {
+            return (
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <p className="text-lg text-gray-500">Loading messages...</p>
+              </div>
+            );
+          }
+
+          // Condition 2: "Hello!!" prompt for a completely new chat session (no chatId context yet).
+          if (!currentChatId && messages.length === 0 && !isTyping) {
+            return (
               <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 text-center">
                 <h2 className="text-2xl font-semibold text-gray-500">
                   Hello!! What can I help with?
@@ -502,20 +604,24 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
                   </button>
                 </div>
               </div>
-            )
-          : (
-              <>
-                <div className="mt-20 flex-1 space-y-4 px-4 pt-4" id="messages-container">
-                  {loadingMore && (
-                    <div className="flex justify-center py-2">
-                      <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                    </div>
-                  )}
+            );
+          }
 
-                  {[...messages]
+          // Condition 3: Display messages list
+          return (
+            <>
+              <div className="mt-20 flex-1 space-y-4 px-4 pt-4 pb-20" id="messages-container">
+                {/* Spinner for infinite scroll at the TOP - only show if loadingMore AND there are already messages */}
+                {loadingMore && messages.length > 0 && (
+                  <div className="flex justify-center py-2">
+                    <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  </div>
+                )}
+
+                {[...messages]
                     .sort((a, b) => {
                       const t1 = (a as any).timestamp || 0;
                       const t2 = (b as any).timestamp || 0;
