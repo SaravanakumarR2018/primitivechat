@@ -60,7 +60,7 @@ export default function LLMSettings() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-gray-100 px-4 py-8">
+    <div className="flex flex-col items-center bg-gray-100 px-4 py-8">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar />
 
       <div className="flex max-w-md flex-col space-y-4 rounded-lg bg-white p-6 shadow-md sm:max-w-3xl sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
