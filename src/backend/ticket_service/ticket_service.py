@@ -4,13 +4,18 @@ from datetime import datetime
 from http import HTTPStatus
 from typing import List, Optional, Dict, Any, Union
 
+import json # For parsing potential JSON string from LLM
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, StrictBool
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
-from src.backend.db.database_manager import DatabaseManager  # Assuming the provided code is in database_connector.py
+from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.lib.utils import CustomerService, auth_admin_dependency
 from src.backend.lib.logging_config import get_primitivechat_logger
+from .ticket_models import TicketByConversationBase, TicketByConversationResponse
+from src.backend.chat_service.llm_service import LLMService
+from langchain_core.messages import HumanMessage, SystemMessage
+# from src.backend.lib.auth_utils import get_customer_guid_from_token # Not used in the new logic, auth object is used
 
 # Setup logging configuration
 logger = get_primitivechat_logger(__name__)
@@ -20,6 +25,7 @@ app = APIRouter()
 
 # Initialize DatabaseManager instance
 db_manager = DatabaseManager()
+llm_service = LLMService() # Instantiating LLMService
 
 #Intialize CustomerService Instance
 customer_service=CustomerService()
@@ -241,6 +247,117 @@ async def delete_custom_field(field_name: str, request: Request, auth=Depends(au
 
 
 #Tickets APIS
+@app.post("/create_ticket_by_conversation", response_model=TicketByConversationResponse, tags=["Ticket Management"])
+async def create_ticket_from_conversation(
+    ticket_data: TicketByConversationBase,
+    request: Request,
+    auth=Depends(auth_admin_dependency) # auth contains user details
+):
+    try:
+        # 1. Get customer_guid from token
+        customer_guid = getattr(auth, 'customer_guid', None)
+        current_user_id = getattr(auth, 'user_id', 'Unknown User') # Get user_id for 'reported_by'
+
+        if not customer_guid:
+            org_id = getattr(auth, 'org_id', None)
+            if not org_id:
+                raise HTTPException(status_code=403, detail="Organization ID not found in token.")
+
+            retrieved_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(org_id)
+            if not retrieved_customer_guid:
+                raise HTTPException(status_code=404, detail=f"Customer GUID not found for organization {org_id}.")
+            customer_guid = retrieved_customer_guid
+
+        # 2. Get chat messages
+        # Assuming get_paginated_chat_messages returns messages sorted by created_at DESC (newest first)
+        chat_messages_data = db_manager.get_paginated_chat_messages(
+            customer_guid=str(customer_guid), # Ensure customer_guid is a string
+            chat_id=ticket_data.chat_id,
+            page=1, # Fetch the first page
+            page_size=ticket_data.message_count # Fetch up to message_count messages
+        )
+
+        # The method returns a dict with 'messages' and 'total_count'
+        actual_chat_messages = chat_messages_data.get('messages', [])
+
+        if not actual_chat_messages:
+            raise HTTPException(status_code=404, detail=f"No messages found for chat_id {ticket_data.chat_id} or chat is empty.")
+
+        # Format messages for LLM (oldest first for proper context)
+        actual_chat_messages.reverse()
+        chat_context = "\n".join([f"{SenderType(msg['sender_type']).name if isinstance(msg['sender_type'], int) else msg['sender_type']}: {msg['message']}" for msg in actual_chat_messages])
+
+
+        # 3. Call LLM to extract ticket fields
+        if not LLMService.llm: # Ensure LLM is initialized
+             logger.info("LLM not initialized, initializing now.")
+             llm_service._initialize_llm(LLMService.LLMProvider, LLMService.model) # Use instance to call _initialize_llm
+
+        prompt_messages = [
+            SystemMessage(content="You are an AI assistant tasked with creating a support ticket from a conversation transcript. "
+                                  "Extract the following fields: title, description, priority, and optionally 'assigned' (if mentioned) and 'custom_fields' (if any specific key-value pairs are clearly indicated for a ticket). "
+                                  "The user requesting this is: " + current_user_id + ". "
+                                  "Set 'reported_by' to this user. "
+                                  "If priority is not mentioned, default to 'Medium'. "
+                                  "Respond with a JSON object containing these fields. For example: "
+                                  "{\"title\": \"Issue with login\", \"description\": \"User cannot log in after password reset.\", \"priority\": \"High\", \"reported_by\": \"" + current_user_id + "\", \"assigned\": null, \"custom_fields\": {\"product_id\": \"XYZ123\"}}"),
+            HumanMessage(content=f"Here is the chat context:\n{chat_context}")
+        ]
+
+        llm_response = LLMService.llm.invoke(prompt_messages)
+
+        try:
+            extracted_fields = json.loads(llm_response.content)
+        except AttributeError: # If llm_response is already a dict (e.g. from a mock or different LLM provider)
+            if isinstance(llm_response, dict):
+                extracted_fields = llm_response
+            else: # If it's some other type that doesn't have .content
+                 logger.error(f"Unexpected LLM response type: {type(llm_response)}. Response: {llm_response}")
+                 raise HTTPException(status_code=500, detail="Unexpected LLM response format.")
+        except json.JSONDecodeError:
+            logger.error(f"LLM did not return valid JSON. Response content: {llm_response.content}")
+            raise HTTPException(status_code=500, detail="LLM did not return valid JSON for ticket fields.")
+
+
+        ticket_title = extracted_fields.get("title", "Untitled Ticket from Conversation")
+        ticket_description = extracted_fields.get("description", "No description provided by LLM.")
+        ticket_priority = extracted_fields.get("priority", "Medium")
+        valid_priorities = ["Low", "Medium", "High"] # TODO: Consider moving to a config or enum
+        if ticket_priority not in valid_priorities:
+            ticket_priority = "Medium"
+
+        ticket_reported_by = extracted_fields.get("reported_by", current_user_id)
+        ticket_assigned = extracted_fields.get("assigned")
+        ticket_custom_fields = extracted_fields.get("custom_fields", {})
+
+        # 4. Call create_ticket
+        db_response = db_manager.create_ticket(
+            customer_guid=str(customer_guid),
+            chat_id=ticket_data.chat_id,
+            title=ticket_title,
+            description=ticket_description,
+            priority=ticket_priority,
+            reported_by=ticket_reported_by,
+            assigned=ticket_assigned,
+            custom_fields=ticket_custom_fields if ticket_custom_fields else {}
+        )
+
+        if "ticket_id" not in db_response:
+            logger.error(f"Failed to create ticket in database. DB response: {db_response}")
+            raise HTTPException(status_code=500, detail=f"Failed to create ticket in database.")
+
+        # 5. Return ticket_id
+        return TicketByConversationResponse(ticket_id=db_response["ticket_id"])
+
+    except HTTPException as he:
+        raise he
+    except ValueError as ve:
+        logger.error(f"ValueError creating ticket from conversation: {ve}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error creating ticket from conversation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
 @app.post("/tickets", response_model=TicketResponse, status_code=HTTPStatus.CREATED, tags=["Ticket Management"])
 async def create_ticket(ticket: TicketRequest, request: Request, auth=Depends(auth_admin_dependency)):
     """Create a new ticket"""
