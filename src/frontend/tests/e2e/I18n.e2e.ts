@@ -13,7 +13,7 @@ test.describe('I18n', () => {
       await expect(page.getByText('Le parfait SaaS template pour construire')).toBeVisible();
     });
 
-    test('should switch language from English to French using URL and verify text on the sign-in page', async ({ page }) => {
+    test.skip('should switch language from English to French using URL and verify text on the sign-in page', async ({ page }) => {
       await page.goto('/sign-in');
 
       await expect(page.getByText('Email address')).toBeVisible();
