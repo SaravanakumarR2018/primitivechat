@@ -40,7 +40,10 @@ function DashboardLayoutContentInner({ children, sidebarNavLinks }: DashboardLay
           />
         </div>
       </div>
-      <div className={`flex-1 overflow-auto bg-muted pt-3 transition-all duration-300${isSidebarOpen ? ' md:ml-72' : ' ml-16'}`}>
+      <div
+        id="dashboard-scroll-container"
+        className={`flex-1 overflow-auto bg-muted pt-3 transition-all duration-300${isSidebarOpen ? ' md:ml-72' : ' ml-16'}`}
+      >
         <div className="mx-auto max-w-screen-xl p-8 px-3 pb-16 pt-6">
           {children}
         </div>
