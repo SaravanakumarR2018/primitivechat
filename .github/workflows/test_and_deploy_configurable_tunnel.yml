@@ -1,0 +1,259 @@
+name: Deploy and Test - Entire Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy (leave empty if providing PR number)"
+        required: false
+        default: ""
+      pr_number:
+        description: "Pull Request Number (leave empty if providing branch)"
+        required: false
+        default: ""
+      tunnel_target:
+        description: "Specify the target for the ngrok tunnel. Use 'frontend' or 'backend'. Defaults to 'frontend' if left empty."
+        required: false
+        default: 'frontend'
+
+concurrency:
+  group: deploy-and-test-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Validate Inputs
+        run: |
+          if [[ -z "${{ github.event.inputs.branch }}" && -z "${{ github.event.inputs.pr_number }}" ]]; then
+          echo "❌ Error: Either 'branch' or 'pr_number' must be provided!"
+          exit 1
+          elif [[ -n "${{ github.event.inputs.branch }}" && -n "${{ github.event.inputs.pr_number }}" ]]; then
+          echo "❌ Error: You must provide only one of 'branch' or 'pr_number', not both!"
+          exit 1
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.pr_number && format('refs/pull/{0}/merge', github.event.inputs.pr_number) || github.event.inputs.branch }}
+
+      - name: Identify Checkout Type (Branch or PR)
+        run: |
+            if [[ -n "$(git symbolic-ref -q HEAD)" ]]; then
+              BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+              echo "✅ Running from a branch: $BRANCH_NAME"
+              echo "CHECKOUT_TYPE=branch" >> $GITHUB_ENV
+              echo "BRANCH_OR_PR=$BRANCH_NAME" >> $GITHUB_ENV
+            else
+              MERGE_COMMIT=$(git log -1 --format=%P | wc -w)
+              if [[ "$MERGE_COMMIT" -gt 1 ]]; then
+                echo "✅ Running from a Pull Request (merged commit detected)"
+                echo "CHECKOUT_TYPE=pull_request" >> $GITHUB_ENV
+                echo "BRANCH_OR_PR=PR-${{ github.event.inputs.pr_number }}" >> $GITHUB_ENV
+              else
+                echo "⚠️ Unable to determine if it's a PR or branch."
+                echo "CHECKOUT_TYPE=unknown" >> $GITHUB_ENV
+              fi
+            fi
+
+      - name: Set PROJECT_ROOT
+        run: echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
+
+      - name: Deploy and Test
+        run: |
+          if [[ -n "${{ github.event.inputs.pr_number }}" ]]; then
+            echo "🚀 Deploying and testing changes from PR #${{ github.event.inputs.pr_number }}"
+          else
+            echo "🚀 Deploying and testing branch: ${{ github.event.inputs.branch }}"
+          fi
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone the env repo using SSH
+        run: |
+          git clone git@github.com:SaravanakumarR2018/primitivechatenv.git env_repo
+          ls -la env_repo
+
+      - name: Copy .env file
+        run: |
+          cp env_repo/.env.local ${PROJECT_ROOT}/src/frontend/.env.local
+          echo "✅ .env.local copied to src/frontend"
+
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Load .env and verify
+        working-directory: src/backend
+        run: |
+          if [ ! -f .env ]; then
+            echo "Error: .env file not found"
+            exit 1
+          fi
+          while IFS= read -r line || [ -n "$line" ]; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+            key=$(echo "$line" | cut -d'=' -f1)
+            value=$(echo "$line" | cut -d'=' -f2-)
+            echo "$key=$value" >> $GITHUB_ENV
+          done < .env
+
+      - name: Build Docker image
+        working-directory: src/backend
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: |
+          docker build -t chat_service_image:latest -f ${PROJECT_ROOT}/build/chat_service_docker/Dockerfile ${PROJECT_ROOT}
+
+      - name: Run docker-compose up
+        working-directory: src/backend
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+        run: docker-compose up -d
+
+      - name: Restore Database Snapshot (100 Tickets)
+        run: |
+          echo "Checking if MySQL has existing data..."
+          MYSQL_DATA_COUNT=$(docker exec mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${MYSQL_DATABASE}';" | tail -n 1)
+
+          if [ "$MYSQL_DATA_COUNT" -eq 0 ]; then
+              echo "No existing data found. Restoring database from snapshot..."
+              docker exec -i mysql_db mysql -u root -p"${MYSQL_ROOT_PASSWORD}" "${MYSQL_DATABASE}" < "$PROJECT_ROOT/test/db_snapshot/db_snapshot.sql"
+              echo "✅ Database restoration complete."
+          else
+              echo "✅ MySQL already contains data. Skipping restoration."
+          fi
+
+      - name: Install dependencies and build frontend
+        run: |
+          cd src/frontend
+          npm install
+          npm run build
+
+      - name: Start Next.js server
+        run: |
+          cd src/frontend
+          PORT=$FRONTEND_PORT npm start &
+          sleep 10
+
+      - name: Wait for server to be up
+        run: |
+          for i in {1..18}; do
+            if nc -zv localhost ${{ env.FRONTEND_PORT }}; then
+              echo "Server is listening on port 3000"
+              exit 0
+            else
+              echo "Waiting for server to be up..."
+              sleep 10
+            fi
+          done
+          echo "Server did not start within 3 minutes"
+          exit 1
+
+      - name: Wait for Services to be Ready
+        run: |
+            timeout 120 bash -c '
+              until curl -sSf http://localhost:${{ env.CHAT_SERVICE_PORT }} && curl -sSf http://localhost:${{ env.FRONTEND_PORT }};
+              do
+                sleep 5;
+              done
+            ' || { echo "❌ Services did not start in time."; exit 1; }
+            echo "✅ Services are up and running."
+
+      - name: Set ngrok auth token based on user
+        id: set-ngrok-auth
+        run: |
+          case "${{ github.actor }}" in
+            "SaravanakumarR2018")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_SARAVANA }}" >> $GITHUB_ENV
+              ;;
+            "Bharani0012")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_BHARANI }}" >> $GITHUB_ENV
+              ;;
+            "Kabilan-16")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_KABILAN }}" >> $GITHUB_ENV
+              ;;
+            "Karthi-47")
+              echo "ngrok_auth_token=${{ secrets.NGROK_SECRET_KEY_KARTHI }}" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Error: User not recognized or ngrok auth token not set."
+              exit 1
+              ;;
+          esac
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+
+      - name: Authenticate ngrok
+        run: |
+          ngrok config add-authtoken ${{ env.ngrok_auth_token }}
+
+      - name: Start ngrok tunnel
+        run: |
+          if [[ "${{ github.event.inputs.tunnel_target }}" == "backend" ]]; then
+            echo "Starting ngrok tunnel for backend service on port ${{ env.CHAT_SERVICE_PORT }}"
+            ngrok http ${{ env.CHAT_SERVICE_PORT }} --log=stdout &
+          else
+            echo "Starting ngrok tunnel for frontend service on port ${{ env.FRONTEND_PORT }}"
+            ngrok http ${{ env.FRONTEND_PORT }} --log=stdout &
+          fi
+          sleep 10
+
+      - name: Fetch ngrok URL
+        run: |
+          JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
+          NGROK_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.proto=="https") | .public_url')
+          if [[ -z "$NGROK_URL" ]]; then
+            echo "JSON Response: $JSON_RESPONSE"
+            exit 1
+          fi
+          echo "$NGROK_URL" > frontend_ngrok.txt # Keep original filename
+          echo "✅ Ngrok tunnel started successfully!"
+          if [[ "${{ github.event.inputs.tunnel_target }}" == "backend" ]]; then
+            echo "🔗 Backend URL: $NGROK_URL"
+          else
+            echo "🔗 Frontend URL: $NGROK_URL"
+          fi
+
+      - name: Refresh ngrok link every 1 hour 55 minutes
+        run: |
+          for i in {1..3}; do
+            echo "⏳ Waiting for 1 hour 55 minutes before refreshing ngrok tunnel..."
+            sleep 6900 # 1 hour 55 minutes
+            echo "🔄 Restarting ngrok tunnel..."
+            pkill -f ngrok
+            if [[ "${{ github.event.inputs.tunnel_target }}" == "backend" ]]; then
+              echo "Refreshing ngrok tunnel for backend service on port ${{ env.CHAT_SERVICE_PORT }}"
+              ngrok http ${{ env.CHAT_SERVICE_PORT }} --log=stdout &
+            else
+              echo "Refreshing ngrok tunnel for frontend service on port ${{ env.FRONTEND_PORT }}"
+              ngrok http ${{ env.FRONTEND_PORT }} --log=stdout &
+            fi
+            sleep 10
+            JSON_RESPONSE=$(curl -s http://127.0.0.1:4040/api/tunnels)
+            NGROK_URL=$(echo "$JSON_RESPONSE" | jq -r '.tunnels[] | select(.proto=="https") | .public_url')
+            if [[ -z "$NGROK_URL" ]]; then
+              echo "JSON Response during refresh: $JSON_RESPONSE"
+              # Potentially add an exit 1 here if the URL is critical for subsequent steps
+            fi
+            echo "✅ Refreshed ngrok URL"
+            if [[ "${{ github.event.inputs.tunnel_target }}" == "backend" ]]; then
+              echo "🔗 Backend URL: $NGROK_URL"
+            else
+              echo "🔗 Frontend URL: $NGROK_URL"
+            fi
+            echo "$NGROK_URL" > frontend_ngrok.txt # Keeping the filename for now as per plan
+          done
