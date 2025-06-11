@@ -1,13 +1,21 @@
 'use client';
-import { useChat } from '@/context/ChatContext';
+
 import Chat from '@/components/Chat';
+import { useDashboardSidebar } from '@/features/dashboard/DashboardSidebarContext';
 
 export default function Page() {
-  const { chatId } = useChat();
+  // Use context for sidebar/chat state
+  const {
+    chatId,
+    addChatToHistoryRef,
+  } = useDashboardSidebar();
 
   return (
-    <div className="h-screen flex-1 pt-12 transition-all duration-300">
-        <Chat chatId={chatId} />
+    <div className="relative flex size-full">
+      {/* Chat Area */}
+      <div className="h-screen flex-1 pt-12 transition-all duration-300 ">
+        <Chat chatId={chatId} addChatToHistoryRef={addChatToHistoryRef} />
       </div>
+    </div>
   );
 }

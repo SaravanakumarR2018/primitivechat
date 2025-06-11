@@ -1,11 +1,13 @@
-import { useTranslations } from 'next-intl';
+import { getTranslations, unstable_setRequestLocale } from 'next-intl/server';
 
 import { MessageState } from '@/features/dashboard/MessageState';
 import { TitleBar } from '@/features/dashboard/TitleBar';
 import { SponsorLogos } from '@/features/sponsors/SponsorLogos';
 
-const DashboardIndexPage = () => {
-  const t = useTranslations('DashboardIndex');
+// Accept locale as param for static rendering
+const DashboardIndexPage = async ({ params: { locale } }: { params: { locale: string } }) => {
+  unstable_setRequestLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'DashboardIndex' });
 
   return (
     <>
@@ -29,7 +31,7 @@ const DashboardIndexPage = () => {
         )}
         title={t('message_state_title')}
         description={t.rich('message_state_description', {
-          code: chunks => (
+          code: (chunks: React.ReactNode) => (
             <code className="bg-secondary text-secondary-foreground">
               {chunks}
             </code>

@@ -6,7 +6,7 @@ type SidebarProps = {
 
 const Sidebar = ({ organizationName }: SidebarProps) => {
   return (
-    <aside className="w-full border-r bg-gray-100 p-2 md:w-64">
+    <aside className="w-full border-r bg-gray-100 p-4 pr-6 md:w-64">
       <h1 className="mb-4 text-2xl font-bold">Organization</h1>
       <h2 className="text-xl font-semibold">{organizationName || 'Loading...'}</h2>
       <nav className="space-y-2">
