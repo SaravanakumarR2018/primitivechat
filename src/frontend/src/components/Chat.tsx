@@ -27,12 +27,14 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   const [loadingMore, setLoadingMore] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const { organization } = useOrganization();
   const { user } = useUser();
   const scrollCooldownRef = useRef(false);
   const scrollRestoreRef = useRef<null | { previousScrollHeight: number }>(null);
   const isAppendingRef = useRef(false);
+  const getScrollContainer = useCallback((): HTMLDivElement | null => {
+    return document.getElementById('dashboard-scroll-container') as HTMLDivElement | null;
+  }, []);
   // Load messages from sessionStorage
   useEffect(() => {
     const loadChat = () => {
@@ -142,12 +144,12 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
 
   // Infinite scroll: fetch more when scrolled to top
   useEffect(() => {
-    const container = scrollRef.current;
+    const container = getScrollContainer();
     if (!container) {
       return;
     }
     const handleScroll = async () => {
-      const container = scrollRef.current;
+      const container = getScrollContainer();
       if (!container || scrollCooldownRef.current || loadingMore || !hasMore) {
         return;
       }
@@ -194,10 +196,10 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [hasMore, loadingMore, page, fetchMessages]);
+  }, [hasMore, loadingMore, page, fetchMessages, getScrollContainer]);
 
   useEffect(() => {
-    const container = scrollRef.current;
+    const container = getScrollContainer();
     const scrollData = scrollRestoreRef.current;
     if (!container || !scrollData?.previousScrollHeight) {
       return;
@@ -472,8 +474,8 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] flex-col">
-      <div className="mx-auto flex size-full max-w-4xl flex-1 flex-col pb-4">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col" id="chat-root">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col pb-4">
         {messages.length === 0 && !isTyping
           ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 text-center">
@@ -503,7 +505,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
             )
           : (
               <>
-                <div ref={scrollRef} className="mt-20 flex-1 space-y-4 overflow-y-auto px-4 pt-4">
+                <div className="mt-20 flex-1 space-y-4 px-4 pt-4" id="messages-container">
                   {loadingMore && (
                     <div className="flex justify-center py-2">
                       <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
