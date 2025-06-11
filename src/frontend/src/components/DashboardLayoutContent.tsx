@@ -23,7 +23,7 @@ function DashboardLayoutContentInner({ children, sidebarNavLinks }: DashboardLay
   const { isSidebarOpen } = useDashboardSidebar();
 
   return (
-    <div className="flex h-screen flex-col overflow-auto">
+    <div className="flex min-h-screen flex-col overflow-y-auto">
       {/* Global Sidebar */}
       <div className="fixed left-0 top-0 z-50">
         <ChatHistory navLinks={sidebarNavLinks} />
@@ -42,7 +42,7 @@ function DashboardLayoutContentInner({ children, sidebarNavLinks }: DashboardLay
       </div>
       <div
         id="dashboard-scroll-container"
-        className={`flex-1 overflow-auto bg-muted pt-3 transition-all duration-300${isSidebarOpen ? ' md:ml-72' : ' ml-16'}`}
+        className={`flex-1 overflow-y-auto bg-muted pt-3 transition-all duration-300${isSidebarOpen ? ' md:ml-72' : ' ml-16'}`}
       >
         <div className="mx-auto max-w-screen-xl p-8 px-3 pb-16 pt-6">
           {children}
