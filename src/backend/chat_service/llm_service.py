@@ -1,6 +1,8 @@
 import os
 import logging
 import httpx
+import json
+from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 from collections import OrderedDict
 from typing import AsyncGenerator, Optional
@@ -275,41 +277,86 @@ class LLMService(metaclass=Singleton):
                 history.chat_memory.messages[-1].content == question):
             history.chat_memory.add_message(HumanMessage(content=question))
 
+        # A. Query Rewriting
+        # Prepare messages for query rewriting
+        messages_for_rewriting = list(history.chat_memory.messages)
+        messages_for_rewriting.append(HumanMessage(content="Based on our conversation so far, please rewrite the last user question to be a concise, self-contained query suitable for a vector database search. Only output the rewritten query itself, with no preamble or explanation."))
+
+        rewritten_query_chunks = []
+        async for chunk in LLMService.llm.astream(messages_for_rewriting):
+            content_piece = chunk.message.content if hasattr(chunk, "message") else chunk.content
+            if content_piece:
+                rewritten_query_chunks.append(content_piece)
+        rewritten_query = "".join(rewritten_query_chunks).strip()
+        logger.info(f"Rewritten query for session {session_id}: {rewritten_query}")
+
+        if not rewritten_query:
+            logger.warning(f"Rewritten query is empty for session {session_id}. Falling back to original question for search.")
+            rewritten_query = question # Fallback to original question if LLM fails to rewrite
+
+        # B. Document Search
+        weaviate_manager = WeaviateManager() # Assumes Singleton pattern handles multiple instantiations if any
+        search_results = None
+        search_results_str = "{}" # Default to empty JSON object string
+
+        try:
+            if rewritten_query: # Only search if we have a query
+                search_results = weaviate_manager.search_query(customer_guid, rewritten_query, alpha=0.5)
+                # logger.info(f"Search results for session {session_id}: {json.dumps(search_results)}") # Can be very verbose
+                logger.info(f"Search completed for session {session_id} with rewritten query: {rewritten_query}")
+                search_results_str = json.dumps(search_results)
+            else:
+                # This case should ideally not be hit if fallback is implemented above
+                logger.warning(f"Skipping document search for session {session_id} due to empty rewritten query and no fallback.")
+        except Exception as e:
+            logger.error(f"Error during Weaviate search for session {session_id}: {e}")
+            search_results = {"error": str(e)} # Indicate error in results
+            search_results_str = json.dumps(search_results)
+
         llm_response_mode = LLMService.get_llm_response()
         if llm_response_mode == "NONLLM":
             response_content = DEFAULTAIRESPONSE
             logger.debug("LLM_RESPONSE set to NONLLM. Returning default response for session_id: %s", session_id)
-            response = AIMessage(content=response_content)
-            history.chat_memory.add_message(response)
+            # Create the AIMessage for history
+            ai_message_for_history = AIMessage(content=response_content)
+            if not (history.chat_memory.messages and
+                    isinstance(history.chat_memory.messages[-1], AIMessage) and
+                    history.chat_memory.messages[-1].content == response_content):
+                history.chat_memory.add_message(ai_message_for_history)
+
             yield {
                 "chat_id": chat_id,
                 "customer_guid": customer_guid,
                 "user_id": user_id,
                 "object": "chat.completion",
-                "choices": [
-                    {
-                        "delta": {
-                            "role": "assistant",
-                            "content": response_content
-                        },
-                        "index": 0,
-                        "finish_reason": "stop"
-                    }
-                ]
+                "choices": [{"delta": {"role": "assistant", "content": response_content}, "index": 0, "finish_reason": "stop"}]
             }
-        else:
-            messages = history.chat_memory.messages
-            logger.debug(f"Messages: {messages}")
+        else: # This is the LLM mode, where RAG logic applies
+            messages_for_llm = list(history.chat_memory.messages[:-1]) # All up to, but not including, the last HumanMessage (current question)
+
+            context_injection_prompt = (
+                f"Provided context from a document search (use if relevant to the user's last question): {search_results_str}. "
+                "Analyze this context to answer the user's question. "
+                "If the context is relevant and sufficient, base your answer primarily on it. "
+                "If the context is not relevant, insufficient, or if the question is general conversation (e.g., a greeting), "
+                "answer from your general knowledge. When answering from general knowledge because the context was not helpful, "
+                "please explicitly state that the provided documents did not contain the specific information needed. "
+                "Maintain a professional tone and avoid inner monologue. The user's question is next."
+            )
+            messages_for_llm.append(SystemMessage(content=context_injection_prompt))
+            messages_for_llm.append(history.chat_memory.messages[-1]) # Add back the actual user question
+
+            logger.debug(f"Messages for final LLM call (session {session_id}): {messages_for_llm}")
+
+            # Now use messages_for_llm for streaming
             first_chunk = True
             full_content = ""
-
-            async for chunk in LLMService.llm.astream(messages):
+            async for chunk in LLMService.llm.astream(messages_for_llm): # USE messages_for_llm here
                 content_piece = chunk.message.content if hasattr(chunk, "message") else chunk.content
                 if not content_piece:
                     continue
 
                 full_content += content_piece
-
                 yield {
                     "chat_id": chat_id,
                     "customer_guid": customer_guid,
@@ -326,10 +373,14 @@ class LLMService(metaclass=Singleton):
                         }
                     ]
                 }
-
                 first_chunk = False
 
-            history.chat_memory.add_message(AIMessage(content=full_content))
+            # Add the final AI message to history
+            ai_message_for_history = AIMessage(content=full_content)
+            if not (history.chat_memory.messages and
+                    isinstance(history.chat_memory.messages[-1], AIMessage) and
+                    history.chat_memory.messages[-1].content == full_content):
+                 history.chat_memory.add_message(ai_message_for_history)
 
             # Final stop chunk
             yield {
@@ -339,10 +390,7 @@ class LLMService(metaclass=Singleton):
                 "object": "chat.completion",
                 "choices": [
                     {
-                        "delta": {
-                            "role": "assistant",
-                            "content": ""
-                        },
+                        "delta": {"role": "assistant", "content": ""}, # content can be empty for stop
                         "index": 0,
                         "finish_reason": "stop"
                     }
