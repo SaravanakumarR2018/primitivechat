@@ -12,8 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 from src.backend.db.database_manager import DatabaseManager, SenderType
 from src.backend.lib.utils import CustomerService, auth_admin_dependency
 from src.backend.lib.logging_config import get_primitivechat_logger
-from .ticket_models import TicketByConversationBase, TicketByConversationResponse
-from src.backend.chat_service.llm_service import LLMService
+from src.backend.chat_service.llm_service import LLMService 
 from langchain_core.messages import HumanMessage, SystemMessage
 # from src.backend.lib.auth_utils import get_customer_guid_from_token # Not used in the new logic, auth object is used
 
@@ -63,6 +62,13 @@ class TicketRequest(BaseModel):
     reported_by: Optional[str]
     assigned: Optional[str]
     custom_fields: Optional[Dict[str, Any]] = None
+
+class TicketByConversationBase(BaseModel):
+    chat_id: str
+    reported_by: str
+
+class TicketByConversationResponse(BaseModel):
+    ticket_id: int
 
 class TicketResponse(BaseModel):
     ticket_id: Union[str, int]
@@ -251,40 +257,38 @@ async def delete_custom_field(field_name: str, request: Request, auth=Depends(au
 async def create_ticket_from_conversation(
     ticket_data: TicketByConversationBase,
     request: Request,
-    auth=Depends(auth_admin_dependency) # auth contains user details
+    auth=Depends(auth_admin_dependency),  # auth contains user details
+    message_count: int = 200  # Default to 200 if not provided
 ):
     try:
         # 1. Get customer_guid from token
-        customer_guid = getattr(auth, 'customer_guid', None)
-        current_user_id = getattr(auth, 'user_id', 'Unknown User') # Get user_id for 'reported_by'
+        try:
+            customer_guid = customer_service.get_customer_guid_from_token(request)
+            if not customer_guid:
+                raise ValueError("Customer GUID not found in token")
+        except ValueError as e:
+            logger.error(f"Failed to get customer_guid: {e}")
+            raise HTTPException(status_code=404, detail=f"Database customer_{customer_guid} does not exists")
 
-        if not customer_guid:
-            org_id = getattr(auth, 'org_id', None)
-            if not org_id:
-                raise HTTPException(status_code=403, detail="Organization ID not found in token.")
-
-            retrieved_customer_guid = db_manager.get_customer_guid_from_clerk_orgId(org_id)
-            if not retrieved_customer_guid:
-                raise HTTPException(status_code=404, detail=f"Customer GUID not found for organization {org_id}.")
-            customer_guid = retrieved_customer_guid
-
+        logger.info(f"Creating ticket from conversation for user: {ticket_data.reported_by}")
+        current_user_id = ticket_data.reported_by  # Get user_id for 'reported_by'
         # 2. Get chat messages
         # Assuming get_paginated_chat_messages returns messages sorted by created_at DESC (newest first)
         chat_messages_data = db_manager.get_paginated_chat_messages(
             customer_guid=str(customer_guid), # Ensure customer_guid is a string
             chat_id=ticket_data.chat_id,
             page=1, # Fetch the first page
-            page_size=ticket_data.message_count # Fetch up to message_count messages
+            page_size=message_count # Fetch up to message_count messages
         )
-
+        
         # The method returns a dict with 'messages' and 'total_count'
-        actual_chat_messages = chat_messages_data.get('messages', [])
+        actual_chat_messages = chat_messages_data or []
 
         if not actual_chat_messages:
             raise HTTPException(status_code=404, detail=f"No messages found for chat_id {ticket_data.chat_id} or chat is empty.")
 
         # Format messages for LLM (oldest first for proper context)
-        actual_chat_messages.reverse()
+        actual_chat_messages.reverse() 
         chat_context = "\n".join([f"{SenderType(msg['sender_type']).name if isinstance(msg['sender_type'], int) else msg['sender_type']}: {msg['message']}" for msg in actual_chat_messages])
 
 
@@ -292,7 +296,7 @@ async def create_ticket_from_conversation(
         if not LLMService.llm: # Ensure LLM is initialized
              logger.info("LLM not initialized, initializing now.")
              llm_service._initialize_llm(LLMService.LLMProvider, LLMService.model) # Use instance to call _initialize_llm
-
+        
         prompt_messages = [
             SystemMessage(content="You are an AI assistant tasked with creating a support ticket from a conversation transcript. "
                                   "Extract the following fields: title, description, priority, and optionally 'assigned' (if mentioned) and 'custom_fields' (if any specific key-value pairs are clearly indicated for a ticket). "
@@ -303,55 +307,174 @@ async def create_ticket_from_conversation(
                                   "{\"title\": \"Issue with login\", \"description\": \"User cannot log in after password reset.\", \"priority\": \"High\", \"reported_by\": \"" + current_user_id + "\", \"assigned\": null, \"custom_fields\": {\"product_id\": \"XYZ123\"}}"),
             HumanMessage(content=f"Here is the chat context:\n{chat_context}")
         ]
-
+        
         llm_response = LLMService.llm.invoke(prompt_messages)
+        
+        raw_content = ""
+        extracted_fields = None
 
+        if hasattr(llm_response, 'content'):
+            raw_content = llm_response.content
+        elif isinstance(llm_response, str): # If LLM directly returns a string
+            raw_content = llm_response
+        elif isinstance(llm_response, dict): # If LLM directly returns a dict
+            extracted_fields = llm_response # No parsing needed
+            # Ensure critical fields are present or defaulted if necessary
+            extracted_fields.setdefault("title", "Untitled Ticket from Conversation")
+            extracted_fields.setdefault("description", "No description provided by LLM.")
+            extracted_fields.setdefault("priority", "Medium")
+            # reported_by should be set from auth context later, but ensure key exists if LLM provides it
+            if "reported_by" not in extracted_fields:
+                 extracted_fields.setdefault("reported_by", current_user_id)
+            extracted_fields.setdefault("assigned", None)
+            extracted_fields.setdefault("custom_fields", {})
+        else:
+            # Fallback for unexpected llm_response type
+            logger.error(f"Unexpected LLM response type: {type(llm_response)}. Response: {llm_response}")
+            raise HTTPException(status_code=500, detail="Unexpected LLM response format, cannot extract content.")
+
+        if extracted_fields is None and isinstance(raw_content, str): # Only parse if not already a dict
+            # Strip markdown fences if content is a string
+            cleaned_content = raw_content.strip()
+            if cleaned_content.startswith("```json"):
+                cleaned_content = cleaned_content[7:] # Remove ```json
+            elif cleaned_content.startswith("```"):
+                cleaned_content = cleaned_content[3:] # Remove ```
+            
+            if cleaned_content.endswith("```"):
+                cleaned_content = cleaned_content[:-3] # Remove trailing ```
+            
+            cleaned_content = cleaned_content.strip() # Remove any leading/trailing whitespace leftover
+
+            try:
+                extracted_fields = json.loads(cleaned_content)
+            except json.JSONDecodeError:
+                logger.error(f"LLM did not return valid JSON after cleaning. Content: {cleaned_content}", exc_info=True)
+                # print(f"LLM did not return valid JSON after cleaning. Content: {cleaned_content}") # Temporary
+                raise HTTPException(status_code=500, detail=f"LLM did not return valid JSON after cleaning. Raw response: {raw_content}")
+        elif extracted_fields is None: # If raw_content wasn't a string and not a dict, implies error or unexpected type
+             logger.error(f"Cannot parse LLM response. Raw content type: {type(raw_content)}, Extracted fields is None.")
+             raise HTTPException(status_code=500, detail="Failed to parse LLM response due to unexpected content type.")
+
+        # Prepare ticket data (this part remains largely the same)
+
+        # 1. Fetch and process defined custom fields for the customer
+        allowed_field_details = {} # Stores full details: name -> {type, required}
         try:
-            extracted_fields = json.loads(llm_response.content)
-        except AttributeError: # If llm_response is already a dict (e.g. from a mock or different LLM provider)
-            if isinstance(llm_response, dict):
-                extracted_fields = llm_response
-            else: # If it's some other type that doesn't have .content
-                 logger.error(f"Unexpected LLM response type: {type(llm_response)}. Response: {llm_response}")
-                 raise HTTPException(status_code=500, detail="Unexpected LLM response format.")
-        except json.JSONDecodeError:
-            logger.error(f"LLM did not return valid JSON. Response content: {llm_response.content}")
-            raise HTTPException(status_code=500, detail="LLM did not return valid JSON for ticket fields.")
+            # Ensure customer_guid is a string for the DB call
+            defined_custom_fields_list = db_manager.list_paginated_custom_fields(
+                customer_guid=str(customer_guid),
+                page=1,
+                page_size=1000  # Assuming a reasonably high number to get all fields
+            )
+            if defined_custom_fields_list: # Ensure it's not None or empty before processing
+                for field_detail in defined_custom_fields_list:
+                    if isinstance(field_detail, dict) and 'field_name' in field_detail:
+                        allowed_field_details[field_detail['field_name']] = {
+                            'field_type': field_detail.get('field_type', '').upper(), # Store type, uppercase for consistency
+                            'required': field_detail.get('required', False)
+                        }
+            logger.info(f"Allowed custom field details for customer {customer_guid}: {allowed_field_details}")
 
+        except Exception as e:
+            logger.error(f"Error fetching or processing defined custom fields for customer {customer_guid}: {e}", exc_info=True)
+            # They use allowed_field_details (which is now populated) to filter LLM fields and add missing required ones.
+        llm_custom_fields = extracted_fields.get("custom_fields", {})
+        final_ticket_custom_fields = {} # This will be populated by logic in subsequent subtasks.
+        
+        # 2. Filter LLM-extracted Custom Fields
+        if isinstance(llm_custom_fields, dict):
+            for field_name, value in llm_custom_fields.items():
+                if field_name in allowed_field_details: # Check against the keys of the detailed dictionary
+                    # If the field name is recognized as a defined custom field for this customer
+                    final_ticket_custom_fields[field_name] = value
+                    logger.info(f"LLM suggested custom field '{field_name}' is valid and was added.")
+                else:
+                    logger.info(f"LLM suggested custom field '{field_name}' which is not defined for customer {customer_guid}. Ignoring.")
+        elif llm_custom_fields: # If it's not a dict but also not None/empty (e.g., a list or string)
+            logger.warning(f"LLM extracted 'custom_fields' but it was not a dictionary: {llm_custom_fields} for customer {customer_guid}. No custom fields will be processed from LLM.")
+        
+        # 3. Populate Missing Required Custom Fields
+        if allowed_field_details: # Only proceed if we have details of allowed fields
+            for field_name, details in allowed_field_details.items():
+                # NEW condition:
+                required_value = details.get('required')
+                is_field_required = False
+                if isinstance(required_value, str):
+                    is_field_required = required_value.lower() in ['true', '1', 'yes']
+                elif isinstance(required_value, int):
+                    is_field_required = required_value == 1
+                elif isinstance(required_value, bool):
+                    is_field_required = required_value is True # Explicit True for bool
 
+                if is_field_required and field_name not in final_ticket_custom_fields:
+                    field_type = details.get('field_type', '').upper() # Already uppercased when populating details
+                    
+                    default_value = None
+                    if field_type.startswith('VARCHAR') or field_type.startswith('TEXT') or field_type.startswith('MEDIUMTEXT'):
+                        default_value = "(Not Provided)"
+                    elif field_type.startswith('INT'):
+                        default_value = 0
+                    elif field_type.startswith('FLOAT'):
+                        default_value = 0.0
+                    elif field_type.startswith('BOOLEAN') or field_type.startswith('TINYINT(1)'):
+                        default_value = False 
+                    elif field_type.startswith('DATETIME'):
+                        try:
+                            default_value = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                        except Exception as dt_e:
+                            logger.error(f"Could not generate default datetime for required field {field_name}: {dt_e}")
+                            default_value = "1970-01-01 00:00:00" # Fallback default datetime string
+                    else:
+                        default_value = f"(Default for required {field_type})" 
+                        logger.warning(f"Required custom field '{field_name}' has an unrecognized type '{field_type}'. Using generic default.")
+                    
+                    final_ticket_custom_fields[field_name] = default_value
+                    logger.info(f"Populated missing required custom field '{field_name}' with default value: {default_value} (required status was: {required_value})")
+
+        # Existing logic for standard fields (title, description, priority, reported_by, assigned)
         ticket_title = extracted_fields.get("title", "Untitled Ticket from Conversation")
         ticket_description = extracted_fields.get("description", "No description provided by LLM.")
         ticket_priority = extracted_fields.get("priority", "Medium")
-        valid_priorities = ["Low", "Medium", "High"] # TODO: Consider moving to a config or enum
-        if ticket_priority not in valid_priorities:
+        valid_priorities = ["Low", "Medium", "High"] # Consider making this case-insensitive if needed
+        if ticket_priority not in valid_priorities: # Basic check, db might be more strict
             ticket_priority = "Medium"
-
-        ticket_reported_by = extracted_fields.get("reported_by", current_user_id)
+        
+        ticket_reported_by = current_user_id # Always use authenticated user
         ticket_assigned = extracted_fields.get("assigned")
-        ticket_custom_fields = extracted_fields.get("custom_fields", {})
 
-        # 4. Call create_ticket
+        # Call create_ticket with the now complete final_ticket_custom_fields
         db_response = db_manager.create_ticket(
             customer_guid=str(customer_guid),
             chat_id=ticket_data.chat_id,
-            title=ticket_title,
-            description=ticket_description,
-            priority=ticket_priority,
-            reported_by=ticket_reported_by,
-            assigned=ticket_assigned,
-            custom_fields=ticket_custom_fields if ticket_custom_fields else {}
+            title=ticket_title, 
+            description=ticket_description, 
+            priority=ticket_priority, 
+            reported_by=ticket_reported_by, 
+            assigned=ticket_assigned, 
+            custom_fields=final_ticket_custom_fields
         )
 
         if "ticket_id" not in db_response:
             logger.error(f"Failed to create ticket in database. DB response: {db_response}")
             raise HTTPException(status_code=500, detail=f"Failed to create ticket in database.")
+        
+        ticket_id = db_response["ticket_id"]
+
+        # Add comment to the ticket
+        comment_response = db_manager.create_comment(
+            ticket_id=ticket_id,
+            comment=chat_context,
+            posted_by=ticket_reported_by,
+            customer_guid=str(customer_guid),
+        )
 
         # 5. Return ticket_id
-        return TicketByConversationResponse(ticket_id=db_response["ticket_id"])
+        return TicketByConversationResponse(ticket_id=ticket_id)
 
     except HTTPException as he:
         raise he
-    except ValueError as ve:
+    except ValueError as ve: 
         logger.error(f"ValueError creating ticket from conversation: {ve}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
