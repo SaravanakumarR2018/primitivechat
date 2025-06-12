@@ -1661,6 +1661,22 @@ class DatabaseManager(metaclass=Singleton):
         finally:
             session.close()
 
+    def is_file_marked_for_deletion_in_common_db(self, customer_guid, filename):
+        session = self._session_factory()
+        try:
+            query = """
+                SELECT to_be_deleted
+                FROM common_db.customer_file_status
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).fetchone()
+            return bool(result and result["to_be_deleted"])
+        except Exception as e:
+            logger.error(f"Error checking deletion flag for {filename}: {e}")
+            return False
+        finally:
+            session.close()        
+
     def get_files_to_be_processed(self, max_threads):
         session = self._session_factory()
         try:

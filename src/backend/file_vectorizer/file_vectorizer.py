@@ -80,7 +80,7 @@ class FileVectorizer(metaclass=Singleton):
                     error_message = str(e)
                     db_manager.update_status(customer_guid, filename, "extract_error", error_message, error_retry + 1)
                     if error_retry >= 7:
-                        db_manager.remove_from_common_db(customer_guid, filename, error=True)
+                        self.conditionally_remove_file_from_common_db(customer_guid, filename, error=True)
                     return
 
             file_record = db_manager.get_file_status(customer_guid, filename)
@@ -96,7 +96,7 @@ class FileVectorizer(metaclass=Singleton):
                     error_message = str(e)
                     db_manager.update_status(customer_guid, filename, "chunk_error", error_message, error_retry + 1)
                     if error_retry >= 7:
-                        db_manager.remove_from_common_db(customer_guid, filename, error=True)
+                        self.conditionally_remove_file_from_common_db(customer_guid, filename, error=True)
                     return
 
             file_record = db_manager.get_file_status(customer_guid, filename)
@@ -117,14 +117,14 @@ class FileVectorizer(metaclass=Singleton):
                             logger.error(f"Error deleting extracted and chunked files from MinIO: {e}")
 
                         # Remove file from common_db (since it's successfully processed)
-                        db_manager.remove_from_common_db(customer_guid, filename, error=False)
+                        self.conditionally_remove_file_from_common_db(customer_guid, filename, error=False)
                     else:
                         raise Exception("Vectorization failed without an exception.")
                 except Exception as e:
                     error_message = str(e)
                     db_manager.update_status(customer_guid, filename, "vectorize_error", error_message, error_retry + 1)
                     if error_retry >= 7:
-                        db_manager.remove_from_common_db(customer_guid, filename, error=True)
+                        self.conditionally_remove_file_from_common_db(customer_guid, filename, error=True)
                     return
         except Exception as e:
             logger.error(f"Error processing {filename}: {e}")
@@ -167,6 +167,16 @@ class FileVectorizer(metaclass=Singleton):
         except Exception as e:
             error_message = str(e)
             logger.error(f"Deletion process failed: {error_message}")
+
+    def conditionally_remove_file_from_common_db(self, customer_guid, filename, error):
+        try:
+            if db_manager.is_file_marked_for_deletion_in_common_db(customer_guid, filename):
+                logger.info(f"File {filename} is marked for deletion; skipping removal from common_db.")
+            else:
+                db_manager.remove_from_common_db(customer_guid, filename, error)
+                logger.info(f"Successfully removed file {filename} from common_db.")
+        except Exception as e:
+            logger.error(f"Error in conditionally_remove_file_from_common_db for {filename}: {e}")       
 
     def worker_loop(self):
         logger.info("Starting background worker thread...")
