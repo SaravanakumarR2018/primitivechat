@@ -1,6 +1,7 @@
 import os
 import logging
 import httpx
+import json
 
 from collections import OrderedDict
 from typing import AsyncGenerator, Optional
@@ -16,11 +17,13 @@ from src.backend.lib.default_ai_response import DEFAULTAIRESPONSE
 from fastapi import Request
 from pathlib import Path
 from src.backend.lib.singleton_class import Singleton
+from src.backend.weaviate.weaviate_manager import WeaviateManager
 
 # Configure logging
 logger = get_primitivechat_logger(__name__)
 
 db_manager = DatabaseManager()
+weaviate_manager = WeaviateManager()
 
 # ---------------------------------------
 # Add these HTTPX logging hooks below your imports
@@ -300,10 +303,51 @@ class LLMService(metaclass=Singleton):
         else:
             messages = history.chat_memory.messages
             logger.debug(f"Messages: {messages}")
+
+            # --- Query Rewriting ---
+            rewrite_prompt = messages + [
+                SystemMessage(
+                    content=(
+                        "Based on our conversation so far, please rewrite the last user question "
+                        "to be a concise, self-contained query suitable for a vector database search. "
+                        "Only output the rewritten query itself, with no preamble or explanation "
+                        "and when we query the RAG database it should give the right relevant answer"
+                    )
+                )
+            ]
+            try:
+                rewrite_resp = LLMService.llm.invoke(rewrite_prompt)
+                rewritten_query = rewrite_resp.content.strip()
+            except Exception as e:
+                logger.error(f"Query rewrite failed: {e}")
+                rewritten_query = question
+
+            logger.debug(f"Rewritten query: {rewritten_query}")
+
+            # --- Document Retrieval ---
+            search_results = weaviate_manager.search_query(customer_guid, rewritten_query)
+            search_context = json.dumps(search_results)
+
+            # --- Final Answer Generation ---
+            final_prompt = messages + [
+                SystemMessage(
+                    content=(
+                        "Use the following search results to answer the user's last question.\n"
+                        "- If the search results are relevant to the user's question, base your answer primarily on them.\n"
+                        "- If they are irrelevant or insufficient, or if the query is general (e.g., a greeting), respond using your own knowledge in only 2 or 3 sentences max and keep it concise. In such cases, clearly state that the documents or knowledge base did not contain the necessary information for you to answer the query\n"
+                        "- If the query is not related to the documents or knowledge base (e.g., small talk), respond appropriately using general knowledge.\n"
+                        "- Do not hallucinate.\n"
+                        "- Maintain a professional tone and avoid internal commentary.\n\n"
+                        "Search Result Follows:\n"
+                        f"{search_context}"
+                    )
+                )
+            ]
+
             first_chunk = True
             full_content = ""
 
-            async for chunk in LLMService.llm.astream(messages):
+            async for chunk in LLMService.llm.astream(final_prompt):
                 content_piece = chunk.message.content if hasattr(chunk, "message") else chunk.content
                 if not content_piece:
                     continue
@@ -331,7 +375,6 @@ class LLMService(metaclass=Singleton):
 
             history.chat_memory.add_message(AIMessage(content=full_content))
 
-            # Final stop chunk
             yield {
                 "chat_id": chat_id,
                 "customer_guid": customer_guid,
