@@ -32,6 +32,7 @@ export default async function DashboardLayout(props: { children: React.ReactNode
     { href: '/dashboard/tickets', label: 'Tickets' },
     { href: '/dashboard/checkclerk', label: 'Checkclerk' },
     { href: '/dashboard/app-settings', label: 'App Settings' },
+    { href: '/dashboard/documents', label: 'Documents' },
     { href: '/dashboard/chat', label: 'Chat' },
   ];
 

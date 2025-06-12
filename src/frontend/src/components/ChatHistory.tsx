@@ -4,7 +4,7 @@
 'use client';
 
 import { useOrganization, useUser } from '@clerk/nextjs';
-import { ClipboardList, MessageSquare, Settings, Ticket } from 'lucide-react';
+import { ClipboardList, MessageSquare, Settings, Ticket,FileText } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -468,6 +468,8 @@ export default function ChatHistory(props: ChatHistoryProps) {
                     Icon = ClipboardList;
                   } else if (link.href.includes('app-settings')) {
                     Icon = Settings;
+                  } else if (link.href.includes('documents')) {
+                    Icon = FileText;  
                   } else if (link.href.includes('chat')) {
                     Icon = MessageSquare;
                   }

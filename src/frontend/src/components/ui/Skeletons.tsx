@@ -38,6 +38,62 @@ export const TicketListSkeleton = () => {
   );
 };
 
+export const FilesTableSkeleton = () => {
+  return (
+    <div className="relative w-full rounded-md border shadow-md">
+      <ul className="custom-scrollbar max-h-[80vh] overflow-y-auto rounded-md bg-white shadow">
+        {/* Sticky Header Row */}
+        <li className="sticky top-0 z-10 flex items-center justify-between border-b bg-white font-bold text-gray-600">
+          <div className="p-4 w-1/3">File</div>
+          <div className="p-4 w-1/4">Upload Date and Time</div>
+          <div className="p-4 w-1/4">Upload Status</div>
+          <div className="p-4 w-1/6">Options</div>
+        </li>
+
+        {[...Array(10)].map((_, index) => (
+          <li
+            key={index}
+            className="flex items-center justify-between gap-4 bg-white px-4 py-3"
+          >
+            <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/6 animate-pulse rounded bg-gray-200" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export const DeletedFilesTableSkeleton = () => {
+  return (
+    <div className="relative w-full rounded-md border shadow-md">
+      <ul className="custom-scrollbar max-h-[80vh] overflow-y-auto rounded-md bg-white shadow">
+        {/* Sticky Header Row */}
+        <li className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white p-4 font-bold">
+          <div className="w-1/3 text-gray-600">File</div>
+          <div className="w-1/4 text-gray-600">Upload Date and Time</div>
+          <div className="w-1/4 text-gray-600">Delete Date and Time</div>
+          <div className="w-1/6 text-gray-600">Deletion Status</div>
+        </li>
+
+        {[...Array(10)].map((_, index) => (
+          <li
+            key={index}
+            className="flex items-center justify-between gap-4 bg-white px-4 py-3"
+          >
+            <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
+            <div className="h-4 w-1/6 animate-pulse rounded bg-gray-200" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 export const TicketDetailSkeleton = () => {
   return (
     <div className="mx-auto max-w-5xl animate-pulse rounded-lg bg-white p-6 shadow-md">

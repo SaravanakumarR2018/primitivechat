@@ -1661,6 +1661,22 @@ class DatabaseManager(metaclass=Singleton):
         finally:
             session.close()
 
+    def is_file_marked_for_deletion_in_common_db(self, customer_guid, filename):
+        session = self._session_factory()
+        try:
+            query = """
+                SELECT to_be_deleted
+                FROM common_db.customer_file_status
+                WHERE customer_guid = :customer_guid AND filename = :filename
+            """
+            result = session.execute(text(query), {"customer_guid": customer_guid, "filename": filename}).fetchone()
+            return bool(result and result["to_be_deleted"])
+        except Exception as e:
+            logger.error(f"Error checking deletion flag for {filename}: {e}")
+            return False
+        finally:
+            session.close()        
+
     def get_files_to_be_processed(self, max_threads):
         session = self._session_factory()
         try:
@@ -1816,9 +1832,10 @@ class DatabaseManager(metaclass=Singleton):
 
             # Query to fetch paginated files
             query = f"""
-                SELECT file_id, filename, status 
+                SELECT file_id, filename, status,uploaded_time 
                 FROM `{customer_db}`.uploadedfile_status
                 WHERE customer_guid = :customer_guid
+                AND to_be_deleted = False
                 ORDER BY uploaded_time DESC
                 LIMIT :limit OFFSET :offset
             """
@@ -1833,7 +1850,8 @@ class DatabaseManager(metaclass=Singleton):
                 {
                     "file_id": file.file_id,
                     "filename": file.filename,
-                    "status": file.status
+                    "status": file.status,
+                    "uploaded_time": file.uploaded_time
                 }
                 for file in result
             ]
@@ -2087,7 +2105,7 @@ class DatabaseManager(metaclass=Singleton):
 
             # Query to fetch paginated files with deletion status
             query = f"""
-                SELECT file_id, filename, delete_status 
+                SELECT file_id, filename, delete_status, uploaded_time, delete_request_timestamp 
                 FROM `{customer_db}`.uploadedfile_status
                 WHERE customer_guid = :customer_guid
                 AND to_be_deleted = TRUE
@@ -2105,7 +2123,9 @@ class DatabaseManager(metaclass=Singleton):
                 {
                     "file_id": file.file_id,
                     "filename": file.filename,
-                    "delete_status": file.delete_status
+                    "delete_status": file.delete_status,
+                    "uploaded_time": file.uploaded_time,
+                    "delete_request_timestamp": file.delete_request_timestamp
                 }
                 for file in result
             ]
