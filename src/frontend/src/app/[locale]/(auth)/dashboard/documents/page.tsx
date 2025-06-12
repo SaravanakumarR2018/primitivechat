@@ -8,6 +8,7 @@ import { toZonedTime as utcToZonedTime } from 'date-fns-tz';
 import 'react-toastify/dist/ReactToastify.css';
 import { FilesTableSkeleton, DeletedFilesTableSkeleton } from '@/components/ui/Skeletons';
 
+
 interface FileItem {
   fileid: string;
   filename: string;
@@ -31,8 +32,12 @@ export default function DocumentsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const [loadingFiles, setLoadingFiles] = useState(false);
-  const [loadingDeletedFiles, setLoadingDeletedFiles] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(true);
+  const [loadingDeletedFiles, setLoadingDeletedFiles] = useState(true);
+
+  // Add fetched flags to know if initial call is done.
+  const [hasFetchedFiles, setHasFetchedFiles] = useState(false);
+  const [hasFetchedDeletedFiles, setHasFetchedDeletedFiles] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -49,9 +54,11 @@ export default function DocumentsPage() {
       const data: FileItem[] = await res.json();
       if (data.length < 10) setFilesHasMore(false);
       setFiles(prev => (page === 1 ? data : [...prev, ...data]));
+      setHasFetchedFiles(true);
     } catch (error) {
       console.error(error);
       toast.error('Error fetching files');
+      setHasFetchedFiles(true);
     } finally {
       setLoadingFiles(false);
     }
@@ -66,9 +73,11 @@ export default function DocumentsPage() {
       const data: DeletedFileItem[] = await res.json();
       if (data.length < 10) setHasMore(false);
       setDeletedFiles(prev => (page === 1 ? data : [...prev, ...data]));
+      setHasFetchedDeletedFiles(true);
     } catch (error) {
       console.error(error);
       toast.error('Error fetching deleted files');
+      setHasFetchedDeletedFiles(true);
     } finally {
       setLoadingDeletedFiles(false);
     }
@@ -82,7 +91,6 @@ export default function DocumentsPage() {
       fetchFiles(nextPage);
     }
   };
-
 
   const handleDeletedFilesScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -98,11 +106,13 @@ export default function DocumentsPage() {
 
     if (showTable) {
       setFiles([]);
+      setHasFetchedFiles(false);
       setCurrentFilePage(1);
       setFilesHasMore(true);
       fetchFiles(1);
     } else {
       setDeletedFiles([]);
+      setHasFetchedDeletedFiles(false);
       setCurrentPage(1);
       setHasMore(true);
       fetchDeletedFiles(1);
@@ -112,31 +122,30 @@ export default function DocumentsPage() {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (showTable) {
-        const needRefresh = files.some(file =>
-            ['EXTRACTING', 'CHUNKING', 'EMBEDDING'].includes(file.embeddingstatus)
-        );
-        if (needRefresh) {
-            interval = setInterval(() => {
-                console.log('Refreshing files table');
-                // For a full refresh you may choose to reset the files state if needed
-                fetchFiles(1);
-            }, 5000);
-        }
+      const needRefresh = files.some(file =>
+        ['EXTRACTING', 'CHUNKING', 'EMBEDDING'].includes(file.embeddingstatus)
+      );
+      if (needRefresh) {
+        interval = setInterval(() => {
+          console.log('Refreshing files table');
+          fetchFiles(1);
+        }, 5000);
+      }
     } else {
-        const needRefresh = deletedFiles.some(file =>
-            ['PENDING_DELETION', 'DELETION_IN_PROGRES'].includes(file.deletion_status)
-        );
-        if (needRefresh) {
-            interval = setInterval(() => {
-                console.log('Refreshing deleted files table');
-                fetchDeletedFiles(1);
-            }, 5000);
-        }
+      const needRefresh = deletedFiles.some(file =>
+        ['PENDING_DELETION', 'DELETION_IN_PROGRES'].includes(file.deletion_status)
+      );
+      if (needRefresh) {
+        interval = setInterval(() => {
+          console.log('Refreshing deleted files table');
+          fetchDeletedFiles(1);
+        }, 5000);
+      }
     }
     return () => {
-        if (interval) clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
-}, [files, deletedFiles, showTable]);
+  }, [files, deletedFiles, showTable]);
 
   const confirmAndUpload = async () => {
     if (!selectedFile) return;
@@ -220,8 +229,8 @@ export default function DocumentsPage() {
           <button
             onClick={() => setShowTable(true)}
             className={`px-4 py-2 rounded-lg ${showTable
-                ? 'bg-blue-400 font-semibold text-black'
-                : 'font-semibold text-black border-blue-400'
+              ? 'bg-blue-400 font-semibold text-black'
+              : 'font-semibold text-black border-blue-400'
               }`}
           >
             Files
@@ -229,8 +238,8 @@ export default function DocumentsPage() {
           <button
             onClick={() => setShowTable(false)}
             className={`px-4 py-2 rounded-lg ${!showTable
-                ? 'bg-blue-400 font-semibold text-black'
-                : 'font-semibold text-black border-blue-400'
+              ? 'bg-blue-400 font-semibold text-black'
+              : 'font-semibold text-black border-blue-400'
               }`}
           >
             Deleted Files
@@ -266,23 +275,22 @@ export default function DocumentsPage() {
         )}
 
         {/* Table Display */}
-
         {showTable ? (
-          loadingFiles && files.length === 0 ? (
+          !hasFetchedFiles && loadingFiles ? (
             <FilesTableSkeleton />
           ) : (
             <div onScroll={handleFilesScroll} className="bg-white shadow rounded-lg overflow-auto max-h-96">
               <table className="w-full text-left table-auto">
-                <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-600 z-10">
+                <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-600 font-semibold z-10">
                   <tr>
-                    <th className="p-3">File</th>
-                    <th className="p-3">Upload Date and Time</th>
-                    <th className="p-3">Upload Status</th>
-                    <th className="p-3">Options</th>
+                    <th className="p-4 w-1/3">File</th>
+                    <th className="p-4 w-1/4">Upload Date and Time</th>
+                    <th className="p-4 w-1/4">Upload Status</th>
+                    <th className="p-4 w-1/6">Options</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {files.length === 0 ? (
+                  {files.length === 0 && hasFetchedFiles ? (
                     <tr>
                       <td className="p-4 text-center" colSpan={4}>
                         No files found.
@@ -292,45 +300,44 @@ export default function DocumentsPage() {
                     <>
                       {files.map((file) => (
                         <tr key={file.fileid} className="hover:bg-gray-100">
-                          <td className="p-3">{file.filename}</td>
-                          <td className="p-3">
+                          <td className="p-4">{file.filename}</td>
+                          <td className="p-4">
                             {file.uploaded_time
                               ? (() => {
-                                const rawDate = new Date(file.uploaded_time + 'Z');
-                                const userTimeZone =
-                                  Intl.DateTimeFormat().resolvedOptions().timeZone;
-                                const zonedDate = utcToZonedTime(rawDate, userTimeZone);
-                                return format(zonedDate, 'dd MMM yyyy hh:mm a');
-                              })()
+                                  const rawDate = new Date(file.uploaded_time + 'Z');
+                                  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                                  const zonedDate = utcToZonedTime(rawDate, userTimeZone);
+                                  return format(zonedDate, 'dd MMM yyyy hh:mm a');
+                                })()
                               : 'N/A'}
                           </td>
-                          <td className="p-3">
+                          <td className="p-4">
                             <div className="flex items-center space-x-2">
                               <span>{file.embeddingstatus}</span>
                               {['EXTRACTING', 'CHUNKING', 'EMBEDDING'].includes(
                                 file.embeddingstatus
                               ) && (
-                                  <svg
-                                    className="animate-spin self-center h-4 w-4 text-blue-500"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <circle
-                                      className="opacity-25"
-                                      cx="12"
-                                      cy="12"
-                                      r="10"
-                                      stroke="currentColor"
-                                      strokeWidth="4"
-                                    ></circle>
-                                    <path
-                                      className="opacity-75"
-                                      fill="currentColor"
-                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                    ></path>
-                                  </svg>
-                                )}
+                                <svg
+                                  className="animate-spin self-center h-4 w-4 text-blue-500"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                  ></path>
+                                </svg>
+                              )}
                             </div>
                           </td>
                           <td className="p-3 flex space-x-2 items-center">
@@ -339,6 +346,7 @@ export default function DocumentsPage() {
                               showTable={showTable}
                               fetchFiles={() => {
                                 setFiles([]);
+                                setHasFetchedFiles(false);
                                 setCurrentFilePage(1);
                                 setFilesHasMore(true);
                                 fetchFiles(1);
@@ -353,6 +361,7 @@ export default function DocumentsPage() {
                             <button
                               onClick={() => {
                                 setFiles([]);
+                                setHasFetchedFiles(false);
                                 setCurrentFilePage(1);
                                 setFilesHasMore(true);
                                 fetchFiles(1);
@@ -364,32 +373,6 @@ export default function DocumentsPage() {
                           </td>
                         </tr>
                       ))}
-                      {files.length > 0 && loadingFiles && (
-                        <tr>
-                          <td colSpan={4} className="p-4 text-center">
-                            <svg
-                              className="animate-spin h-6 w-6 text-blue-500 inline-block"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                              ></path>
-                            </svg>
-                          </td>
-                        </tr>
-                      )}
                     </>
                   )}
                 </tbody>
@@ -397,17 +380,17 @@ export default function DocumentsPage() {
             </div>
           )
         ) : (
-          loadingDeletedFiles && deletedFiles.length === 0 ? (
+          !hasFetchedDeletedFiles && loadingDeletedFiles ? (
             <DeletedFilesTableSkeleton />
           ) : (
             <div onScroll={handleDeletedFilesScroll} className="bg-white shadow rounded-lg overflow-auto max-h-96">
               <table className="w-full text-left table-auto">
-                <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-600 z-10">
+                <thead className="sticky top-0 bg-white border-b border-gray-200 text-gray-600 font-semibold z-10">
                   <tr>
-                    <th className="p-4">File</th>
-                    <th className="p-4">Upload Date and Time</th>
-                    <th className="p-4">Delete Date and Time</th>
-                    <th className="p-4">Deletion Status</th>
+                    <th className="p-4 w-1/3">File</th>
+                    <th className="p-4 w-1/4">Upload Date and Time</th>
+                    <th className="p-4 w-1/4">Delete Date and Time</th>
+                    <th className="p-4 w-1/6">Deletion Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -425,23 +408,21 @@ export default function DocumentsPage() {
                           <td className="p-4">
                             {file.uploaded_time
                               ? (() => {
-                                const rawDate = new Date(file.uploaded_time + 'Z');
-                                const userTimeZone =
-                                  Intl.DateTimeFormat().resolvedOptions().timeZone;
-                                const zonedDate = utcToZonedTime(rawDate, userTimeZone);
-                                return format(zonedDate, 'dd MMM yyyy hh:mm a');
-                              })()
+                                  const rawDate = new Date(file.uploaded_time + 'Z');
+                                  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                                  const zonedDate = utcToZonedTime(rawDate, userTimeZone);
+                                  return format(zonedDate, 'dd MMM yyyy hh:mm a');
+                                })()
                               : 'N/A'}
                           </td>
                           <td className="p-4">
                             {file.delete_request_timestamp
                               ? (() => {
-                                const rawDate = new Date(file.delete_request_timestamp + 'Z');
-                                const userTimeZone =
-                                  Intl.DateTimeFormat().resolvedOptions().timeZone;
-                                const zonedDate = utcToZonedTime(rawDate, userTimeZone);
-                                return format(zonedDate, 'dd MMM yyyy hh:mm a');
-                              })()
+                                  const rawDate = new Date(file.delete_request_timestamp + 'Z');
+                                  const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                                  const zonedDate = utcToZonedTime(rawDate, userTimeZone);
+                                  return format(zonedDate, 'dd MMM yyyy hh:mm a');
+                                })()
                               : 'N/A'}
                           </td>
                           <td className="p-4">
@@ -450,57 +431,31 @@ export default function DocumentsPage() {
                               {['PENDING_DELETION', 'DELETION_IN_PROGRES'].includes(
                                 file.deletion_status
                               ) && (
-                                  <svg
-                                    className="animate-spin h-4 w-4 text-blue-500"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <circle
-                                      className="opacity-25"
-                                      cx="12"
-                                      cy="12"
-                                      r="10"
-                                      stroke="currentColor"
-                                      strokeWidth="4"
-                                    ></circle>
-                                    <path
-                                      className="opacity-75"
-                                      fill="currentColor"
-                                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                    ></path>
-                                  </svg>
-                                )}
+                                <svg
+                                  className="animate-spin h-4 w-4 text-blue-500"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                  ></path>
+                                </svg>
+                              )}
                             </div>
                           </td>
                         </tr>
                       ))}
-                      {deletedFiles.length > 0 && loadingDeletedFiles && (
-                        <tr>
-                          <td colSpan={4} className="p-4 text-center">
-                            <svg
-                              className="animate-spin h-6 w-6 text-blue-500 inline-block"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                              ></path>
-                            </svg>
-                          </td>
-                        </tr>
-                      )}
                     </>
                   )}
                 </tbody>

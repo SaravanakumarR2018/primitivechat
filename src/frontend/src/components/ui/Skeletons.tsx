@@ -43,11 +43,11 @@ export const FilesTableSkeleton = () => {
     <div className="relative w-full rounded-md border shadow-md">
       <ul className="custom-scrollbar max-h-[80vh] overflow-y-auto rounded-md bg-white shadow">
         {/* Sticky Header Row */}
-        <li className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white px-4 py-3 text-sm font-semibold md:text-base">
-          <div className="w-1/3">File</div>
-          <div className="w-1/4">Upload Date and Time</div>
-          <div className="w-1/4">Upload Status</div>
-          <div className="w-1/6">Options</div>
+        <li className="sticky top-0 z-10 flex items-center justify-between border-b bg-white font-bold text-gray-600">
+          <div className="p-4 w-1/3">File</div>
+          <div className="p-4 w-1/4">Upload Date and Time</div>
+          <div className="p-4 w-1/4">Upload Status</div>
+          <div className="p-4 w-1/6">Options</div>
         </li>
 
         {[...Array(10)].map((_, index) => (
@@ -58,10 +58,7 @@ export const FilesTableSkeleton = () => {
             <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200" />
             <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
             <div className="h-4 w-1/4 animate-pulse rounded bg-gray-200" />
-            <div className="flex w-1/6 items-center justify-start gap-2">
-              <div className="size-5 animate-pulse rounded-full bg-gray-300" />
-              <div className="size-5 animate-pulse rounded-full bg-gray-300" />
-            </div>
+            <div className="h-4 w-1/6 animate-pulse rounded bg-gray-200" />
           </li>
         ))}
       </ul>
@@ -74,11 +71,11 @@ export const DeletedFilesTableSkeleton = () => {
     <div className="relative w-full rounded-md border shadow-md">
       <ul className="custom-scrollbar max-h-[80vh] overflow-y-auto rounded-md bg-white shadow">
         {/* Sticky Header Row */}
-        <li className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white px-4 py-3 text-sm font-semibold md:text-base">
-          <div className="w-1/3">File</div>
-          <div className="w-1/4">Upload Date and Time</div>
-          <div className="w-1/4">Delete Date and Time</div>
-          <div className="w-1/6">Deletion Status</div>
+        <li className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white p-4 font-bold">
+          <div className="w-1/3 text-gray-600">File</div>
+          <div className="w-1/4 text-gray-600">Upload Date and Time</div>
+          <div className="w-1/4 text-gray-600">Delete Date and Time</div>
+          <div className="w-1/6 text-gray-600">Deletion Status</div>
         </li>
 
         {[...Array(10)].map((_, index) => (
