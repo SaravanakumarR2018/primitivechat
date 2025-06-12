@@ -338,7 +338,7 @@ class LLMService(metaclass=Singleton):
                         "- If the query is not related to the documents or knowledge base (e.g., small talk), respond appropriately using general knowledge.\n"
                         "- Do not hallucinate.\n"
                         "- Maintain a professional tone and avoid internal commentary.\n\n"
-                        "Search Result Follows:\n"
+                        "Search Result:\n"
                         f"{search_context}"
                     )
                 )
