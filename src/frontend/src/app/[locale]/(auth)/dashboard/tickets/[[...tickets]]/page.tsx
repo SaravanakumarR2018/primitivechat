@@ -32,9 +32,9 @@ const TicketManagementPage = () => {
   };
 
   return (
-    <div className="flex h-screen flex-col md:flex-row">
+    <div className="flex flex-col md:flex-row flex-1">
       <Sidebar organizationName={organization?.name || null} />
-      <main className="min-h-screen flex-1 p-4 text-sm">
+      <main className="flex-1 p-4 text-sm">
         <div className="flex justify-end">
           <button
             type="button"
