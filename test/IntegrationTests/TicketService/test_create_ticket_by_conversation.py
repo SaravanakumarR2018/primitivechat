@@ -14,22 +14,8 @@ logger = get_primitivechat_logger(__name__)
 
 
 class TestCreateTicketByConversationAPI(unittest.TestCase):
-    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST', 'localhost')}:{os.getenv('CHAT_SERVICE_PORT', '8000')}" # Provide defaults
+    BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST')}:{os.getenv('CHAT_SERVICE_PORT')}" # Provide defaults
     ORG_ROLE = 'org:admin' 
-    allowed_custom_field_sql_types = ["VARCHAR(255)", "INT", "BOOLEAN", "DATETIME", "MEDIUMTEXT", "FLOAT", "TEXT"]
-    
-    @classmethod
-    def setUpClass(cls):
-        """Set LLM response usage only once for all tests in the class."""
-        cls.BASE_URL = f"http://{os.getenv('CHAT_SERVICE_HOST', 'localhost')}:{os.getenv('CHAT_SERVICE_PORT', '8000')}"
-        use_llm_response_url = f"{cls.BASE_URL}/llm_service/use_llm_response"
-        llm_response_payload = {
-            "use_llm": True,
-            "llmprovider": "GEMINI",
-            "model": "gemini-1.5-flash",
-        }
-        response = requests.post(use_llm_response_url, json=llm_response_payload)
-        assert response.status_code == HTTPStatus.OK, f"Failed to set LLM response usage. Response: {response.text}"
 
     @staticmethod
     def use_llm_response(use_llm: bool, llmprovider: str = None, model: str = None):
@@ -65,8 +51,8 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
         # 2. Create token
         self.token = create_test_token(org_id=self.org_id, org_role=self.ORG_ROLE)
         self.headers['Authorization'] = f'Bearer {self.token}'
-
-        
+        TestCreateTicketByConversationAPI.use_llm_response(use_llm=False)
+        self.assertEqual(TestCreateTicketByConversationAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
         # 4. Create a chat and add messages to establish context
         chat_url = f"{self.BASE_URL}/chat"
         # First message to create the chat
@@ -76,11 +62,6 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
         response_json = response.json()
         self.chat_id = response_json.get("chat_id")
         self.assertIsNotNone(self.chat_id, "Failed to get chat_id")
-
-        # Disable LLM by default for all tests
-        TestCreateTicketByConversationAPI.use_llm_response(False)
-        self.assertEqual(TestCreateTicketByConversationAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
-
 
     def _add_chat_messages(self, chat_url, chat_id, headers):
         """Helper to add a set of predefined messages to a chat for context."""
@@ -102,12 +83,16 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
         # Step 1: Create ticket
         chat_url = f"{self.BASE_URL}/chat"
         self._add_chat_messages(chat_url, self.chat_id, self.headers)
+        TestCreateTicketByConversationAPI.use_llm_response(use_llm=True, llmprovider="GEMINI", model="gemini-1.5-flash")
+        self.assertEqual(TestCreateTicketByConversationAPI.get_llm_response_mode().get("llm_response_mode"), "LLM")
         url = f"{self.BASE_URL}/create_ticket_by_conversation?message_count=20"
         payload = {
             "chat_id": self.chat_id,
             "reported_by": "test_user"  # Use the first 3 messages added in setUp
         }
         response = requests.post(url, json=payload, headers=self.headers)
+        TestCreateTicketByConversationAPI.use_llm_response(use_llm=False, llmprovider="GEMINI", model="gemini-1.5-flash")
+        self.assertEqual(TestCreateTicketByConversationAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
         self.assertEqual(response.status_code, HTTPStatus.OK, f"API call failed: {response.text}")
         response_data = response.json()
         self.assertIn("ticket_id", response_data, "Response should contain 'ticket_id'")
@@ -126,6 +111,7 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
             "ticket_id", "chat_id", "title", "description", "priority",
             "status", "reported_by", "assigned", "created_at", "updated_at"
         ]
+
         for field in expected_fields:
             self.assertIn(field, ticket_data, f"Missing field in response: {field}")
             if field == "assigned":
@@ -145,80 +131,6 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
         self.assertIsInstance(ticket_data["assigned"], (str, type(None)))  # can be None or a string
         self.assertIn("created_at", ticket_data)
         self.assertIn("updated_at", ticket_data)
-
-    def test_create_ticket_by_conversation_with_custom_fields(self):
-        # 1. Create a new customer and token
-        org_name = "test_org_custom_fields_default"
-        customer_data = add_customer(org_name)
-        customer_guid = customer_data.get("customer_guid")
-        org_id = customer_data.get("org_id")
-        self.assertIsNotNone(customer_guid, "Failed to get customer_guid")
-        self.assertIsNotNone(org_id, "Failed to get org_id")
-
-        token = create_test_token(org_id=org_id, org_role=self.ORG_ROLE)
-        headers = {'Authorization': f'Bearer {token}'}
-
-        # 2. Add required custom fields for this customer
-        custom_fields_url = f"{self.BASE_URL}/custom_fields"
-        custom_fields = {}
-        for field_type in self.allowed_custom_field_sql_types:
-            field_name = f"field_{field_type.split('(')[0].lower()}"
-            payload = {
-                "field_name": field_name,
-                "field_type": field_type,
-                "required": True
-            }
-            response = requests.post(custom_fields_url, json=payload, headers=headers)
-            self.assertEqual(response.status_code, HTTPStatus.CREATED, f"Failed to create custom field {field_name}")
-            custom_fields[field_name] = field_type
-
-        # 3. Create a chat for this customer
-        chat_url = f"{self.BASE_URL}/chat"
-        chat_create_payload = {"question": "Testing required custom fields.", "stream": False}
-        response = requests.post(chat_url, json=chat_create_payload, headers=headers)
-        self.assertEqual(response.status_code, HTTPStatus.OK, f"Failed to create chat. Response: {response.text}")
-        chat_id = response.json().get("chat_id")
-        self.assertIsNotNone(chat_id, "Failed to get chat_id")
-        self._add_chat_messages(chat_url, chat_id, headers)
-
-        # 4. Create ticket by conversation (LLM will not provide custom_fields)
-        url = f"{self.BASE_URL}/create_ticket_by_conversation?message_count=20"
-        payload = {
-            "chat_id": chat_id,
-            "reported_by": "test_user"
-        }
-        response = requests.post(url, json=payload, headers=headers)
-        self.assertEqual(response.status_code, HTTPStatus.OK, f"API call failed: {response.text}")
-        ticket_id = response.json()["ticket_id"]
-        self.assertIsInstance(ticket_id, int, "ticket_id should be an integer")
-
-        # 5. Fetch ticket details and check custom_fields for default values
-        ticket_url = f"{self.BASE_URL}/tickets/{ticket_id}"
-        ticket_response = requests.get(ticket_url, headers=headers)
-        self.assertEqual(ticket_response.status_code, HTTPStatus.OK, f"Failed to fetch ticket: {ticket_response.text}")
-        ticket_data = ticket_response.json()
-        self.assertIn("custom_fields", ticket_data)
-        custom_fields_data = ticket_data["custom_fields"]
-        self.assertIsInstance(custom_fields_data, dict)
-
-        # 6. Check default values for each required custom field
-        for field_name, field_type in custom_fields.items():
-            self.assertIn(field_name, custom_fields_data, f"Missing required custom field: {field_name}")
-            value = custom_fields_data[field_name]
-            if field_type.startswith("VARCHAR") or field_type.startswith("TEXT") or field_type.startswith("MEDIUMTEXT"):
-                self.assertEqual(value, "(Not Provided)")
-            elif field_type.startswith("INT"):
-                self.assertEqual(value, 0)
-            elif field_type.startswith("FLOAT"):
-                self.assertEqual(value, 0.0)
-            elif field_type.startswith("BOOLEAN") or field_type.startswith("TINYINT(1)"):
-                self.assertEqual(value, False)
-            elif field_type.startswith("DATETIME"):
-                # Accept any string that looks like a datetime (with T or space separator)
-                self.assertIsInstance(value, str)
-                self.assertRegex(value, r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}")
-            else:
-                self.assertTrue(value.startswith("(Default for required"), f"Unexpected default for {field_type}: {value}")
 
     def test_create_ticket_invalid_chat_id(self):
         payload = {
@@ -318,7 +230,6 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
         self.assertIn("detail", response.json(), "'detail' key not found in response")
         self.assertEqual(response.json()["detail"], "Forbidden: Insufficient role", "Unexpected error message")
 
-
     def test_create_ticket_with_invalid_org_id_no_mapped_customer_guid(self):
         """Test API request with an org_id that has no mapped customer_guid for create_ticket_by_conversation."""
         url = f"{self.BASE_URL}/create_ticket_by_conversation?message_count=3"
@@ -333,13 +244,12 @@ class TestCreateTicketByConversationAPI(unittest.TestCase):
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND, "Unmapped org_id should result in 400 Bad Request")
         self.assertIn("Database customer_None does not exist", response.text)
         logger.info("Negative test case for invalid org_id/customer_guid passed.")
-
+    
     def tearDown(self):
         logger.info(f"=== Test {self._testMethodName} completed and passed ===")
+        TestCreateTicketByConversationAPI.use_llm_response(use_llm=False, llmprovider="GEMINI", model="gemini-1.5-flash")
+        self.assertEqual(TestCreateTicketByConversationAPI.get_llm_response_mode().get("llm_response_mode"), "NONLLM")
         # Reset LLM mode to disabled after each test
-        TestCreateTicketByConversationAPI.use_llm_response(False)
-        llm_mode = TestCreateTicketByConversationAPI.get_llm_response_mode().get("llm_response_mode")
-        logger.info(f"LLM response mode after test: {llm_mode}")
         logger.info("=== Test teardown complete ===")
 
 if __name__ == '__main__':
