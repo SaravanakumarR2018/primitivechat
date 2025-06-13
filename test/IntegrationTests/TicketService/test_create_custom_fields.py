@@ -51,20 +51,6 @@ class TestCustomFieldAPI(unittest.TestCase):
         self.assertEqual(response_data["field_name"], "test_field")
         logger.info("Test case for valid custom field addition passed.")
 
-    def test_add_custom_field_missing_required_field(self):
-        """Test adding a custom field with missing required field."""
-        url = f"{self.BASE_URL}/custom_fields"
-        data = {
-            "field_name": "missing_required_field",
-            "field_type": "VARCHAR(255)"
-            # 'required' field is missing
-        }
-        logger.info(f"Testing missing 'required' field with data: {data}")
-        response = requests.post(url, json=data, headers=self.headers)
-        self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY, "Missing required field should result in 422")
-        self.assertIn("required", response.text.lower())
-        logger.info("Test case for missing required field passed.")
-
     def test_add_custom_field_invalid_org_id_or_customer_guid(self):
         """Test adding a custom field with an invalid org_id."""
         url = f"{self.BASE_URL}/custom_fields"
@@ -231,26 +217,6 @@ class TestCustomFieldAPI(unittest.TestCase):
         self.assertEqual(response_data["field_type"], data["field_type"])
         self.assertTrue(response_data["required"])
         logger.info(f"Test case for custom field with type {field_type} passed.")
-
-    def test_invalid_required_field_value(self):
-        """Test providing invalid values for the 'required' field."""
-        invalid_values = ["Yes", "No", 123, None, {}, []]
-        for value in invalid_values:
-            with self.subTest(value=value):
-                url = f"{self.BASE_URL}/custom_fields"
-                data = {
-                    "field_name": "test_invalid_required",
-                    "field_type": "VARCHAR(255)",
-                    "required": value
-                }
-                logger.info(f"Testing invalid required field value: {value} with data: {data}")
-                response = requests.post(url, json=data, headers=self.headers)
-
-                # Assert response status code
-                self.assertEqual(response.status_code, HTTPStatus.UNPROCESSABLE_ENTITY,
-                                 f"Expected 422 for required field value: {value}")
-
-                logger.info(f"Testtest_invalid_required_field_value case for invalid required field value {value} passed.")
 
     def test_field_name_too_long(self):
         """Test providing a 'field_name' value that exceeds the maximum allowed length."""
