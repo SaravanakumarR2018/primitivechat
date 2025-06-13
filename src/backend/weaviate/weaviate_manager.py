@@ -241,11 +241,12 @@ class WeaviateManager(metaclass=Singleton):
 
             if class_name not in raw_result["data"]["Get"]:
                 logger.warning(f"[ADVANCED SEARCH] No results found for customer: {class_name}")
-                raise ValueError(f"No results found for customer: {class_name}")
+                return {"results": []}
 
             candidates = raw_result.get("data", {}).get("Get", {}).get(class_name, [])
             if not candidates:
-                raise ValueError(f"No results found for customer: {class_name}")
+                logger.warning(f"[ADVANCED SEARCH] No candidates found for customer: {class_name}")
+                return {"results": []}
 
             for obj in candidates:
                 if obj.get("customer_guid") != customer_guid:
