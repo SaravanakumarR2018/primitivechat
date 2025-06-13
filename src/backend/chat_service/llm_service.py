@@ -325,7 +325,7 @@ class LLMService(metaclass=Singleton):
             logger.debug(f"Rewritten query: {rewritten_query}")
 
             # --- Document Retrieval ---
-            search_results = weaviate_manager.search_query(customer_guid, rewritten_query)
+            search_results = weaviate_manager.search_query_advanced(customer_guid, rewritten_query)
             search_context = json.dumps(search_results)
 
             # --- Final Answer Generation ---
