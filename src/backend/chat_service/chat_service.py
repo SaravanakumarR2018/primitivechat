@@ -46,6 +46,11 @@ class GetAllChatsRequest(BaseModel):
 class DeleteChatsRequest(BaseModel):
     chat_id: str
 
+class AdvancedSearchRequest(BaseModel):
+    question: str
+    top_k: int = 3
+    alpha: float = 0.5
+
 # API endpoint to add a new customer
 @app.post("/addcustomer", tags=["Customer Management"])
 async def add_customer(request: Request, auth=Depends(auth_admin_dependency)):
@@ -605,3 +610,33 @@ async def delete_chats(delete_chats_request: DeleteChatsRequest, request: Reques
     except Exception as e:
         logger.error(f"Unexpected error in delete_chats(): {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while deleting chats")
+
+
+@app.post("/advanced_search", tags=["Chat Management"])
+async def advanced_search(
+    search_request: AdvancedSearchRequest,
+    request: Request,
+    auth=Depends(auth_admin_dependency)
+):
+    logger.debug(f"Entering advanced_search() with Correlation ID: {request.state.correlation_id}")
+
+    try:
+        customer_guid = customer_service.get_customer_guid_from_token(request)
+        if not customer_guid:
+            raise HTTPException(status_code=404, detail="Invalid customer_guid provided")
+
+        # Call the advanced search function
+        results = weaviate_manager.search_query_advanced(
+            customer_guid=customer_guid,
+            question=search_request.question,
+            top_k=search_request.top_k,
+            alpha=search_request.alpha
+        )
+        return results
+
+    except HTTPException as e:
+        logger.error(f"HTTPException in advanced_search(): {e.detail}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error in advanced_search(): {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during advanced search")
