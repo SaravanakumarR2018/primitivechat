@@ -71,6 +71,12 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   }, [messages]);
 
   useEffect(() => {
+  if (messagesEndRef.current) {
+    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }
+}, [messages, loadingMore, isTyping]);
+
+  useEffect(() => {
     const handleResize = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
@@ -474,7 +480,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)] flex-col" id="chat-root">
+    <div className="flex min-h-[calc(80vh-40px)] flex-col" id="chat-root">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col pb-4">
         {messages.length === 0 && !isTyping
           ? (
@@ -505,7 +511,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
             )
           : (
               <>
-                <div className="mt-20 flex-1 space-y-4 px-4 pt-4" id="messages-container">
+                <div className="flex-1 space-y-4 px-4 pt-5" id="messages-container">
                   {loadingMore && (
                     <div className="flex justify-center py-2">
                       <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -547,7 +553,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="sticky bottom-0 z-10 mx-auto mb-0 flex w-full max-w-xl items-center rounded-full border border-gray-300 bg-gray-100 px-4 py-3 shadow-sm">
+                <div className="fixed bottom-6 z-10 mb-0 flex w-full max-w-xl items-center rounded-full border border-gray-300 bg-gray-100 px-4 py-3 shadow-sm ml-32 mr-32">
                   <input
                     type="text"
                     value={input}
