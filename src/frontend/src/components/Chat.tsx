@@ -35,6 +35,17 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   const getScrollContainer = useCallback((): HTMLDivElement | null => {
     return document.getElementById('dashboard-scroll-container') as HTMLDivElement | null;
   }, []);
+
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior = 'smooth') => {
+      const container = getScrollContainer();
+      if (!container) return;
+      if (container.scrollHeight > container.clientHeight) {
+        container.scrollTo({ top: container.scrollHeight, behavior });
+      }
+    },
+    [getScrollContainer],
+  );
   // Load messages from sessionStorage
   useEffect(() => {
     const loadChat = () => {
@@ -66,13 +77,13 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   useEffect(() => {
     if (isAppendingRef.current) {
       isAppendingRef.current = false;
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom('smooth');
     }
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
   useEffect(() => {
     const handleResize = () => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom('smooth');
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -297,6 +308,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
               if (content) {
                 aiMessage.message += content;
                 setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
+                scrollToBottom('auto');
               }
             } catch (e) {
               console.error('Stream parsing error:', e);
@@ -427,6 +439,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
               if (content) {
                 aiMessage.message += content;
                 setMessages(prev => [...prev.slice(0, -1), { ...aiMessage }]);
+                scrollToBottom('auto');
               }
             } catch (e) {
               console.error('Stream parse error:', e);
@@ -476,7 +489,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col" id="chat-root">
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col pb-4">
-        {messages.length === 0 && !isTyping
+        {messages.length === 0 && !isTyping && input.length === 0
           ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 text-center">
                 <h2 className="text-2xl font-semibold text-gray-500">
@@ -505,7 +518,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
             )
           : (
               <>
-                <div className="mt-20 flex-1 space-y-4 px-4 pt-4" id="messages-container">
+                <div className="mt-20 flex-1 space-y-4 px-4 pt-4 pb-24" id="messages-container">
                   {loadingMore && (
                     <div className="flex justify-center py-2">
                       <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
