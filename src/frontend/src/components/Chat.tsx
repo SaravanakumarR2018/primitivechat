@@ -530,7 +530,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
                     .map(msg => (
 
                       <div key={msg.id || crypto.randomUUID()} className={`flex w-full ${msg.sender_type === 'customer' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`prose prose-sm max-w-[85vw] whitespace-pre-wrap rounded-2xl p-3 shadow-md ${
+                        <div className={`prose prose-sm max-w-2xl whitespace-pre-wrap rounded-2xl p-3 shadow-md ${
                           msg.sender_type === 'customer'
                             ? 'rounded-br-none bg-blue-400 text-white'
                             : 'bg-gray-200 text-gray-800'
