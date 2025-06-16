@@ -553,7 +553,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="fixed bottom-0 mb-0 flex w-full max-w-2xl items-center rounded-full border border-gray-300 bg-gray-100 px-5 py-3 shadow-sm md:ml-22">
+                <div className="sticky bottom-0 lg:fixed mb-0 flex w-full items-center rounded-full border border-gray-300 bg-gray-100 px-5 py-3 shadow-sm max-w-2xl md:ml-22">
                   <input
                     type="text"
                     value={input}
