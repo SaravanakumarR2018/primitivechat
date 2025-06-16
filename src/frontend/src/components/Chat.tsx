@@ -481,7 +481,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
 
   return (
     <div className="flex min-h-[calc(80vh-40px)] flex-col" id="chat-root">
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col pb-4">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col pb-4">
         {messages.length === 0 && !isTyping
           ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 text-center">
@@ -511,7 +511,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
             )
           : (
               <>
-                <div className="flex-1 space-y-4 px-4 pt-4" id="messages-container">
+                <div className="flex-1 space-y-4 px-4 pt-6" id="messages-container">
                   {loadingMore && (
                     <div className="flex justify-center py-2">
                       <svg className="size-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -553,7 +553,7 @@ export default function Chat({ chatId, addChatToHistoryRef }: { chatId: string; 
                   <div ref={messagesEndRef} />
                 </div>
 
-                <div className="fixed bottom-6 z-10 mb-0 flex w-full max-w-xl items-center rounded-full border border-gray-300 bg-gray-100 px-4 py-3 shadow-sm ml-32">
+                <div className="fixed bottom-0 mb-0 flex w-full max-w-2xl items-center rounded-full border border-gray-300 bg-gray-100 px-5 py-3 shadow-sm md:ml-22">
                   <input
                     type="text"
                     value={input}
