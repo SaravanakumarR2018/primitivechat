@@ -13,7 +13,7 @@ export default function Page() {
   return (
     <div className="relative flex size-full">
       {/* Chat Area */}
-      <div className="h-screen flex-1 pt-12 transition-all duration-300 ">
+      <div className="flex-1 transition-all duration-300">
         <Chat chatId={chatId} addChatToHistoryRef={addChatToHistoryRef} />
       </div>
     </div>
